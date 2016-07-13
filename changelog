@@ -1,0 +1,41 @@
+Zeta (098a to 098c) alpha; urgency=low
+
+  * Improved heuristics, partly ported from the Stockfish chess engine
+  * AutoConfig for OpenCL devices
+  * Parameter tuning
+  * Zeta 098c on Nvidia GeForce GTX 480, ca. 5 Mnps, est. 2000 Elo
+  * Zeta 098c on AMD Radeon R9 290, ca. 3.2 Mnps
+
+ -- Srdja Matovic <s.matovic@app26.de>  Aug 2013
+
+Zeta (097a to 097z) alpha; urgency=low
+
+  * Implementation of an BestFirstMiniMax search algorithm with UCT parameters for parallelization
+  * Zeta 097x on Nvidia GeForce GTX 480, ca. 5 Mnps, est. 1800 Elo
+  * Zeta 097x on AMD Radeon HD 7750, ca. 800 Knps
+
+ -- Srdja Matovic <s.matovic@app26.de>  Jan 2013
+
+Zeta (0930 to 0960) alpha; urgency=low
+
+  * Tested Monte Carlo Tree Search without UCT across multiple Compute Units of the GPU
+  * Tested LIFO-Stack based load balancing for AlphaBeta search on one Compute Unit of the GPU
+  * Tested the 'Nagging' and 'Spam' parallelization approach for AlphaBeta search on one Compute Unit of the GPU
+  * Tested 'RBFMS', Randomized BestFirstMiniMax Search, a parallelized version of BestFirstMinixMax, across multiple Compute Units of the GPU
+
+ -- Srdja Matovic <s.matovic@app26.de>  2012
+
+Zeta (0915 to 0918) alpha; urgency=low
+
+  * 64 bit Magic Bitboard Move Generator running
+  * AlphaBeta search algorithm with 'SPPS'-parallelization running 128 threads on one Compute Unit of the GPU
+
+ -- Srdja Matovic <s.matovic@app26.de>  2011
+
+Zeta (0900 to 0910) alpha; urgency=low
+
+  * Tested 32 bit 0x88 and 64 bit Magic Bitboard Move Generator
+  * Ported Heuristics, the Evaluation Function, from CPU engine 'ZetaDva' (~2000 Elo) to OpenCL
+
+ -- Srdja Matovic <s.matovic@app26.de>  2010
+
