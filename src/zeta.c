@@ -846,10 +846,10 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     int tempomate = 0;
     int pvi = 0;
 
-    while( NODES[tempomate].child > 0 ) {
+    while( NODES[tempomate].child > 0 && NODES[tempomate].child < max_nodes_to_expand)
+    {
 
         tempo = -INF;
-        // debug print into xboard.debug
         for (i=NODES[tempomate].child; i < NODES[tempomate].child + NODES[tempomate].children; i++) {
 
 
