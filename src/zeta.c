@@ -797,7 +797,9 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         if (abs(tmpscore) == INF) // skip illegal
             continue;
 
-        if (tmpscore > score || (tmpscore == score && tmpvisits > visits)) {
+//        if (tmpscore > score || (tmpscore == score && tmpvisits > visits)) {
+        if (tmpscore > score)
+        {
             score = tmpscore;
             visits = tmpvisits;
             // collect bestmove
