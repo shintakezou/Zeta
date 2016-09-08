@@ -62,9 +62,6 @@ typedef struct {
 
 #define MAXLEGALMOVES 220
 
-#define SwitchSide(som)     ((som == WHITE)? BLACK : WHITE)
-#define RelativeRank(som,r) (r^(som*7))
-
 #define PEMPTY  0
 #define PAWN    1
 #define KNIGHT  2
@@ -136,20 +133,15 @@ enum Squares
 };
 
 // tuneable search parameter
-#define MAXEVASIONS          3                  // 0 to max_depth
-#define TERMINATESOFT        1                 // 0 or 1, will finish all searches before exit
-#define SMOOTHUCT            0.28             // factor for uct params in select formula
-#define PROMOSEARCHEXTENSION 1               // 0 or 1
-#define CHECKSEARCHEXTENSION 1              // 0 or 1
-#define SINGLEREPLYEXTENSION 1             // 0 or 1
-#define CASTLEEXTENSION      1            // 0 or 1
-#define SILENTEXTENSION      1           // 0 or 1
-#define SKIPMATE             1          // 0 or 1
-#define ROOTSEARCH           0        // 0 or 1
+#define MAXEVASIONS          3            // in check evasions
+#define TERMINATESOFT        1           // 0 or 1, will finish all searches before exit
+#define SMOOTHUCT            0.28       // factor for uct params in select formula
+#define SKIPMATE             0         // 0 or 1
+#define ROOTSEARCH           1        // 0 or 1
 #define SCOREWEIGHT          0.33    // factor for board score in select formula
-#define ZETAPRUNING          0      // 0 or 1
+#define ZETAPRUNING          1      // 0 or 1
 
-
+/*
 // Zobrist Keys for Hashing
 __constant Hash Zobrist[896] = {
    0x0               , 0x0               , 0x0               , 0x0,
@@ -377,7 +369,7 @@ __constant Hash Zobrist[896] = {
    0xF1BCC3D275AFE51A, 0xE728E8C83C334074, 0x96FBF83A12884624, 0x81A1549FD6573DA5,
    0x5FA7867CAF35E149, 0x56986E2EF3ED091B, 0x917F1DD5F8886C61, 0xD20D8C88C8FFE65F
 };
-
+*/
 
 
 // Magic Bitboard Move gen stuff
@@ -529,8 +521,6 @@ __constant Bitboard PawnAttackTables[4*64] =
 0x100,0x200,0x400,0x800,0x1000,0x2000,0x4000,0x8000,0x10000,0x20000,0x40000,0x80000,0x100000,0x200000,0x400000,0x800000,0x1000000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000,0x80000000,0x100000000,0x200000000,0x400000000,0x800000000,0x1000000000,0x2000000000,0x4000000000,0x8000000000,0x10000000000,0x20000000000,0x40000000000,0x80000000000,0x100000000000,0x200000000000,0x400000000000,0x800000000000,0x1000000000000,0x2000000000000,0x4000000000000,0x8000000000000,0x10000000000000,0x20000000000000,0x40000000000000,0x80000000000000,0x100000000000000,0x200000000000000,0x400000000000000,0x800000000000000,0x1000000000000000,0x2000000000000000,0x4000000000000000,0x8000000000000000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80,0x100,0x200,0x400,0x800,0x1000,0x2000,0x4000,0x8000,0x10000,0x20000,0x40000,0x80000,0x100000,0x200000,0x400000,0x800000,0x1000000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000,0x80000000,0x100000000,0x200000000,0x400000000,0x800000000,0x1000000000,0x2000000000,0x4000000000,0x8000000000,0x10000000000,0x20000000000,0x40000000000,0x80000000000,0x100000000000,0x200000000000,0x400000000000,0x800000000000,0x1000000000000,0x2000000000000,0x4000000000000,0x8000000000000,0x10000000000000,0x20000000000000,0x40000000000000,0x80000000000000
 };
-
-
 
 /* 
   piece square tables based on proposal by Tomasz Michniewski
@@ -756,7 +746,7 @@ void undomove(__private Bitboard *board, Move move) {
 /* ############################# */
 /* ###         Hash          ### */
 /* ############################# */
-
+/*
 Hash computeHash(__private Bitboard *board) {
 
     Piece piece;
@@ -791,19 +781,6 @@ Hash computeHash(__private Bitboard *board) {
 
 void updateHash(__private Bitboard *board, Move move) {
 
-/*
-    Square from = (Square)(move & 0x3F);
-    Square to   = (Square)((move>>6) & 0x3F);
-    Square cpt  = (Square)((move>>12) & 0x3F);
-
-    Bitboard pfrom = ((move>>18) & 0xF)>>1;
-    Bitboard pto   = ((move>>22) & 0xF)>>1;
-    Bitboard pcpt  = ((move>>26) & 0xF)>>1;
-
-    Square castlefrom   = (Square)((move>>40) & 0x7F); // is set to illegal square 64 when empty
-    Square castleto     = (Square)((move>>47) & 0x7F); // is set to illegal square 64 when empty
-    Bitboard castlepciece = ((move>>54) & 0xF)>>1;  // is set to 0 when PEMPTY
-*/
     // from
     board[4] ^= Zobrist[(((move>>18) & 0xF)&1)*7*64+(((move>>18) & 0xF)>>1)*64+(move & 0x3F)];
 
@@ -822,13 +799,13 @@ void updateHash(__private Bitboard *board, Move move) {
     if (((move>>47) & 0x7F) < ILL && (((move>>54) & 0xF)>>1) == ROOK )
         board[4] ^= Zobrist[(((move>>54) & 0xF)&1)*7*64+(((move>>54) & 0xF)>>1)*64+((move>>47) & 0x3F)];
 }
-
+*/
 
 Move updateCR(Move move, Cr cr) {
 
     Square from   =  (Square)(move&0x3F);
     Piece piece   =  (Piece)(((move>>18)&0xF)>>1);
-    int som       =  (int)((move>>18)&0xF)&1;
+    bool som      =  (bool)((move>>18)&0xF)&1;
 
     // update castle rights, TODO: make nice
     // clear white queenside
@@ -847,9 +824,9 @@ Move updateCR(Move move, Cr cr) {
     return move;
 }
 
-int PieceInCheck(   __private Bitboard *board, 
+bool PieceInCheck(   __private Bitboard *board, 
                     Square sq, 
-                    int som, 
+                    bool som, 
                     __global u64 *RAttacks, 
                     __global u64 *BAttacks
                 ) 
@@ -866,34 +843,34 @@ int PieceInCheck(   __private Bitboard *board,
     bbWork = (bbOpp & board[1] & ~board[2] & board[3] ) | (bbOpp & ~board[1] & board[2] & board[3] );
     bbMoves = ( RAttacks[RAttackIndex[sq] + (((bbBlockers & RMask[sq]) * RMult[sq]) >> RShift[sq])] );
     if (bbMoves & bbWork) {
-        return 1;
+        return true;
     }
     // Bishops and Queen
     bbWork = (bbOpp & ~board[1] & ~board[2] & board[3] ) | (bbOpp & ~board[1] & board[2] & board[3] );
     bbMoves = ( BAttacks[BAttackIndex[sq] + (((bbBlockers & BMask[sq]) * BMult[sq]) >> BShift[sq])] ) ;
     if (bbMoves & bbWork) {
-        return 1;
+        return true;
     }
     // Knights
     bbWork = (bbOpp & ~board[1] & board[2] & ~board[3] );
-    bbMoves = AttackTablesTo[((SwitchSide(som))*7*64)+KNIGHT*64+sq] ;
+    bbMoves = AttackTablesTo[((s32)(!som)*7*64)+KNIGHT*64+sq] ;
     if (bbMoves & bbWork) {
-        return 1;
+        return true;
     }
     // Pawns
     bbWork = (bbOpp & board[1] & ~board[2]  & ~board[3] );
-    bbMoves = AttackTablesTo[((SwitchSide(som))*7*64)+PAWN*64+sq];
+    bbMoves = AttackTablesTo[((s32)(!som)*7*64)+PAWN*64+sq];
     if (bbMoves & bbWork) {
-        return 1;
+        return true;
     }
     // King
     bbWork = (bbOpp & board[1] & board[2] & ~board[3] );
-    bbMoves = AttackTablesTo[((SwitchSide(som))*7*64)+KING*64+sq] ;
+    bbMoves = AttackTablesTo[((s32)(!som)*7*64)+KING*64+sq] ;
     if (bbMoves & bbWork) {
-        return 1;
+        return true;
     } 
 
-    return 0;
+    return false;
 }
 
 
@@ -908,6 +885,7 @@ __kernel void bestfirst_gpu(
                             __global int *global_pid_movecounter,
                             __global int *global_pid_todoindex,
                             __global int *global_pid_ab_score,
+                            __global int *global_pid_depths,
                             __global Move *global_pid_moves,
                             __global int *global_finished,
                             __global int *global_movecount,
@@ -929,10 +907,15 @@ __kernel void bestfirst_gpu(
     __private Bitboard board[5];
     __global NodeBlock *board_stack;
     __global NodeBlock *board_stack_tmp;
-    Bitboard bbAttacks[2*6];
 
     const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
     const s32 totalThreads = get_global_size(0)*get_global_size(1)*get_global_size(2);
+
+    bool som = (bool)som_init;
+    bool kic = false;
+    bool rootkic = false;
+    bool qs = false;
+    bool silent = false;
 
     s32 index = 0;
     s32 current = 0;
@@ -941,8 +924,6 @@ __kernel void bestfirst_gpu(
 
     s32 depth = search_depth;
     s32 sd = 0;
-    u32 som = som_init;
-    u32 color = WHITE;
     s32 ply = ply_init;
 
     Cr CR  = 0;
@@ -957,10 +938,6 @@ __kernel void bestfirst_gpu(
 
     s32 mode = INIT;
 
-    s32 silent = 0;
-    s32 kic = 0;
-    s32 rootkic = 0;
-    s32 qs = 0;
     s32 i = 0;
     s32 j = 0;
     s32 n = 0;
@@ -976,13 +953,9 @@ __kernel void bestfirst_gpu(
     Piece piececpt;
 
     Bitboard bbTemp         = 0;
-    Bitboard bbAttacksW     = 0;
-    Bitboard bbAttacksB     = 0;
-    Bitboard bbWhite        = 0;
-    Bitboard bbBlack        = 0;
     Bitboard bbWork         = 0;
     Bitboard bbMe           = 0;
-    Bitboard bbOpp     = 0;
+    Bitboard bbOpp          = 0;
     Bitboard bbBlockers     = 0;
     Bitboard bbMoves        = 0;
 
@@ -1001,7 +974,7 @@ __kernel void bestfirst_gpu(
         board[3] = init_board[3];
         board[4] = init_board[4]; // Hash
 
-        som     = som_init;
+        som     = (bool)som_init;
         ply     = ply_init;
         sd      = 0;
 
@@ -1010,10 +983,11 @@ __kernel void bestfirst_gpu(
     }
 
 
-    for(i=0;i<max_depth;i++) {
-
-        global_pid_movecounter[pid*max_depth+i]             = 0;
-        global_pid_todoindex[pid*max_depth+i]               = 0;
+    for(i=0;i<max_depth;i++)
+    {
+      global_pid_movecounter[pid*max_depth+i] = 0;
+      global_pid_todoindex[pid*max_depth+i]   = 0;
+      global_pid_depths[pid*max_depth+i]      = 0;
     }
 
 
@@ -1042,7 +1016,7 @@ __kernel void bestfirst_gpu(
             board[4] = init_board[4]; // Hash
 
             depth   = search_depth;
-            som     = som_init;
+            som     = (bool)som_init;
             ply     = ply_init;
             sd      = 0;
 
@@ -1071,8 +1045,7 @@ __kernel void bestfirst_gpu(
             current = 0;
             k = -1;
 
-
-		    // selecta best move
+    		    // selecta best move
             for (i=0; i < n; i++ ) {
         
                 child = board_stack[(index%max_nodes_per_slot)].child + i;
@@ -1151,11 +1124,11 @@ __kernel void bestfirst_gpu(
 
                 domove(board, move);
 
-                updateHash(board, move);
+//                updateHash(board, move);
 
-                global_HashHistory[pid*1024+ply] = board[4];
+//                global_HashHistory[pid*1024+ply] = board[4];
 
-                som = SwitchSide(som);    
+                som = !som;    
 
                 index = current;
 
@@ -1176,10 +1149,10 @@ __kernel void bestfirst_gpu(
         // #########################################
         n = 0;
         k = 0;
-        silent = 1;
+        silent = true;
         bbTemp      = board[1] | board[2] | board[3];
-        bbMe        = (som == BLACK)? board[0]   : ( board[0] ^ bbTemp ) ;
-        bbOpp  = (som == BLACK)? ( board[0] ^ bbTemp ) : board[0];
+        bbMe        = (som&BLACK)?board[0]:(board[0]^bbTemp);
+        bbOpp       = (som&BLACK)?(board[0]^bbTemp):board[0];
         bbBlockers  = bbMe | bbOpp;
         bbWork      = bbMe;
 
@@ -1187,14 +1160,17 @@ __kernel void bestfirst_gpu(
         bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
         kingpos = (Square)(BitTable[((bbTemp & -bbTemp) * 0x218a392cd3d5dbf) >> 58]); // get king square
 
-        rootkic = 0;
+        rootkic = false;
         // king in check?
         rootkic = PieceInCheck(board, kingpos, som, RAttacks, BAttacks);
 
         CR = (Cr)((lastmove>>36)&0xF);
 
-        // Quiescence Search?
-        qs = (mode==EXPAND||mode==EVALLEAF||sd<=depth)?0:1;
+        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
+
+        // enter quiescence search?
+        qs = (sd<=depth)?false:true;
+        qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
 
         while( bbWork )  {
 
@@ -1205,10 +1181,10 @@ __kernel void bestfirst_gpu(
             pos     = ((Square)(BitTable[((bbWork & -bbWork) * 0x218a392cd3d5dbf) >> 58]) );
             bbWork &= (bbWork-1); 
 
-            piece   = ((board[0]>>pos) &1) + 2*((board[1]>>pos) &1) + 4*((board[2]>>pos) &1) + 8*((board[3]>>pos) &1);
+            piece = GETPIECE(board,pos);
 
             // Knight and King
-            bbTemp  |= ( (piece>>1) == KNIGHT || (piece>>1) == KING)? AttackTables[(som*7*64)+((piece>>1)*64)+pos] : 0;
+            bbTemp  |= ( (piece>>1) == KNIGHT || (piece>>1) == KING)? AttackTables[((s32)som*7*64)+((piece>>1)*64)+pos] : 0;
 
             // Sliders
             // rook or queen
@@ -1217,12 +1193,12 @@ __kernel void bestfirst_gpu(
             bbTemp  |= ( (piece>>1) == BISHOP || (piece>>1) == QUEEN)?    ( BAttacks[BAttackIndex[pos] + (((bbBlockers & BMask[pos]) * BMult[pos]) >> BShift[pos])] ) : 0;
 
             // Pawn attacks and forward step
-            bbTemp  |= ( (piece>>1) == PAWN) ? (PawnAttackTables[som*64+pos] & bbOpp)  | (PawnAttackTables[(som+2)*64+pos] & ~bbBlockers)                        : 0 ;
+            bbTemp  |= ( (piece>>1) == PAWN) ? (PawnAttackTables[(s32)som*64+pos] & bbOpp)  | (PawnAttackTables[((s32)som+2)*64+pos] & ~bbBlockers)                        : 0 ;
 
             // Pawn double square
-            if ( (piece>>1) == PAWN && ( ( som == WHITE && (pos>>3) == 1) || (som == BLACK && (pos>>3) == 6 ) ) ) {
-                to  = (som == BLACK)? pos-8  : pos+8;
-                cpt = (som == BLACK)? pos-16 : pos+16;
+            if ( (piece>>1) == PAWN && ( (som==WHITE && (pos>>3) == 1) || (som==BLACK && (pos>>3) == 6 ) ) ) {
+                to  = (som&BLACK)? pos-8  : pos+8;
+                cpt = (som&BLACK)? pos-16 : pos+16;
                 if (   (~bbBlockers & SetMaskBB[to]) && (~bbBlockers & SetMaskBB[cpt]) )
                     bbTemp |= SetMaskBB[cpt];
             }
@@ -1230,7 +1206,7 @@ __kernel void bestfirst_gpu(
             // Captures
             bbMoves  = (bbTemp & bbOpp);
             // Non cpatures
-            bbMoves |= (qs == 0 || rootkic == 1)? bbTemp & ~bbBlockers : 0;
+            bbMoves |= (!qs||rootkic)?(bbTemp&~bbBlockers):0x0;
 
             while( bbMoves )  {
 
@@ -1243,9 +1219,9 @@ __kernel void bestfirst_gpu(
                 ep = ( (piece>>1) == PAWN && abs(child) == 16 ) ? to : 0;
 
                 cpt = to;
-                pieceto = ( (piece>>1) == PAWN && ( (som == WHITE && (to>>3) == 7) || (som == BLACK && (to>>3) == 0) ) ) ? (QUEEN<<1 | som): piece; // pawn promotion
+                pieceto = ((piece>>1)==PAWN&&GETRRANK(cpt,piece&0x1)==7)?(QUEEN<<1|(Piece)som):piece; // pawn promotion
 
-                piececpt = ((board[0]>>cpt) &1) + 2*((board[1]>>cpt) &1) + 4*((board[2]>>cpt) &1) + 8*((board[3]>>cpt) &1);
+                piececpt = GETPIECE(board,cpt);
 
                 // make move
                 move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
@@ -1256,21 +1232,21 @@ __kernel void bestfirst_gpu(
 
                 //get king position
                 bbTemp  = board[0] ^ (board[1] | board[2] | board[3]);
-                bbTemp  = (som == BLACK)? board[0]   : bbTemp ;
+                bbTemp  = (som&BLACK)? board[0]   : bbTemp ;
                 bbTemp  = bbTemp & board[1] & board[2] & ~board[3]; // get king
                 kingpos = (Square)(BitTable[((bbTemp & -bbTemp) * 0x218a392cd3d5dbf) >> 58]);
 
-                kic = 0;
+                kic = false;
                 // king in check?
                 kic = PieceInCheck(board, kingpos, som, RAttacks, BAttacks);
 
-                if ( kic == 0 ) {
+                if (!kic) {
 
-                    silent = ((piececpt>>1) != PEMPTY)? 0 : silent;
+                    silent = ((piececpt>>1)!=PEMPTY)?false:silent;
 
                     k++; // check mate move counter
 
-                    if (qs == 0 || (qs == 1 && (piececpt>>1) != PEMPTY ) ) {
+                    if (!qs||(qs&&(piececpt>>1)!=PEMPTY)) {
                         // update castle rights        
                         move = updateCR(move, CR);
                         // copy move to global
@@ -1314,21 +1290,21 @@ __kernel void bestfirst_gpu(
         kingpos = (Square)(BitTable[((bbTemp & -bbTemp) * 0x218a392cd3d5dbf) >> 58]); // get king square
 
         // Queenside
-        bbMoves  = (som == WHITE)? 0xE : 0x0E00000000000000;   
+        bbMoves  = (som==WHITE)? 0xE : 0x0E00000000000000;   
         bbMoves &= (board[1] | board[2] | board[3]); 
 
-        if ( qs == 0 && ( (som == WHITE && (CR&0x1)) || (som == BLACK && (CR&0x4))) && ( (som == WHITE && kingpos == 4) || (som == BLACK && kingpos == 60) ) && rootkic == 0 && (!bbMoves) && (bbOpp & SetMaskBB[kingpos-4]) ) {
+        if ( !qs && ( (som==WHITE && (CR&0x1)) || (som==BLACK && (CR&0x4))) && ( (som==WHITE && kingpos == 4) || (som==BLACK && kingpos == 60) ) && !rootkic && (!bbMoves) && (bbOpp & SetMaskBB[kingpos-4]) ) {
 
-            kic      = 0;            
-            kic     += PieceInCheck(board, kingpos-2, som, RAttacks, BAttacks); // check C
-            kic     += PieceInCheck(board, kingpos-1, som, RAttacks, BAttacks); // check D
+            kic      = false;            
+            kic     |= PieceInCheck(board, kingpos-2, som, RAttacks, BAttacks); // check C
+            kic     |= PieceInCheck(board, kingpos-1, som, RAttacks, BAttacks); // check D
 
-            if (kic == 0) {
+            if (!kic) {
 
                 // make move
                 to = kingpos-4;
                 cpt = kingpos-1;
-                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
+                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (Piece)(som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (Piece)(som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (Piece)(som&1))<<54)&0x03C0000000000000) );
 
                 // update castle rights        
                 move = updateCR(move, CR);
@@ -1349,22 +1325,22 @@ __kernel void bestfirst_gpu(
         kingpos = (Square)(BitTable[((bbTemp & -bbTemp) * 0x218a392cd3d5dbf) >> 58]); // get king square
      
         // kingside
-        bbMoves  = (som == WHITE)? 0x60 : 0x6000000000000000;   
+        bbMoves  = (som==WHITE)? 0x60 : 0x6000000000000000;   
         bbMoves &= (board[1] | board[2] | board[3]); 
 
-        if ( qs == 0 && ( (som == WHITE && (CR&0x2)) || (som == BLACK && (CR&0x8))) && ( (som == WHITE && kingpos == 4) || (som == BLACK && kingpos == 60) ) && rootkic == 0 && (!bbMoves)  && (bbOpp & SetMaskBB[kingpos+3])) {
+        if ( !qs && ( (som==WHITE && (CR&0x2)) || (som&BLACK && (CR&0x8))) && ( (som==WHITE && kingpos == 4) || (som&BLACK && kingpos == 60) ) && !rootkic && (!bbMoves)  && (bbOpp & SetMaskBB[kingpos+3])) {
 
 
-            kic      = 0;
-            kic     += PieceInCheck(board, kingpos+1, som, RAttacks, BAttacks); // check F
-            kic     += PieceInCheck(board, kingpos+2, som, RAttacks, BAttacks); // check G
+            kic      = false;
+            kic     |= PieceInCheck(board, kingpos+1, som, RAttacks, BAttacks); // check F
+            kic     |= PieceInCheck(board, kingpos+2, som, RAttacks, BAttacks); // check G
         
-            if (kic == 0) {
+            if (!kic) {
 
                 // make move
                 to = kingpos+3;
                 cpt = kingpos+1;
-                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
+                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (Piece)(som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (Piece)(som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (Piece)(som&1))<<54)&0x03C0000000000000) );
 
                 // update castle rights        
                 move = updateCR(move, CR);
@@ -1387,15 +1363,15 @@ __kernel void bestfirst_gpu(
 
         if ( cpt ) {
 
-            piece = ((PAWN<<1) | som);
+            piece = ((PAWN<<1) | (Piece)som);
             pieceto = piece;
-            piececpt = ((PAWN<<1) | (SwitchSide(som)) );
+            piececpt = ((PAWN<<1) | (Piece)(!som) );
             ep = 0;
 
             bbMoves  =  bbMe & board[1] & ~board[2]  & ~board[3];
 
             // white
-            if ( som == WHITE ) {
+            if (som==WHITE) {
                 bbMoves &= (0xFF00000000 & (SetMaskBB[cpt+1] | SetMaskBB[cpt-1]) );
                 
             }
@@ -1409,7 +1385,7 @@ __kernel void bestfirst_gpu(
                 pos = ((Square)(BitTable[((bbMoves & -bbMoves) * 0x218a392cd3d5dbf) >> 58]) );
                 bbMoves &= (bbMoves-1);
 
-                to  = (som==BLACK)? cpt-8 : cpt+8;
+                to  = (som&BLACK)? cpt-8 : cpt+8;
                 
                 // make move
                 move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
@@ -1419,15 +1395,15 @@ __kernel void bestfirst_gpu(
 
                 //get king position
                 bbTemp  = board[0] ^ (board[1] | board[2] | board[3]);
-                bbTemp  = (som == BLACK)? board[0]   : bbTemp ;
+                bbTemp  = (som&BLACK)? board[0]   : bbTemp ;
                 bbTemp  = bbTemp & board[1] & board[2] & ~board[3]; // get king
                 kingpos = (Square)(BitTable[((bbTemp & -bbTemp) * 0x218a392cd3d5dbf) >> 58]);
 
-                kic = 0;
+                kic = false;
                 // king in check?
                 kic = PieceInCheck(board, kingpos, som, RAttacks, BAttacks);
 
-                if (kic == 0) {
+                if (!kic) {
 
                     // update castle rights        
                     move = updateCR(move, CR);
@@ -1451,70 +1427,87 @@ __kernel void bestfirst_gpu(
         // ################################
 
         // new eval, mostly ported from Stockfish
-        bbBlockers  = board[1] | board[2] | board[3];        // all pieces
-        bbTemp      = board[1] & ~board[2] & ~board[3];      // all pawns
+        bbBlockers  = board[1]|board[2]|board[3];        // all pieces
+        bbTemp      = board[1]&~board[2]&~board[3];      // all pawns
         score = 0;
     
-        // for each side
-        for(i=WHITE;i<=BLACK;i++) 
+        // white
+        bbMe  = board[0]^bbBlockers;
+        bbOpp = board[0];
+        bbWork = bbMe;
+
+        while (bbWork) 
         {
+          pos = popfirst1(&bbWork);
+          piece = GETPIECETYPE(board,pos);
 
-          bbMe  = (i==WHITE)?(board[0]^bbBlockers):board[0];
-          bbOpp = (i==BLACK)?(board[0]^bbBlockers):board[0];
+          /* piece bonus */
+          score+= 10;
+          /* wodd count */
+          score+= EvalPieceValues[piece];
+          /* piece posuare tables */
+          score+= EvalTable[piece*64+FLIPFLOP(pos)];
+          /* posuare control table */
+          score+= EvalControl[FLIPFLOP(pos)];
 
-          bbWork = bbMe;
-
-          while (bbWork) 
-          {
-            pos = popfirst1(&bbWork);
-            piece = GETPIECETYPE(board,pos);
-
-            /* piece bonus */
-            score+= (i)?-10 : 10;
-            /* wodd count */
-            score+= (i)?-EvalPieceValues[piece]:EvalPieceValues[piece];
-            /* piece posuare tables */
-            score+= (i)?-EvalTable[piece*64+pos]:EvalTable[piece*64+FLIPFLOP(pos)];
-            /* posuare control table */
-            score+= (i)?-EvalControl[pos]:EvalControl[FLIPFLOP(pos)];
-
-            /* simple pawn structure white */
-            /* blocked */
-            score-=(piece==PAWN&&i==WHITE&&GETRANK(pos)<RANK_8&&(bbOpp&SETMASKBB(pos+8)))?15:0;
-              /* chain */
-            score+=(piece==PAWN&&i==WHITE&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos-7)))?10:0;
-            score+=(piece==PAWN&&i==WHITE&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos-9)))?10:0;
-            /* column */
-            for(j=pos-8;j>7&&piece==PAWN&&i==WHITE;j-=8)
-              score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-
-            /* simple pawn structure black */
-            /* blocked */
-            score+=(piece==PAWN&&i==BLACK&&GETRANK(pos)>RANK_1&&(bbOpp&SETMASKBB(pos-8)))?15:0;
-              /* chain */
-            score-=(piece==PAWN&&i==BLACK&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos+7)))?10:0;
-            score-=(piece==PAWN&&i==BLACK&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos+9)))?10:0;
-            /* column */
-            for(j=pos+8;j<56&&piece==PAWN&&i==BLACK;j+=8)
-              score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-
-          }
-          /* duble bishop */
-          score+= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?(i)?-25:25:0;
-          
+          /* simple pawn structure white */
+          /* blocked */
+          score-=(piece==PAWN&&GETRANK(pos)<RANK_8&&(bbOpp&SETMASKBB(pos+8)))?15:0;
+            /* chain */
+          score+=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos-7)))?10:0;
+          score+=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos-9)))?10:0;
+          /* column */
+          for(j=pos-8;j>7&&piece==PAWN;j-=8)
+            score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
         }
+        /* duble bishop */
+        score+= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
 
+        // black
+        bbMe  = board[0];
+        bbOpp = board[0]^bbBlockers;
+        bbWork = bbMe;
+
+        while (bbWork) 
+        {
+          pos = popfirst1(&bbWork);
+          piece = GETPIECETYPE(board,pos);
+
+          /* piece bonus */
+          score-= 10;
+          /* wodd count */
+          score-= EvalPieceValues[piece];
+          /* piece posuare tables */
+          score-= EvalTable[piece*64+pos];
+          /* posuare control table */
+          score-= EvalControl[pos];
+
+          /* simple pawn structure black */
+          /* blocked */
+          score+=(piece==PAWN&&GETRANK(pos)>RANK_1&&(bbOpp&SETMASKBB(pos-8)))?15:0;
+            /* chain */
+          score-=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos+7)))?10:0;
+          score-=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos+9)))?10:0;
+          /* column */
+          for(j=pos+8;j<56&&piece==PAWN;j+=8)
+            score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
+
+        }
+        /* duble bishop */
+        score-= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
+          
 
         // negamaxed scores
-        score = (som == BLACK)? -score : score;
+        score = (som&BLACK)? -score : score;
         // checkmate
-        score = (rootkic==1&&k==0)?-INF+ply:score;
+        score = (rootkic&&k==0)?-INF+ply:score;
         // Stalemate
-        score = (rootkic==0&&k==0&&(mode==EXPAND||mode==EVALLEAF))?0:score;
+        score = (!rootkic&&k==0&&(mode==EXPAND||mode==EVALLEAF))?0:score;
 
+/*
         // draw by 3 fold repetition detection
         j = 0;
-        if ( qs == 0 && n > 0 && index > 0 ) {
+        if ( !qs && n > 0 && index > 0 ) {
             for (i=ply-4; i>=0;i-=2) {
 
                 if (board[4] == global_HashHistory[pid*1024+i] ) {
@@ -1527,7 +1520,7 @@ __kernel void bestfirst_gpu(
                 }
             }   
         }   
-
+*/
         // out of range
         if (sd >= max_depth ) {
             n = 0;
@@ -1547,15 +1540,15 @@ __kernel void bestfirst_gpu(
 
         // stand pat
         // return Beta
-        if (mode == MOVEUP && qs == 1 && rootkic == 0 && score >= global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA] ) {
+        if (mode == MOVEUP && qs && !rootkic && score >= global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA] ) {
 //            global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA]; // fail hard
             global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score; // fail soft
-			mode = MOVEDOWN;
+      			mode = MOVEDOWN;
         }
 
         // stand pat
         // set Alpha
-        if (mode == MOVEUP && qs == 1 && rootkic == 0 ) {
+        if (mode == MOVEUP && qs && !rootkic ) {
             atom_max(&global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA], score);
 		}
 
@@ -1614,19 +1607,14 @@ __kernel void bestfirst_gpu(
         if (mode == EVALLEAF) {
 
             sd = 0;
-
-            // search extensions
-            depth = ( SINGLEREPLYEXTENSION == 1 && n == 1 )?search_depth+1:search_depth;
-            depth = ( CHECKSEARCHEXTENSION == 1 && rootkic==1 )?search_depth+1:search_depth;
-            depth = ( PROMOSEARCHEXTENSION == 1 && (((lastmove>>18)&0xF)>>1) == PAWN && (RelativeRank((((lastmove>>18)&0xF)&0x1),(((lastmove>>6)&0x3F)>>3)) >= 6 ) )?search_depth+1:search_depth;
-            depth = ( CASTLEEXTENSION == 1 && (((lastmove>>54)&0xF)>>1) == ROOK )? search_depth+1:search_depth;
-            depth = ( SILENTEXTENSION == 1 && silent == 1)? search_depth+1:search_depth;
-
+            depth = search_depth;
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
             // set init Alpha Beta values
             global_pid_ab_score[pid*max_depth*2+0*2+ALPHA] = -INF;
             global_pid_ab_score[pid*max_depth*2+0*2+BETA]  =  INF;
+
+            global_pid_depths[pid*max_depth+sd] = depth;
 
             mode = MOVEUP;
         }
@@ -1647,14 +1635,16 @@ __kernel void bestfirst_gpu(
                 if (sd < 0)
                     break;
 
+                depth = global_pid_depths[pid*max_depth+sd];
+
                 move = global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+global_pid_todoindex[pid*max_depth+sd]-1];
 
                 undomove(board, move);
 
-                updateHash(board, move);
+//                updateHash(board, move);
 
                 // switch site to move
-                som = SwitchSide(som);
+                som = !som;
             }
  
             mode = MOVEUP;
@@ -1663,7 +1653,7 @@ __kernel void bestfirst_gpu(
                 board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
                 board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
                 mode = BACKUPSCORE;
-			}
+      			}
         }
 
         if (mode == MOVEUP ) {
@@ -1676,12 +1666,12 @@ __kernel void bestfirst_gpu(
 
             domove(board, move);
 
-            updateHash(board, move);
+//            updateHash(board, move);
 
             lastmove = move;
 
             // switch site to move
-            som = SwitchSide(som);
+            som = !som;
 
 
             global_pid_todoindex[pid*max_depth+sd]++;
@@ -1689,10 +1679,12 @@ __kernel void bestfirst_gpu(
             sd++;
             ply++;
 
-            global_HashHistory[pid*1024+ply] = board[4];
+//            global_HashHistory[pid*1024+ply] = board[4];
 
             global_pid_movecounter[pid*max_depth+sd] = 0;
             global_pid_todoindex[pid*max_depth+sd] = 0;
+            global_pid_depths[pid*max_depth+sd] = depth;
+
 
             // Get Alpha and Beta from prev depth
             global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
@@ -1752,6 +1744,5 @@ __kernel void bestfirst_gpu(
     // return to host
     COUNTERS[totalThreads*5+0] = *global_plyreached;
     COUNTERS[totalThreads*6+0] = (*board_stack_top >= max_nodes_to_expand)? 1 : 0;
-
-
 }
+
