@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\GraphicsDrivers]
+"TdrDelay"=dword:00000020
+"TdrDdiDelay"=dword:00000020
+
+
