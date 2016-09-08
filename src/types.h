@@ -14,16 +14,18 @@
 #if !defined(TYPES_H_INCLUDED)
 #define TYPES_H_INCLUDED
 
+/* C99 headers */
+#include <stdint.h>
+#include <stdbool.h>
+#include <inttypes.h>
 
-#  if defined(_MSC_VER)
-typedef unsigned __int64 U64;
-typedef unsigned __int32 U32;
-#  else
-typedef unsigned long long int U64;
-typedef unsigned int U32;
-#endif
+#include "CL/cl.h"
 
-typedef signed int S32;
+
+typedef cl_ulong U64;
+typedef cl_uint U32;
+
+typedef cl_int S32;
 
 typedef U64 Move;
 typedef U64 Bitboard;

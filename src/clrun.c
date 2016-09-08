@@ -267,6 +267,19 @@ int initializeCL() {
 		return 1;
 	}
 
+
+    GLOBAL_PID_DEPTHS_Buffer = clCreateBuffer(
+					   context, 
+                       CL_MEM_READ_WRITE,
+                       sizeof(cl_int) * totalThreads * max_depth * 2,
+                       NULL, 
+                       &status);
+    if(status != CL_SUCCESS) 
+	{ 
+		print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_DEPTHS_Buffer)\n");
+		return 1;
+	}
+
     GLOBAL_PID_MOVES_Buffer = clCreateBuffer(
 					   context, 
                        CL_MEM_READ_WRITE,
@@ -561,6 +574,19 @@ int  runCLKernels(int som, int maxdepth, Move lastmove) {
 		return 1;
 	}
     i++;
+
+    status = clSetKernelArg(
+                    kernel, 
+                    i, 
+                    sizeof(cl_mem), 
+                    (void *)&GLOBAL_PID_DEPTHS_Buffer);
+    if(status != CL_SUCCESS) 
+	{ 
+		print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_DEPTHS_Buffer)\n");
+		return 1;
+	}
+    i++;
+
 
     status = clSetKernelArg(
                     kernel, 
@@ -986,6 +1012,13 @@ int  runCLKernels(int som, int maxdepth, Move lastmove) {
     if(status != CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_AB_SCORES_Buffer)\n");
+		return 1; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_PID_DEPTHS_Buffer);
+    if(status != CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_DEPTHS_Buffer)\n");
 		return 1; 
 	}
 

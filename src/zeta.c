@@ -19,7 +19,6 @@
   GNU General Public License for more details.
 */
 
-#include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -923,7 +922,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     if (post_mode == true || xboard_mode == false) {
         if ( xboard_mode == false )
             printf("depth score time nodes pv \n");
-        printf("%i %i %i %llu  ", plyreached, bestscore, (int)(Elapsed * 100), ABNODECOUNT);          
+        printf("%i %i %i %" PRIu64 "" , plyreached, bestscore, (int)(Elapsed * 100), ABNODECOUNT);          
         for (i=0;i<pvi;i++) {
             printf(" ");
             print_movealg(PV[i]);
@@ -1068,7 +1067,7 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     Elapsed = time_diff(start , end);
 
     // print cli output
-    printf("depth: %i, nodes %llu, nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore);          
+    printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore);          
     printf(" move ");
     print_movealg(bestmove);
     printf("\n");
@@ -1312,7 +1311,7 @@ int main(void) {
             printf("\n\n");
             printf("found %i from %i: \n", test_found, i);
             printf("total seconds: %i \n", (int)test_total_time);
-            printf("total nodes: %llu \n", test_total_nodes);
+            printf("total nodes: %" PRIu64 " \n", test_total_nodes);
             printf("\n\n");
 
             continue;
@@ -1484,7 +1483,7 @@ int main(void) {
 			continue;
 		}
 		if (!strcmp(command, "memory")) {
-			sscanf(line, "memory %llu" , &max_mem_mb);
+			sscanf(line, "memory %" PRIu64 , &max_mem_mb);
 			continue;
 		}
 		if (!strcmp(command, "memory_slots")) {
@@ -1496,19 +1495,19 @@ int main(void) {
 			continue;
 		}
 
-        if (!strcmp (command, "st")) {
-	        sscanf(line, "time %lf", &time_left_computer); 
-            if (time_management == true) {
-      	        max_time_per_move = time_left_computer;
-                max_time_per_move = (max_time_per_move < 1)? 1 : max_time_per_move;
-                max_nps_per_move = nodes_per_second*max_time_per_move;
-                max_nodes = nodes_per_second*max_time_per_move;
-            }
-            else {
-                max_nps_per_move = max_nodes;
-            }
-	        continue;
-        }    
+    if (!strcmp (command, "st")) {
+      sscanf(line, "st %lf", &time_left_computer); 
+        if (time_management == true) {
+	          max_time_per_move = time_left_computer;
+            max_time_per_move = (max_time_per_move < 1)? 1 : max_time_per_move;
+            max_nps_per_move = nodes_per_second*max_time_per_move;
+            max_nodes = nodes_per_second*max_time_per_move;
+        }
+        else {
+            max_nps_per_move = max_nodes;
+        }
+      continue;
+    }    
 
 
         if (!strcmp (command, "time")) {
@@ -2184,7 +2183,7 @@ void print_board(Bitboard *board) {
 void print_stats() {
     FILE 	*Stats;
     Stats = fopen("zeta.debug", "ab+");
-    fprintf(Stats, "iterations: %llu ,Expaned Nodes: %llu , MemoryFull: %llu, AB-Nodes: %llu , Movecount: %llu , Node Copies: %i, bestmove: %llu, depth: %i, Score: %i, ScoreDepth: %i,  sec: %f \n", NODECOUNT, TNODECOUNT, MEMORYFULL, ABNODECOUNT, MOVECOUNT, NODECOPIES, Bestmove, plyreached, bestscore, bestmoveply, Elapsed);
+    fprintf(Stats, "iterations: %" PRIu64 " ,Expaned Nodes: %" PRIu64 " , MemoryFull: %" PRIu64 ", AB-Nodes: %" PRIu64 " , Movecount: %" PRIu64 " , Node Copies: %i, bestmove: %" PRIu64 ", depth: %i, Score: %i, ScoreDepth: %i,  sec: %f \n", NODECOUNT, TNODECOUNT, MEMORYFULL, ABNODECOUNT, MOVECOUNT, NODECOPIES, Bestmove, plyreached, bestscore, bestmoveply, Elapsed);
     fclose(Stats);
 }
 
@@ -2207,7 +2206,7 @@ void read_config(char configfile[]) {
         sscanf(line, "threadsY: %i;", &threadsY);
         sscanf(line, "threadsZ: %i;", &threadsZ);
         sscanf(line, "nodes_per_second: %i;", &nodes_per_second);
-        sscanf(line, "max_nodes: %llu;", &max_nodes);
+        sscanf(line, "max_nodes: %" PRIu64 ";", &max_nodes);
         sscanf(line, "max_nodes_to_expand: %i;", &max_nodes_to_expand);
         sscanf(line, "memory_slots: %i;", &memory_slots);
         sscanf(line, "max_depth: %i;", &max_depth);

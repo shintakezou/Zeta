@@ -23,7 +23,6 @@
 #define ZETA_H_INCLUDED
 
 #include "types.h"
-#include "CL/cl.h"
 
 int load_file_to_string(const char *filename, char **result);
 void print_debug(char *debug);
@@ -70,6 +69,7 @@ cl_mem	 GLOBAL_TOTAL_NODES_Buffer;
 cl_mem	 GLOBAL_PID_MOVECOUNTER_Buffer;
 cl_mem	 GLOBAL_PID_TODOINDEX_Buffer;
 cl_mem	 GLOBAL_PID_AB_SCORES_Buffer;
+cl_mem	 GLOBAL_PID_DEPTHS_Buffer;
 cl_mem	 GLOBAL_PID_MOVES_Buffer;
 cl_mem	 GLOBAL_FINISHED_Buffer;
 cl_mem	 GLOBAL_MOVECOUNT_Buffer;
