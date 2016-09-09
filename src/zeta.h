@@ -76,8 +76,7 @@ cl_mem	 GLOBAL_MOVECOUNT_Buffer;
 cl_mem	 GLOBAL_PLYREACHED_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 
-cl_mem	 RAttacksBuffer;
-cl_mem	 BAttacksBuffer;
+cl_mem	 ZobristBuffer;
 
 
 cl_context          context;
