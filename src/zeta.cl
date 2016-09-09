@@ -303,16 +303,21 @@ void domove(__private Bitboard *board, Move move) {
 
     Bitboard pto   = ((move>>22) & 0xF);
 
+    Bitboard bbTemp = BBEMPTY;
+
     // castle info
     u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
     u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
     Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
 
     // unset from capture to and castle from
-    board[0] &= CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castlefrom);
-    board[1] &= CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castlefrom);
-    board[2] &= CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castlefrom);
-    board[3] &= CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castlefrom);
+    bbTemp = CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to);
+    bbTemp &= (castlefrom==ILL)?BBFULL:CLRMASKBB(castlefrom);
+
+    board[0] &= bbTemp;
+    board[1] &= bbTemp;
+    board[2] &= bbTemp;
+    board[3] &= bbTemp;
 
     // set to
     board[0] |= (pto&1)<<to;
@@ -339,16 +344,21 @@ void undomove(__private Bitboard *board, Move move) {
     Bitboard pfrom = ((move>>18) & 0xF);
     Bitboard pcpt  = ((move>>26) & 0xF);
 
+    Bitboard bbTemp = BBEMPTY;
+
     // castle info
     u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
     u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
     Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
 
     // unset capture, to and castle to
-    board[0] &= CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castleto);
-    board[1] &= CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castleto);
-    board[2] &= CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castleto);
-    board[3] &= CLRMASKBB(cpt) & CLRMASKBB(to) & CLRMASKBB(castleto);
+    bbTemp = CLRMASKBB(cpt) & CLRMASKBB(to);
+    bbTemp &= (castleto==ILL)?BBFULL:CLRMASKBB(castleto);
+
+    board[0] &= bbTemp;
+    board[1] &= bbTemp;
+    board[2] &= bbTemp;
+    board[3] &= bbTemp;
 
     // restore cpt
     board[0] |= (pcpt&1)<<cpt;
