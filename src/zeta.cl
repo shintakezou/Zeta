@@ -984,13 +984,14 @@ __kernel void bestfirst_gpu(
     }
 
 
+/*
     for(i=0;i<max_depth;i++)
     {
       global_pid_movecounter[pid*max_depth+i] = 0;
       global_pid_todoindex[pid*max_depth+i]   = 0;
       global_pid_depths[pid*max_depth+i]      = 0;
     }
-
+*/
 
     // main loop, TODO: Host based termination via CL_MEM_ALLOC_HOST_PTR        
     while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && *global_movecount < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECTION)) ) {
@@ -1101,51 +1102,6 @@ __kernel void bestfirst_gpu(
                 if (board_stack_tmp[(current%max_nodes_per_slot)].score == -INF)
                     mode = EXPAND;
 
-/*
-              // update root score for zeta pruning
-              parent = board_stack_tmp[(current%max_nodes_per_slot)].parent;
-              tmp = parent;
-
-              // backup score
-              while( parent >= 0 )
-              {
-                  score = -INF;
-                  board_stack = (parent >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
-                  j = board_stack[(parent%max_nodes_per_slot)].children;
-
-                  for(i=0;i<j;i++) {
-
-
-                      child = board_stack[(parent%max_nodes_per_slot)].child + i;
-    
-                      if (tmp==child)
-                        continue;
-
-                      board_stack_tmp = (child >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
-
-                      tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
-
-                      if ( abs(tmpscore) == INF ) { // skip unexplored 
-                          score = -INF;
-                          break;
-                      }
-                      if (tmpscore > score) {
-                          score = tmpscore;
-                      }
-                  }
-
-
-                  if ( abs(score) != INF ) {
-                      tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
-                      if (parent == 0 && score > tmpscore)
-                          COUNTERS[totalThreads*7+0] = (ply-ply_init)+1;
-                  }
-                  else
-                      break;
-
-                  parent = board_stack[(parent%max_nodes_per_slot)].parent;
-              }
-*/
             }                    
             // nothing goes
             if ( current == 0 )
