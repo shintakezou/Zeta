@@ -337,13 +337,14 @@ int GuessConfig( int extreme) {
 
                 // create a cl program executable for all the devices specified
                 status = clBuildProgram(program, 1, &devices[j], NULL, NULL, NULL);
+
                 if(status != CL_SUCCESS) 
 	            { 
                     char* build_log=0;
                     size_t log_size=0;
                     FILE 	*temp=0;
 
-		            printf("#> Error: Building Program, see file zeta.debug for buil log (clBuildProgram)\n");
+		            printf("#> Error: Building Program, see file zeta.debug for build log (clBuildProgram)\n");
 
 
                     // Shows the log

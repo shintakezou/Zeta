@@ -123,6 +123,7 @@ extern int load_file_to_string(const char *filename, char **result);
 extern int initializeCLDevice();
 extern int initializeCL();
 extern int runCLKernels(int som, int maxdepth, Move lastmove);
+extern int clGetMemory();
 extern int releaseCLDevice();
 extern int GuessConfig(int extreme);
 
@@ -775,6 +776,12 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         free_resources();
         exit(0);
     }
+    status = clGetMemory();
+    // something went wrong...
+    if (status != 0) {
+        free_resources();
+        exit(0);
+    }
 /*
     status = releaseCLDevice();
     // something went wrong...
@@ -1019,6 +1026,13 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     status = runCLKernels(som, depth, lastmove);
     if (status != 0)
         return -1;
+
+    gettimeofday(&end , NULL);
+    Elapsed = time_diff(start , end);
+
+    status = clGetMemory();
+    if (status != 0)
+        return -1;
 /*
     status = releaseCLDevice();
     if (status != 0)
@@ -1065,9 +1079,6 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     MEMORYFULL = COUNTERS[totalThreads*6+0];
 
 
-    gettimeofday(&end , NULL);
-    Elapsed = time_diff(start , end);
-
     // print cli output
     printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore);          
     printf(" move ");
@@ -1105,7 +1116,7 @@ signed int benchmarkNPS(int benchsec) {
 
     print_board(BOARD);
     Elapsed = 0;
-    max_nodes = 8192;
+    max_nodes = 8;
     while (Elapsed <= benchsec) {
         if (Elapsed *2 >= benchsec)
             break;

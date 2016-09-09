@@ -31,8 +31,9 @@ int temp = 0;
 
 int initializeCLDevice() {
 
-    program = NULL;
+    context = NULL;
     kernel  = NULL;
+    program = NULL;
 
     status = clGetPlatformIDs(256, NULL, &numPlatforms);
     if(status != CL_SUCCESS)
@@ -361,7 +362,8 @@ int initializeCL() {
 	/////////////////////////////////////////////////////////////////
 	// build CL program object, create CL kernel object
 	/////////////////////////////////////////////////////////////////
-    if (program == NULL ) {
+    if (true) {
+//    if (program == NULL ) {
         content = source;
         contentSize = &sourceSize;
         program = clCreateProgramWithSource(
@@ -432,7 +434,6 @@ int initializeCL() {
  */
 int  runCLKernels(int som, int maxdepth, Move lastmove) {
 
-    cl_event events[2];
     int i = 0;
 
     /*** Set appropriate arguments to the kernel ***/
@@ -777,6 +778,11 @@ int  runCLKernels(int som, int maxdepth, Move lastmove) {
 		print_debug((char *)"Error: Waiting for kernel run to finish. (clFinish)\n");
 		return 1;
 	}
+  return 0;
+}
+int  clGetMemory()
+{
+    cl_event events[2];
 
     /* wait for the kernel call to finish execution */
 /*
