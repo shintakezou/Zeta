@@ -54,8 +54,8 @@ typedef struct {
 #define MOVEDOWN    5
 #define BACKUPSCORE 6
 
-#define INF 32000
-#define MATESCORE 31000
+#define INF 262144
+#define MATESCORE 250000
 #define MIDGAME 128
 #define ENDGAME 0
 #define GrainSize 8
@@ -143,12 +143,13 @@ enum Squares
 };
 
 // tuneable search parameter
-#define MAXEVASIONS          3            // in check evasions
-#define TERMINATESOFT        1           // 0 or 1, will finish all searches before exit
-#define SMOOTHUCT            0.28       // factor for uct params in select formula
-#define SKIPMATE             1         // 0 or 1
+#define MAXEVASIONS          3             // in check evasions
+#define TERMINATESOFT        1            // 0 or 1, will finish all searches before exit
+#define SMOOTHUCT            0.28        // factor for uct params in select formula
+#define SKIPMATE             1          // 0 or 1
+#define SKIPDRAW             1         // 0 or 1
 #define ROOTSEARCH           0        // 0 or 1
-#define SCOREWEIGHT          0.33    // factor for board score in select formula
+#define SCOREWEIGHT          0.99    // factor for board score in select formula
 #define ZETAPRUNING          1      // 0 or 1
 
 /* 
@@ -487,7 +488,7 @@ __constant Bitboard AttackTablesPawnPushes[2*64] =
   /* black pawn pushes */
   0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80,0x100,0x200,0x400,0x800,0x1000,0x2000,0x4000,0x8000,0x10000,0x20000,0x40000,0x80000,0x100000,0x200000,0x400000,0x800000,0x1000000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000,0x80000000,0x100000000,0x200000000,0x400000000,0x800000000,0x1000000000,0x2000000000,0x4000000000,0x8000000000,0x10100000000,0x20200000000,0x40400000000,0x80800000000,0x101000000000,0x202000000000,0x404000000000,0x808000000000,0x1000000000000,0x2000000000000,0x4000000000000,0x8000000000000,0x10000000000000,0x20000000000000,0x40000000000000,0x80000000000000
 }; /* piece attack tables */
-__constant Bitboard AttackTables2[7*64] =
+__constant Bitboard AttackTables[7*64] =
 {
   /* white pawn */
   0x200,0x500,0xa00,0x1400,0x2800,0x5000,0xa000,0x4000,0x20000,0x50000,0xa0000,0x140000,0x280000,0x500000,0xa00000,0x400000,0x2000000,0x5000000,0xa000000,0x14000000,0x28000000,0x50000000,0xa0000000,0x40000000,0x200000000,0x500000000,0xa00000000,0x1400000000,0x2800000000,0x5000000000,0xa000000000,0x4000000000,0x20000000000,0x50000000000,0xa0000000000,0x140000000000,0x280000000000,0x500000000000,0xa00000000000,0x400000000000,0x2000000000000,0x5000000000000,0xa000000000000,0x14000000000000,0x28000000000000,0x50000000000000,0xa0000000000000,0x40000000000000,0x200000000000000,0x500000000000000,0xa00000000000000,0x1400000000000000,0x2800000000000000,0x5000000000000000,0xa000000000000000,0x4000000000000000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
@@ -709,7 +710,7 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
 
 
 /* is square attacked by an enemy piece, via superpiece approach */
-bool squareunderattack(__private Bitboard *board, bool stm, Square sq) 
+bool squareunderattack(__private Bitboard *board, bool side, Square sq) 
 {
   Bitboard bbWork;
   Bitboard bbMoves;
@@ -717,7 +718,7 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
   Bitboard bbOpp;
 
   bbBlockers = board[1]|board[2]|board[3];
-  bbOpp       = (!stm)?board[0]:(board[0]^bbBlockers);
+  bbOpp       = (!side)?board[0]:(board[0]^bbBlockers);
 
   /* rooks and queens */
   bbMoves = rook_attacks(bbBlockers, sq);
@@ -737,21 +738,21 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
   }
   /* knights */
   bbWork = bbOpp&(~board[1]&board[2]&~board[3]);
-  bbMoves = AttackTables2[128+sq] ;
+  bbMoves = AttackTables[128+sq] ;
   if (bbMoves&bbWork) 
   {
     return true;
   }
   /* pawns */
   bbWork = bbOpp&(board[1]&~board[2]&~board[3]);
-  bbMoves = AttackTables2[!stm*64+sq];
+  bbMoves = AttackTables[!side*64+sq];
   if (bbMoves&bbWork)
   {
     return true;
   }
   /* king */
   bbWork = bbOpp&(board[1]&board[2]&~board[3]);
-  bbMoves = AttackTables2[192+sq];
+  bbMoves = AttackTables[192+sq];
   if (bbMoves&bbWork)
   {
     return true;
@@ -783,7 +784,7 @@ __kernel void bestfirst_gpu(
                                const int max_nodes_to_expand,
                                const int max_nodes_per_slot,
                                const u64 max_nodes,
-                               const int max_depth,
+                               const s32 max_depth,
                             __global u64 *Zobrist
 )
 
@@ -795,7 +796,6 @@ __kernel void bestfirst_gpu(
 
     const s32 lid = get_local_id(2);
     const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
-    const s32 totalThreads = get_global_size(0)*get_global_size(1)*get_global_size(2);
     const s32 localThreads = get_global_size(2);
 
     bool som = (bool)som_init;
@@ -877,10 +877,10 @@ __kernel void bestfirst_gpu(
 
 
     // main loop
-    while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && *global_movecount < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECTION)) ) {
-
+    while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && *global_movecount < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECTION)) )
+    {
         // Iterations Counter
-        COUNTERS[pid]++;
+        COUNTERS[pid*10+0]++;
 
         // single reply and mate hack
         if ( board_stack_1[0].children == 1 || board_stack_1[0].children == 0 || ( abs(board_stack_1[0].score) != INF && abs(board_stack_1[0].score) > MATESCORE )) {
@@ -922,9 +922,11 @@ __kernel void bestfirst_gpu(
 
 
             // check movecount
-            if (n <= 0 ) {
+            if (n<=0)
                 mode = INIT;
-            }
+            // check bounds TODO: repetition detection
+            if (sd>=max_depth)
+                mode = INIT;
 
             score = -1000000000;
             current = 0;
@@ -943,20 +945,27 @@ __kernel void bestfirst_gpu(
 
                 tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
 
+                // skip draw score
+                if ( SKIPDRAW == 1 && tmpscore == 0)
+                    continue;
+
                 // skip check mate
                 if ( SKIPMATE == 1 && index > 0 && abs(tmpscore) != INF && abs(tmpscore) >= MATESCORE )
                     continue;
 
+                // prune bad score
+//                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+ (EvalPieceValues[QUEEN]/(pid+1)) < zeta )
+                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+pid < zeta )
+                  continue;
+
                 // rootsearch
                 if (ROOTSEARCH == 1 && index == 0)
                     tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].visits;
-                // prune bad score
-                else if (ZETAPRUNING == 1 && lid < localThreads/2 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore < zeta )
-                  continue;
-
-                tmpscore*= SCOREWEIGHT;
-                tmpscore+= (s32) (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
-
+                else
+                {
+                  tmpscore*= SCOREWEIGHT;
+                  tmpscore+= (s32) (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+                }
 
                 if ( tmpscore > score ) {
                     score = tmpscore;
@@ -1005,7 +1014,8 @@ __kernel void bestfirst_gpu(
 
                 domove(board, move);
 
-                updateHash(board, move, Zobrist);
+//                updateHash(board, move, Zobrist);\n
+                board[4] = computeHash(board, Zobrist);
 
                 global_HashHistory[pid*1024+ply] = board[4];
 
@@ -1046,7 +1056,8 @@ __kernel void bestfirst_gpu(
         CR = (Cr)((lastmove>>36)&0xF);
 
         // in check search extension
-//        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
+//        depth = search_depth;
+        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd+1:depth;
 
         // enter quiescence search?
         qs = (sd<=depth)?false:true;
@@ -1091,7 +1102,7 @@ __kernel void bestfirst_gpu(
     bbTemp  = ((piece>>1)==KNIGHT)?BBFULL:bbTemp;
     // verify captures
     i       = ((piece>>1)==PAWN)?(s32)som:(piece>>1);
-    bbTempO  = AttackTables2[i*64+pos];
+    bbTempO  = AttackTables[i*64+pos];
     bbMoves = bbTempO&bbTemp&bbOpp;
     // verify non captures
     bbTempO  = ((piece>>1)==PAWN)?(AttackTablesPawnPushes[som*64+pos]):bbTempO;
@@ -1142,7 +1153,7 @@ __kernel void bestfirst_gpu(
 
                         // Movecounters
                         n++;
-                        COUNTERS[totalThreads*3+pid]++;
+                        COUNTERS[pid*10+3]++;
                         atom_inc(global_movecount);
 
                         // sort move
@@ -1161,13 +1172,8 @@ __kernel void bestfirst_gpu(
 
                 // undomove
                 undomove(board, move);
-
             }
-
         }
-
-
-
         // ################################
         // ####       Castle moves      ###
         // ################################
@@ -1178,10 +1184,10 @@ __kernel void bestfirst_gpu(
         kingpos = first1(bbTemp);
 
         // Queenside
-        bbMoves  = (som==WHITE)? 0xE : 0x0E00000000000000;   
+        bbMoves  = (!som)? 0xE : 0x0E00000000000000;   
         bbMoves &= (board[1] | board[2] | board[3]); 
 
-        if ( !qs && ( (som==WHITE && (CR&0x1)) || (som==BLACK && (CR&0x4))) && ( (som==WHITE && kingpos == 4) || (som==BLACK && kingpos == 60) ) && !rootkic && (!bbMoves) && (bbOpp & SETMASKBB(kingpos-4)) ) {
+        if ( !qs && ( (!som && (CR&0x1)) || ( som && (CR&0x4))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic && (!bbMoves) && (bbOpp & SETMASKBB(kingpos-4)) ) {
 
             kic      = false;            
             kic     |= squareunderattack(board, som, kingpos-2);
@@ -1189,10 +1195,11 @@ __kernel void bestfirst_gpu(
 
             if (!kic) {
 
+
                 // make move
                 to = kingpos-4;
                 cpt = kingpos-1;
-                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (Piece)(som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (Piece)(som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (Piece)(som&1))<<54)&0x03C0000000000000) );
+                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
 
                 // update castle rights        
                 move = updateCR(move, CR);
@@ -1202,21 +1209,17 @@ __kernel void bestfirst_gpu(
                 // Movecounters
                 n++;
                 k++;
-                COUNTERS[totalThreads*3+pid]++;
+
+                COUNTERS[pid*10+3]++;
                 atom_inc(global_movecount);
             }
         }
 
-        bbOpp  = (bbMe & board[1] & ~board[2] & board[3] );
-        //get king position
-        bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
-        kingpos = first1(bbTemp);
-     
         // kingside
-        bbMoves  = (som==WHITE)? 0x60 : 0x6000000000000000;   
+        bbMoves  = (!som)? 0x60 : 0x6000000000000000;   
         bbMoves &= (board[1] | board[2] | board[3]); 
 
-        if ( !qs && ( (som==WHITE && (CR&0x2)) || (som&BLACK && (CR&0x8))) && ( (som==WHITE && kingpos == 4) || (som&BLACK && kingpos == 60) ) && !rootkic && (!bbMoves)  && (bbOpp & SETMASKBB(kingpos+3))) {
+        if ( !qs && ( (!som && (CR&0x2)) || (som && (CR&0x8))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic  && (!bbMoves)  && (bbOpp & SETMASKBB(kingpos+3))) {
 
 
             kic      = false;
@@ -1225,10 +1228,11 @@ __kernel void bestfirst_gpu(
         
             if (!kic) {
 
+
                 // make move
                 to = kingpos+3;
                 cpt = kingpos+1;
-                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (Piece)(som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (Piece)(som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (Piece)(som&1))<<54)&0x03C0000000000000) );
+                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
 
                 // update castle rights        
                 move = updateCR(move, CR);
@@ -1238,8 +1242,10 @@ __kernel void bestfirst_gpu(
                 // Movecounters
                 n++;
                 k++;
-                COUNTERS[totalThreads*3+pid]++;
+
+                COUNTERS[pid*10+3]++;
                 atom_inc(global_movecount);
+
             }
         }
 
@@ -1249,30 +1255,31 @@ __kernel void bestfirst_gpu(
         // ################################
         cpt = (lastmove>>30)&0x3F;
 
-        if ( cpt ) {
+        if (cpt) {
 
             piece = ((PAWN<<1) | (Piece)som);
             pieceto = piece;
-            piececpt = ((PAWN<<1) | (Piece)(!som) );
+            piececpt = ( (PAWN<<1) | (Piece)(!som) );
             ep = 0;
 
             bbMoves  =  bbMe & board[1] & ~board[2]  & ~board[3];
 
             // white
-            if (som==WHITE) {
-                bbMoves &= (0xFF00000000 & (SETMASKBB(cpt+1) | SETMASKBB(cpt-1)) );
+            if (!som) {
+                bbMoves &= (0xFF00000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
                 
             }
             // black     
             else {
-                bbMoves &= (0xFF000000 & (SETMASKBB(cpt+1) | SETMASKBB(cpt-1)) );
+                bbMoves &= (0xFF000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
             }
-            while(bbMoves){
+            while(bbMoves)
+            {
 
                 // pop 1st bit
                 pos = popfirst1(&bbMoves);
 
-                to  = (som&BLACK)? cpt-8 : cpt+8;
+                to  = (som)? cpt-8 : cpt+8;
                 
                 // make move
                 move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
@@ -1280,13 +1287,6 @@ __kernel void bestfirst_gpu(
                 // domove
                 domove(board, move);
 
-                //get king position
-                bbTemp  = board[0] ^ (board[1] | board[2] | board[3]);
-                bbTemp  = (som&BLACK)? board[0]   : bbTemp ;
-                bbTemp  = bbTemp & board[1] & board[2] & ~board[3]; // get king
-                kingpos = first1(bbTemp);
-
-                kic = false;
                 // king in check?
                 kic = squareunderattack(board, som, kingpos);
 
@@ -1299,7 +1299,8 @@ __kernel void bestfirst_gpu(
                     // Movecounters
                     n++;
                     k++;
-                    COUNTERS[totalThreads*3+pid]++;
+
+                    COUNTERS[pid*10+3]++;
                     atom_inc(global_movecount);
                 }
 
@@ -1382,39 +1383,43 @@ __kernel void bestfirst_gpu(
         }
         /* duble bishop */
         score-= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
-          
+
+        // centi pawn *10
+        score*=10;
+        // hack for drawscore == 0, site to move bonus
+        score+=(!som)?1:-1;
 
         // negamaxed scores
         score = (som&BLACK)? -score : score;
         // checkmate
         score = (rootkic&&k==0)?-INF+ply:score;
-        // Stalemate
-        score = (!rootkic&&k==0&&(mode==EXPAND||mode==EVALLEAF))?0:score;
+        // stalemate
+        score = (!rootkic&&k==0&&!qs)?0:score;
 
-        // draw by 3 fold repetition detection
+
+
+        // draw by 3 fold repetition
         j = 0;
-        if ( !qs && n > 0 && index > 0 ) {
-            for (i=ply-4; i>=0;i-=2) {
-
-                if (board[4] == global_HashHistory[pid*1024+i] ) {
-                    j++;
-                }
-                if ( j >= 1 ) {
-                    n       = 0;
-                    score   = 0;
-                    break;
-                }
-            }   
+        if (mode==EXPAND&&n>0&&index>0)
+        {
+          for (i=ply-4;i>0;i-=2)
+          {
+            if (board[4] == global_HashHistory[pid*1024+i])
+            {
+              j++;
+            }
+            if (j>=1)
+            {
+              n       = 0;
+              score   = 0;
+              break;
+            }
+          }   
         }   
 
         // out of range
-        if (sd >= max_depth ) {
-            n = 0;
-        }
-
-        // switch to expand mode
-        if (mode == EVALLEAF && n == 0)
-            mode = EXPAND;
+        if (sd>=max_depth)
+          n = 0;
 
         global_pid_movecounter[pid*max_depth+sd] = n;
 
@@ -1443,7 +1448,7 @@ __kernel void bestfirst_gpu(
         if (mode == EXPAND ) {
 
            // Expand Node Counter
-            COUNTERS[totalThreads*1+pid]++;
+            COUNTERS[pid*10+1]++;
 
             // create child nodes
             current = atom_add(board_stack_top,n);
@@ -1527,7 +1532,8 @@ __kernel void bestfirst_gpu(
 
                 undomove(board, move);
 
-                updateHash(board, move, Zobrist);
+//                updateHash(board, move, Zobrist);
+//                board[4] = computeHash(board, Zobrist);
 
                 // switch site to move
                 som = !som;
@@ -1545,14 +1551,15 @@ __kernel void bestfirst_gpu(
         if (mode == MOVEUP ) {
 
             // AB Search Node Counter
-            COUNTERS[totalThreads*2+pid]++;
+            COUNTERS[pid*10+2]++;
             atom_inc(total_nodes_visited);
 
             move = global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+global_pid_todoindex[pid*max_depth+sd]];
 
             domove(board, move);
 
-            updateHash(board, move, Zobrist);
+//            updateHash(board, move, Zobrist);
+            board[4] = computeHash(board, Zobrist);
 
             lastmove = move;
 
@@ -1614,7 +1621,7 @@ __kernel void bestfirst_gpu(
                 if ( abs(score) != INF ) {
                     tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
                     if (parent == 0 && score > tmpscore)
-                        COUNTERS[totalThreads*7+0] = (ply-ply_init)+1;
+                        COUNTERS[7] = (u64)(ply-ply_init)+1;
                 }
                 else
                     break;
@@ -1628,7 +1635,7 @@ __kernel void bestfirst_gpu(
     } 
         
     // return to host
-    COUNTERS[totalThreads*5+0] = *global_plyreached;
-    COUNTERS[totalThreads*6+0] = (*board_stack_top >= max_nodes_to_expand)? 1 : 0;
+    COUNTERS[5] = *global_plyreached;
+    COUNTERS[6] = (*board_stack_top >= max_nodes_to_expand)? 1 : 0;
 }
 
