@@ -148,12 +148,14 @@ enum Squares
 #define SMOOTHUCT            0.28        // factor for uct params in select formula
 #define SKIPMATE             1          // 0 or 1
 #define SKIPDRAW             1         // 0 or 1
-#define ROOTSEARCH           0        // 0 or 1
-#define SCOREWEIGHT          0.99    // factor for board score in select formula
+#define ROOTSEARCH           1        // 0 or 1
+#define SCOREWEIGHT          0.33    // factor for board score in select formula
 #define ZETAPRUNING          1      // 0 or 1
 
 /* 
-  piece square tables based on proposal by Tomasz Michniewski
+  piece square tables based on proposal by Tomasz Mich
+ni
+ewski
   https://chessprogramming.wikispaces.com/Simplified+evaluation+function
 */
 
@@ -954,8 +956,9 @@ __kernel void bestfirst_gpu(
                     continue;
 
                 // prune bad score
+//                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore < zeta )
 //                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+ (EvalPieceValues[QUEEN]/(pid+1)) < zeta )
-                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+pid < zeta )
+                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+(pid/2) < zeta )
                   continue;
 
                 // rootsearch
@@ -1057,7 +1060,7 @@ __kernel void bestfirst_gpu(
 
         // in check search extension
 //        depth = search_depth;
-        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd+1:depth;
+//        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd+1:depth;
 
         // enter quiescence search?
         qs = (sd<=depth)?false:true;
@@ -1499,6 +1502,8 @@ __kernel void bestfirst_gpu(
 
             sd = 0;
             depth = search_depth;
+            depth = (rootkic)?search_depth+1:search_depth;
+
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
             // set init Alpha Beta values
