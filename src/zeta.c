@@ -67,6 +67,7 @@ int max_cores       = 1;
 int force_mode      = false;
 int random_mode     = false;
 int xboard_mode     = false;
+int xboard_debug    = false;
 int post_mode       = false;
 int time_management = false;
 
@@ -111,7 +112,7 @@ void setboard(char *fen);
 void setboard_epd(char *fen);
 void move2alg(Move move, char * movec);
 void print_movealg(Move move);
-static void print_bitboard(Bitboard board);
+void print_bitboard(Bitboard board);
 void print_board(Bitboard *board);
 void print_stats();
 void read_config();
@@ -122,7 +123,7 @@ extern int load_file_to_string(const char *filename, char **result);
 // cl functions
 extern int initializeCLDevice();
 extern int initializeCL();
-extern int runCLKernels(int som, int maxdepth, Move lastmove);
+extern int runCLKernels(int som, int depth, Move lastmove);
 extern int clGetMemory();
 extern int releaseCLDevice();
 extern int GuessConfig(int extreme);
@@ -740,18 +741,13 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     // init vars
     memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
 
+    if (COUNTERS)
+      free(COUNTERS);
+    COUNTERS = (U64*)calloc(totalThreads*10, sizeof(U64));
+
+
 
     for(i=0;i<totalThreads;i++) {
-        COUNTERS[i] = 0;
-        COUNTERS[totalThreads*1+i] = 0;
-        COUNTERS[totalThreads*2+i] = 0;
-        COUNTERS[totalThreads*3+i] = 0;
-        COUNTERS[totalThreads*4+i] = 0;
-        COUNTERS[totalThreads*5+i] = 0;
-        COUNTERS[totalThreads*6+i] = 0;
-        COUNTERS[totalThreads*7+i] = 0;
-        COUNTERS[totalThreads*8+i] = 0;
-        COUNTERS[totalThreads*9+i] = rand();
         memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
     }
 
@@ -791,8 +787,6 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     }
 */
 
-
-
     // get best move from Tree
     for(i=0; i < NODES[0].children; i++) {
 
@@ -804,8 +798,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         if (abs(tmpscore) == INF) // skip illegal
             continue;
 
-//        if (tmpscore > score || (tmpscore == score && tmpvisits > visits)) {
-        if (tmpscore > score)
+        if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
         {
             score = tmpscore;
             visits = tmpvisits;
@@ -826,16 +819,16 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
 
     // collect counters
     for (i=0; i < totalThreads; i++) {
-        NODECOUNT+=     COUNTERS[i];
-        TNODECOUNT+=    COUNTERS[totalThreads*1+i];
-        ABNODECOUNT+=   COUNTERS[totalThreads*2+i];
-        MOVECOUNT+=     COUNTERS[totalThreads*3+i];
+        NODECOUNT+=     COUNTERS[i*10+0];
+        TNODECOUNT+=    COUNTERS[i*10+1];
+        ABNODECOUNT+=   COUNTERS[i*10+2];
+        MOVECOUNT+=     COUNTERS[i*10+3];
     }
 
 //    bestscore = (S32)COUNTERS[totalThreads*4+0];
-    plyreached = COUNTERS[totalThreads*5+0];
-    MEMORYFULL = COUNTERS[totalThreads*6+0];
-    bestmoveply= COUNTERS[totalThreads*7+0];
+    plyreached = COUNTERS[5];
+    MEMORYFULL = COUNTERS[6];
+    bestmoveply= COUNTERS[7];
 
     
 /*
@@ -931,7 +924,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     if (post_mode == true || xboard_mode == false) {
         if ( xboard_mode == false )
             printf("depth score time nodes pv \n");
-        printf("%i %i %i %" PRIu64 "" , plyreached, bestscore, (int)(Elapsed * 100), ABNODECOUNT);          
+        printf("%i %i %i %" PRIu64 "" , plyreached, bestscore/10, (int)(Elapsed * 100), ABNODECOUNT);          
         for (i=0;i<pvi;i++) {
             printf(" ");
             print_movealg(PV[i]);
@@ -1000,17 +993,11 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
 
 
+    if (COUNTERS)
+      free(COUNTERS);
+    COUNTERS = (U64*)calloc(totalThreads*10, sizeof(U64));
+
     for(i=0;i<totalThreads;i++) {
-        COUNTERS[i] = 0;
-        COUNTERS[totalThreads*1+i] = 0;
-        COUNTERS[totalThreads*2+i] = 0;
-        COUNTERS[totalThreads*3+i] = 0;
-        COUNTERS[totalThreads*4+i] = 0;
-        COUNTERS[totalThreads*5+i] = 0;
-        COUNTERS[totalThreads*6+i] = 0;
-        COUNTERS[totalThreads*7+i] = 0;
-        COUNTERS[totalThreads*8+i] = lastmove;
-        COUNTERS[totalThreads*9+i] = rand();
         memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
     }
 
@@ -1068,15 +1055,15 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
 
     // collect counters
     for (i=0; i < totalThreads; i++) {
-        NODECOUNT+=     COUNTERS[i];
-        TNODECOUNT+=    COUNTERS[totalThreads*1+i];
-        ABNODECOUNT+=   COUNTERS[totalThreads*2+i];
-        MOVECOUNT+=     COUNTERS[totalThreads*3+i];
+        NODECOUNT+=     COUNTERS[i*10+0];
+        TNODECOUNT+=    COUNTERS[i*10+1];
+        ABNODECOUNT+=   COUNTERS[i*10+2];
+        MOVECOUNT+=     COUNTERS[i*10+3];
     }
 
-    bestscore = (S32)COUNTERS[totalThreads*4+0];
-    plyreached = COUNTERS[totalThreads*5+0];
-    MEMORYFULL = COUNTERS[totalThreads*6+0];
+    bestscore = (S32)COUNTERS[4];
+    plyreached = COUNTERS[5];
+    MEMORYFULL = COUNTERS[6];
 
 
     // print cli output
@@ -1116,7 +1103,7 @@ signed int benchmarkNPS(int benchsec) {
 
     print_board(BOARD);
     Elapsed = 0;
-    max_nodes = 8;
+    max_nodes = 8192;
     while (Elapsed <= benchsec) {
         if (Elapsed *2 >= benchsec)
             break;
@@ -1484,6 +1471,10 @@ int main(void) {
             post_mode = false;
 			continue;
 		}
+		if (!strcmp(command, "debug")) {
+            post_mode = true;
+			continue;
+		}
 		if (!strcmp(command, "white")) {
 			continue;
 		}
@@ -1582,7 +1573,7 @@ int main(void) {
             HashHistory[PLY] = BOARD[4];
             MoveHistory[PLY] = Lastmove;
             
-            if (xboard_mode == false)
+//            if (xboard_mode == false)
                 print_board(BOARD);
 
             printf("move ");
@@ -1605,7 +1596,7 @@ int main(void) {
             HashHistory[PLY] = BOARD[4];
             MoveHistory[PLY] = Lastmove;
 
-            if (xboard_mode == false)
+//            if (xboard_mode == false)
                 print_board(BOARD);
 
             SOM = SwitchSide(SOM);
@@ -1620,7 +1611,7 @@ int main(void) {
                 HashHistory[PLY] = BOARD[4];
                 MoveHistory[PLY] = Lastmove;
 
-                if (xboard_mode == false)
+//                if (xboard_mode == false)
                     print_board(BOARD);
 
                 printf("move ");
@@ -2137,7 +2128,7 @@ void print_movealg(Move move) {
 
 }
 
-static void print_bitboard(Bitboard board) {
+void print_bitboard(Bitboard board) {
 
     int i,j,pos;
     printf("###ABCDEFGH###\n");
@@ -2196,7 +2187,7 @@ void print_board(Bitboard *board) {
 void print_stats() {
     FILE 	*Stats;
     Stats = fopen("zeta.debug", "ab+");
-    fprintf(Stats, "iterations: %" PRIu64 " ,Expaned Nodes: %" PRIu64 " , MemoryFull: %" PRIu64 ", AB-Nodes: %" PRIu64 " , Movecount: %" PRIu64 " , Node Copies: %i, bestmove: %" PRIu64 ", depth: %i, Score: %i, ScoreDepth: %i,  sec: %f \n", NODECOUNT, TNODECOUNT, MEMORYFULL, ABNODECOUNT, MOVECOUNT, NODECOPIES, Bestmove, plyreached, bestscore, bestmoveply, Elapsed);
+    fprintf(Stats, "iterations: %" PRIu64 " ,Expaned Nodes: %" PRIu64 " , MemoryFull: %" PRIu64 ", AB-Nodes: %" PRIu64 " , Movecount: %" PRIu64 " , Node Copies: %i, bestmove: %" PRIu64 ", depth: %i, Score: %i, ScoreDepth: %i,  sec: %f \n", NODECOUNT, TNODECOUNT, MEMORYFULL, ABNODECOUNT, MOVECOUNT, NODECOPIES, Bestmove, plyreached, bestscore/10, bestmoveply, Elapsed);
     fclose(Stats);
 }
 
@@ -2269,7 +2260,7 @@ void read_config(char configfile[]) {
         }
     }
 
-    COUNTERS = (U64*)malloc((10*totalThreads) * sizeof (U64));
+    COUNTERS = (U64*)calloc(10*totalThreads, sizeof(U64));
 
     if (COUNTERS == NULL) {
         printf("memory alloc failed\n");

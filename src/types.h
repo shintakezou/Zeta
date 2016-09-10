@@ -93,7 +93,7 @@ typedef struct {
 #define ILL     64
 
 
-#define INF 32000
-#define MATESCORE 29000
+#define INF 262144
+#define MATESCORE 250000
 
 #endif

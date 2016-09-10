@@ -129,7 +129,8 @@ int GuessConfig( int extreme) {
 
             for(j=0; j < deviceListSize; j++) {
 
-                
+                warpmulti = 1;
+
                 status = clGetDeviceInfo (devices[j],
                                 CL_DEVICE_NAME,
                                 0,

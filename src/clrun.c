@@ -199,7 +199,7 @@ int initializeCL() {
     COUNTERS_Buffer = clCreateBuffer(
 				      context, 
                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                      sizeof(cl_ulong) * totalThreads * 10  ,
+                      sizeof(cl_ulong) * totalThreads * 10,
                       COUNTERS, 
                       &status);
     if(status != CL_SUCCESS) 
@@ -432,7 +432,7 @@ int initializeCL() {
  *        Bind host variables to kernel arguments 
  *		  Run the CL kernel
  */
-int  runCLKernels(int som, int maxdepth, Move lastmove) {
+int  runCLKernels(int som, int depth, Move lastmove) {
 
     int i = 0;
 
@@ -664,7 +664,7 @@ int  runCLKernels(int som, int maxdepth, Move lastmove) {
                     kernel, 
                     i, 
                     sizeof(cl_int), 
-                    (void *)&max_leaf_depth);
+                    (void *)&depth);
     if(status != CL_SUCCESS) 
 	{ 
 		print_debug((char *)"Error: Setting kernel argument. (max_leaf_depth)\n");
