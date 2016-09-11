@@ -932,8 +932,8 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     // print xboard output
     if (post_mode == true || xboard_mode == false) {
         if ( xboard_mode == false )
-            printf("depth score time nodes pv \n");
-        printf("%i %i %i %" PRIu64 "" , plyreached, bestscore/10, (int)(Elapsed * 100), ABNODECOUNT);          
+            printf("depth score time nodes bfdepth pv \n");
+        printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (int)(Elapsed * 100), ABNODECOUNT, plyreached);          
         for (i=0;i<pvi;i++) {
             printf(" ");
             print_movealg(PV[i]);
