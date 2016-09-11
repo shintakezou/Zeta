@@ -151,8 +151,9 @@ enum Squares
 #define SMOOTHUCT            0.28        // factor for uct params in select formula
 #define SKIPMATE             1          // 0 or 1
 #define SKIPDRAW             1         // 0 or 1
-#define SCOREWEIGHT          0.33     // factor for board score in select formula
-#define ZETAPRUNING          1       // 0 or 1
+#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
+#define SCOREWEIGHT          0.11    // factor for board score in select formula
+#define ZETAPRUNING          1      // 0 or 1
 
 /* 
   piece square tables based on proposal by Tomasz Mich
@@ -968,10 +969,13 @@ __kernel void bestfirst_gpu(
 //                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+pid < zeta )
                 if (ZETAPRUNING == 1 && index > 0 && lid < localThreads/4 && !ISINF(tmpscoreb) && !ISINF(zeta) && !ISMATE(zeta) && tmpscoreb < zeta )
                   continue;
-
-                tmpscoreb*= SCOREWEIGHT;
-                tmpscoreb+= (s32) (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
-
+                else if (ROOTSEARCH == 1 && index==0)
+                    tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
+                else
+                {
+                  tmpscoreb*= SCOREWEIGHT;
+                  tmpscoreb+= (s32) (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+                }
                 if ( tmpscoreb > tmpscorea ) {
                     tmpscorea = tmpscoreb;
                     current = child;
@@ -1061,7 +1065,7 @@ __kernel void bestfirst_gpu(
         CR = (Cr)((lastmove>>36)&0xF);
 
         // in check search extension
-//        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd+1:depth;
+        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
 
         // enter quiescence search?
         qs = (sd<=depth)?false:true;
@@ -1505,7 +1509,7 @@ __kernel void bestfirst_gpu(
             depth = search_depth;
             depth = (rootkic)?search_depth+1:search_depth;
 //            depth = (silent)?search_depth+1:depth;
-//            depth = (n==1)?search_depth+1:depth;
+            depth = (n==1)?search_depth+1:depth;
 
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
