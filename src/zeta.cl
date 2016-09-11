@@ -54,11 +54,10 @@ typedef struct {
 #define MOVEDOWN    5
 #define BACKUPSCORE 6
 
-#define INF 262144
-#define MATESCORE 250000
-#define MIDGAME 128
-#define ENDGAME 0
-#define GrainSize 8
+#define INF             1048576
+#define MATESCORE       1040000
+#define DRAWSCORE       0
+#define STALEMATESCORE  0
 
 #define MAXLEGALMOVES 220
 
@@ -141,6 +140,10 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
+/* is score a mate in n */
+#define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
+/* is score default inf */
+#define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 
 // tuneable search parameter
 #define MAXEVASIONS          3             // in check evasions
@@ -148,9 +151,8 @@ enum Squares
 #define SMOOTHUCT            0.28        // factor for uct params in select formula
 #define SKIPMATE             1          // 0 or 1
 #define SKIPDRAW             1         // 0 or 1
-#define ROOTSEARCH           1        // 0 or 1
-#define SCOREWEIGHT          0.33    // factor for board score in select formula
-#define ZETAPRUNING          1      // 0 or 1
+#define SCOREWEIGHT          0.33     // factor for board score in select formula
+#define ZETAPRUNING          1       // 0 or 1
 
 /* 
   piece square tables based on proposal by Tomasz Mich
@@ -389,7 +391,7 @@ void undomove(__private Bitboard *board, Move move) {
 /* ###         Hash          ### */
 /* ############################# */
 
-Hash computeHash(__private Bitboard *board, __global u64 *Zobrist) {
+Hash computeHash(__private Bitboard *board, bool stm, __global u64 *Zobrist) {
 
     Piece piece;
     int side;
@@ -409,11 +411,13 @@ Hash computeHash(__private Bitboard *board, __global u64 *Zobrist) {
         while (bbWork) {
             // pop 1st bit
             pos     = popfirst1(&bbWork);
-            piece = ( ((board[0]>>pos) &1) + 2*((board[1]>>pos) &1) + 4*((board[2]>>pos) &1) + 8*((board[3]>>pos) &1) )>>1;
+            piece = GETPIECETYPE(board, pos);
             hash ^= Zobrist[side*7*64+piece*64+pos];
 
         }
     }
+    if (!stm)
+      hash^=Zobrist[844];
 
     return hash;    
 }
@@ -483,14 +487,15 @@ __constant ulong4 wraps4[2] =
             0x00ffffffffffffff  // >>8
           )
 };
-__constant Bitboard AttackTablesPawnPushes[2*64] =
+__constant Bitboard AttackTablesPawnPushes[2*64] = 
 {
   /* white pawn pushes */
   0x100,0x200,0x400,0x800,0x1000,0x2000,0x4000,0x8000,0x1010000,0x2020000,0x4040000,0x8080000,0x10100000,0x20200000,0x40400000,0x80800000,0x1000000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000,0x80000000,0x100000000,0x200000000,0x400000000,0x800000000,0x1000000000,0x2000000000,0x4000000000,0x8000000000,0x10000000000,0x20000000000,0x40000000000,0x80000000000,0x100000000000,0x200000000000,0x400000000000,0x800000000000,0x1000000000000,0x2000000000000,0x4000000000000,0x8000000000000,0x10000000000000,0x20000000000000,0x40000000000000,0x80000000000000,0x100000000000000,0x200000000000000,0x400000000000000,0x800000000000000,0x1000000000000000,0x2000000000000000,0x4000000000000000,0x8000000000000000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
   /* black pawn pushes */
   0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80,0x100,0x200,0x400,0x800,0x1000,0x2000,0x4000,0x8000,0x10000,0x20000,0x40000,0x80000,0x100000,0x200000,0x400000,0x800000,0x1000000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000,0x80000000,0x100000000,0x200000000,0x400000000,0x800000000,0x1000000000,0x2000000000,0x4000000000,0x8000000000,0x10100000000,0x20200000000,0x40400000000,0x80800000000,0x101000000000,0x202000000000,0x404000000000,0x808000000000,0x1000000000000,0x2000000000000,0x4000000000000,0x8000000000000,0x10000000000000,0x20000000000000,0x40000000000000,0x80000000000000
-}; /* piece attack tables */
-__constant Bitboard AttackTables[7*64] =
+};
+/* piece attack tables */
+__constant Bitboard AttackTables[7*64] = 
 {
   /* white pawn */
   0x200,0x500,0xa00,0x1400,0x2800,0x5000,0xa000,0x4000,0x20000,0x50000,0xa0000,0x140000,0x280000,0x500000,0xa00000,0x400000,0x2000000,0x5000000,0xa000000,0x14000000,0x28000000,0x50000000,0xa0000000,0x40000000,0x200000000,0x500000000,0xa00000000,0x1400000000,0x2800000000,0x5000000000,0xa000000000,0x4000000000,0x20000000000,0x50000000000,0xa0000000000,0x140000000000,0x280000000000,0x500000000000,0xa00000000000,0x400000000000,0x2000000000000,0x5000000000000,0xa000000000000,0x14000000000000,0x28000000000000,0x50000000000000,0xa0000000000000,0x40000000000000,0x200000000000000,0x500000000000000,0xa00000000000000,0x1400000000000000,0x2800000000000000,0x5000000000000000,0xa000000000000000,0x4000000000000000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
@@ -506,7 +511,7 @@ __constant Bitboard AttackTables[7*64] =
   0x1010101010101fe,0x2020202020202fd,0x4040404040404fb,0x8080808080808f7,0x10101010101010ef,0x20202020202020df,0x40404040404040bf,0x808080808080807f,0x10101010101fe01,0x20202020202fd02,0x40404040404fb04,0x80808080808f708,0x101010101010ef10,0x202020202020df20,0x404040404040bf40,0x8080808080807f80,0x101010101fe0101,0x202020202fd0202,0x404040404fb0404,0x808080808f70808,0x1010101010ef1010,0x2020202020df2020,0x4040404040bf4040,0x80808080807f8080,0x1010101fe010101,0x2020202fd020202,0x4040404fb040404,0x8080808f7080808,0x10101010ef101010,0x20202020df202020,0x40404040bf404040,0x808080807f808080,0x10101fe01010101,0x20202fd02020202,0x40404fb04040404,0x80808f708080808,0x101010ef10101010,0x202020df20202020,0x404040bf40404040,0x8080807f80808080,0x101fe0101010101,0x202fd0202020202,0x404fb0404040404,0x808f70808080808,0x1010ef1010101010,0x2020df2020202020,0x4040bf4040404040,0x80807f8080808080,0x1fe010101010101,0x2fd020202020202,0x4fb040404040404,0x8f7080808080808,0x10ef101010101010,0x20df202020202020,0x40bf404040404040,0x807f808080808080,0xfe01010101010101,0xfd02020202020202,0xfb04040404040404,0xf708080808080808,0xef10101010101010,0xdf20202020202020,0xbf40404040404040,0x7f80808080808080,
   /* queen */
   0x81412111090503fe,0x2824222120a07fd,0x404844424150efb,0x8080888492a1cf7,0x10101011925438ef,0x2020212224a870df,0x404142444850e0bf,0x8182848890a0c07f,0x412111090503fe03,0x824222120a07fd07,0x4844424150efb0e,0x80888492a1cf71c,0x101011925438ef38,0x20212224a870df70,0x4142444850e0bfe0,0x82848890a0c07fc0,0x2111090503fe0305,0x4222120a07fd070a,0x844424150efb0e15,0x888492a1cf71c2a,0x1011925438ef3854,0x212224a870df70a8,0x42444850e0bfe050,0x848890a0c07fc0a0,0x11090503fe030509,0x22120a07fd070a12,0x4424150efb0e1524,0x88492a1cf71c2a49,0x11925438ef385492,0x2224a870df70a824,0x444850e0bfe05048,0x8890a0c07fc0a090,0x90503fe03050911,0x120a07fd070a1222,0x24150efb0e152444,0x492a1cf71c2a4988,0x925438ef38549211,0x24a870df70a82422,0x4850e0bfe0504844,0x90a0c07fc0a09088,0x503fe0305091121,0xa07fd070a122242,0x150efb0e15244484,0x2a1cf71c2a498808,0x5438ef3854921110,0xa870df70a8242221,0x50e0bfe050484442,0xa0c07fc0a0908884,0x3fe030509112141,0x7fd070a12224282,0xefb0e1524448404,0x1cf71c2a49880808,0x38ef385492111010,0x70df70a824222120,0xe0bfe05048444241,0xc07fc0a090888482,0xfe03050911214181,0xfd070a1222428202,0xfb0e152444840404,0xf71c2a4988080808,0xef38549211101010,0xdf70a82422212020,0xbfe0504844424140,0x7fc0a09088848281,
-}; 
+};
 /* generate rook moves via koggestone shifts */
 Bitboard ks_attacks_ls1(Bitboard bbBlockers, Square sq)
 {
@@ -712,48 +717,48 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
 
 
 /* is square attacked by an enemy piece, via superpiece approach */
-bool squareunderattack(__private Bitboard *board, bool side, Square sq) 
+bool squareunderattack(__private Bitboard *board, bool stm, Square sq) 
 {
   Bitboard bbWork;
   Bitboard bbMoves;
   Bitboard bbBlockers;
-  Bitboard bbOpp;
+  Bitboard bbMe;
 
   bbBlockers = board[1]|board[2]|board[3];
-  bbOpp       = (!side)?board[0]:(board[0]^bbBlockers);
+  bbMe       = (stm)?board[0]:(board[0]^bbBlockers);
 
   /* rooks and queens */
   bbMoves = rook_attacks(bbBlockers, sq);
-  bbWork =    (bbOpp&(board[1]&~board[2]&board[3])) 
-            | (bbOpp&(~board[1]&board[2]&board[3]));
+  bbWork =    (bbMe&(board[1]&~board[2]&board[3])) 
+            | (bbMe&(~board[1]&board[2]&board[3]));
   if (bbMoves&bbWork)
   {
     return true;
   }
   bbMoves = bishop_attacks(bbBlockers, sq);
   /* bishops and queens */
-  bbWork =  (bbOpp&(~board[1]&~board[2]&board[3])) 
-          | (bbOpp&(~board[1]&board[2]&board[3]));
+  bbWork =  (bbMe&(~board[1]&~board[2]&board[3])) 
+          | (bbMe&(~board[1]&board[2]&board[3]));
   if (bbMoves&bbWork)
   {
     return true;
   }
   /* knights */
-  bbWork = bbOpp&(~board[1]&board[2]&~board[3]);
+  bbWork = bbMe&(~board[1]&board[2]&~board[3]);
   bbMoves = AttackTables[128+sq] ;
   if (bbMoves&bbWork) 
   {
     return true;
   }
   /* pawns */
-  bbWork = bbOpp&(board[1]&~board[2]&~board[3]);
-  bbMoves = AttackTables[!side*64+sq];
+  bbWork = bbMe&(board[1]&~board[2]&~board[3]);
+  bbMoves = AttackTables[!stm*64+sq];
   if (bbMoves&bbWork)
   {
     return true;
   }
   /* king */
-  bbWork = bbOpp&(board[1]&board[2]&~board[3]);
+  bbWork = bbMe&(board[1]&board[2]&~board[3]);
   bbMoves = AttackTables[192+sq];
   if (bbMoves&bbWork)
   {
@@ -814,7 +819,7 @@ __kernel void bestfirst_gpu(
 
     s32 depth = search_depth;
     s32 sd = 0;
-    s32 ply = ply_init;
+    s32 ply = 0;
 
     Cr CR  = 0;
         
@@ -823,8 +828,10 @@ __kernel void bestfirst_gpu(
     Move lastmove = 0;
 
     Score score = 0;
-    Score zeta = 0;
     Score tmpscore = 0;
+    float zeta = 0;
+    float tmpscorea = 0;
+    float tmpscoreb = 0;
 
     s32 mode = INIT;
 
@@ -870,7 +877,7 @@ __kernel void bestfirst_gpu(
         board[4] = init_board[4]; // Hash
 
         som     = (bool)som_init;
-        ply     = ply_init;
+        ply     = 0;
         sd      = 0;
 
         lastmove = board_stack_1[0].move;
@@ -885,7 +892,7 @@ __kernel void bestfirst_gpu(
         COUNTERS[pid*10+0]++;
 
         // single reply and mate hack
-        if ( board_stack_1[0].children == 1 || board_stack_1[0].children == 0 || ( abs(board_stack_1[0].score) != INF && abs(board_stack_1[0].score) > MATESCORE )) {
+        if ( board_stack_1[0].children == 1 || board_stack_1[0].children == 0 || ISMATE(board_stack_1[0].score)) {
             *global_return = board_stack_1[board_stack_1[0].child].move;
             break;
         }
@@ -904,7 +911,7 @@ __kernel void bestfirst_gpu(
 
             depth   = search_depth;
             som     = (bool)som_init;
-            ply     = ply_init;
+            ply     = 0;
             sd      = 0;
 
             lastmove = board_stack_1[0].move;
@@ -912,7 +919,7 @@ __kernel void bestfirst_gpu(
 
             mode = SELECTION;
 
-            zeta = board_stack_1[0].score;
+            zeta = (float)board_stack_1[0].score;
 
         }
 
@@ -930,7 +937,7 @@ __kernel void bestfirst_gpu(
             if (sd>=max_depth)
                 mode = INIT;
 
-            score = -1000000000;
+            tmpscorea = -1000000000;
             current = 0;
             k = -1;
 
@@ -945,33 +952,28 @@ __kernel void bestfirst_gpu(
                 if (board_stack_tmp[(child%max_nodes_per_slot)].lock > -1 || board_stack_tmp[(child%max_nodes_per_slot)].children == 0)
                     continue;
 
-                tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
+                tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].score;
 
                 // skip draw score
-                if ( SKIPDRAW == 1 && tmpscore == 0)
+                if ( SKIPDRAW == 1 && tmpscoreb == 0)
                     continue;
 
                 // skip check mate
-                if ( SKIPMATE == 1 && index > 0 && abs(tmpscore) != INF && abs(tmpscore) >= MATESCORE )
+                if ( SKIPMATE == 1 && index > 0 && ISMATE(tmpscoreb))
                     continue;
 
                 // prune bad score
 //                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore < zeta )
 //                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+ (EvalPieceValues[QUEEN]/(pid+1)) < zeta )
-                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+(pid/2) < zeta )
+//                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+pid < zeta )
+                if (ZETAPRUNING == 1 && index > 0 && lid < localThreads/4 && !ISINF(tmpscoreb) && !ISINF(zeta) && !ISMATE(zeta) && tmpscoreb < zeta )
                   continue;
 
-                // rootsearch
-                if (ROOTSEARCH == 1 && index == 0)
-                    tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].visits;
-                else
-                {
-                  tmpscore*= SCOREWEIGHT;
-                  tmpscore+= (s32) (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
-                }
+                tmpscoreb*= SCOREWEIGHT;
+                tmpscoreb+= (s32) (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
 
-                if ( tmpscore > score ) {
-                    score = tmpscore;
+                if ( tmpscoreb > tmpscorea ) {
+                    tmpscorea = tmpscoreb;
                     current = child;
                 }
             }
@@ -1013,20 +1015,20 @@ __kernel void bestfirst_gpu(
 
                 ply++;
 
-                atom_max(global_plyreached, (ply-ply_init));
+                atom_max(global_plyreached, ply);
 
                 domove(board, move);
 
-//                updateHash(board, move, Zobrist);\n
-                board[4] = computeHash(board, Zobrist);
-
-                global_HashHistory[pid*1024+ply] = board[4];
+                global_HashHistory[pid*1024+ply+ply_init] = board[4];
 
                 som = !som;    
 
+//                updateHash(board, move, Zobrist);\n
+                board[4] = computeHash(board, som, Zobrist);
+
                 index = current;
 
-                zeta = board_stack_tmp[(current%max_nodes_per_slot)].score;
+                zeta = (float)board_stack_tmp[(current%max_nodes_per_slot)].score;
             }
         }
 
@@ -1054,12 +1056,11 @@ __kernel void bestfirst_gpu(
 
         rootkic = false;
         // king in check?
-        rootkic = squareunderattack(board, som, kingpos);
+        rootkic = squareunderattack(board, !som, kingpos);
 
         CR = (Cr)((lastmove>>36)&0xF);
 
         // in check search extension
-//        depth = search_depth;
 //        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd+1:depth;
 
         // enter quiescence search?
@@ -1140,7 +1141,7 @@ __kernel void bestfirst_gpu(
 
                 kic = false;
                 // king in check?
-                kic = squareunderattack(board, som, kingpos);
+                kic = squareunderattack(board, !som, kingpos);
 
                 if (!kic) {
 
@@ -1193,8 +1194,8 @@ __kernel void bestfirst_gpu(
         if ( !qs && ( (!som && (CR&0x1)) || ( som && (CR&0x4))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic && (!bbMoves) && (bbOpp & SETMASKBB(kingpos-4)) ) {
 
             kic      = false;            
-            kic     |= squareunderattack(board, som, kingpos-2);
-            kic     |= squareunderattack(board, som, kingpos-1);
+            kic     |= squareunderattack(board, !som, kingpos-2);
+            kic     |= squareunderattack(board, !som, kingpos-1);
 
             if (!kic) {
 
@@ -1226,8 +1227,8 @@ __kernel void bestfirst_gpu(
 
 
             kic      = false;
-            kic     |= squareunderattack(board, som, kingpos+1);
-            kic     |= squareunderattack(board, som, kingpos+2);
+            kic     |= squareunderattack(board, !som, kingpos+1);
+            kic     |= squareunderattack(board, !som, kingpos+2);
         
             if (!kic) {
 
@@ -1290,8 +1291,12 @@ __kernel void bestfirst_gpu(
                 // domove
                 domove(board, move);
 
+                //get king position
+                bbTemp  = bbMe&board[1]&board[2]&~board[3];
+                kingpos = first1(bbTemp);
+
                 // king in check?
-                kic = squareunderattack(board, som, kingpos);
+                kic = squareunderattack(board, !som, kingpos);
 
                 if (!kic) {
 
@@ -1393,25 +1398,20 @@ __kernel void bestfirst_gpu(
         score+=(!som)?1:-1;
 
         // negamaxed scores
-        score = (som&BLACK)? -score : score;
+        score = (som)?-score:score;
         // checkmate
-        score = (rootkic&&k==0)?-INF+ply:score;
+        score = (rootkic&&k==0)?-INF+ply+ply_init:score;
         // stalemate
         score = (!rootkic&&k==0&&!qs)?0:score;
 
 
 
         // draw by 3 fold repetition
-        j = 0;
-        if (mode==EXPAND&&n>0&&index>0)
+        if (mode==EXPAND&&index>0)
         {
-          for (i=ply-4;i>0;i-=2)
+          for (i=ply+ply_init-2;i>0;i-=2)
           {
             if (board[4] == global_HashHistory[pid*1024+i])
-            {
-              j++;
-            }
-            if (j>=1)
             {
               n       = 0;
               score   = 0;
@@ -1501,8 +1501,11 @@ __kernel void bestfirst_gpu(
         if (mode == EVALLEAF) {
 
             sd = 0;
+            // extensions
             depth = search_depth;
             depth = (rootkic)?search_depth+1:search_depth;
+//            depth = (silent)?search_depth+1:depth;
+//            depth = (n==1)?search_depth+1:depth;
 
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
@@ -1537,11 +1540,11 @@ __kernel void bestfirst_gpu(
 
                 undomove(board, move);
 
-//                updateHash(board, move, Zobrist);
-//                board[4] = computeHash(board, Zobrist);
-
                 // switch site to move
                 som = !som;
+
+//                updateHash(board, move, Zobrist);
+//                board[4] = computeHash(board, som, Zobrist);
             }
  
             mode = MOVEUP;
@@ -1563,21 +1566,20 @@ __kernel void bestfirst_gpu(
 
             domove(board, move);
 
-//            updateHash(board, move, Zobrist);
-            board[4] = computeHash(board, Zobrist);
-
             lastmove = move;
 
             // switch site to move
             som = !som;
 
+//            updateHash(board, move, Zobrist);
+            board[4] = computeHash(board, som, Zobrist);
 
             global_pid_todoindex[pid*max_depth+sd]++;
 
             sd++;
             ply++;
 
-            global_HashHistory[pid*1024+ply] = board[4];
+            global_HashHistory[pid*1024+ply+ply_init] = board[4];
 
             global_pid_movecounter[pid*max_depth+sd] = 0;
             global_pid_todoindex[pid*max_depth+sd] = 0;
@@ -1613,7 +1615,7 @@ __kernel void bestfirst_gpu(
 
                     tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
 
-                    if ( abs(tmpscore) == INF ) { // skip unexplored 
+                    if (ISINF(tmpscore)) { // skip unexplored 
                         score = -INF;
                         break;
                     }
@@ -1623,10 +1625,11 @@ __kernel void bestfirst_gpu(
                 }
 
 
-                if ( abs(score) != INF ) {
+                if (!ISINF(score))
+                {
                     tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
                     if (parent == 0 && score > tmpscore)
-                        COUNTERS[7] = (u64)(ply-ply_init)+1;
+                        COUNTERS[7] = (u64)ply+1;
                 }
                 else
                     break;

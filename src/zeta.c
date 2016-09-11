@@ -27,7 +27,7 @@
 #include <sys/time.h>
 
 #include "types.h"
-#include "bitboard.h" // Magic Hashtables from <stockfish>
+#include "bitboard.h" // magic Hashtables from <stockfish>
 #include "zobrist.h"
 
 const char filename[]  = "zeta.cl";
@@ -293,6 +293,8 @@ Hash computeHash(Bitboard *board, int som) {
 
         }
     }
+    if (!som)
+      hash^=Zobrist[844];
 
     return hash;    
 }
@@ -795,7 +797,13 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         tmpscore = -NODES[j].score;
         tmpvisits = NODES[j].visits;
 
-        if (abs(tmpscore) == INF) // skip illegal
+        FILE 	*Stats;
+        Stats = fopen("zeta.debug", "ab+");
+        fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
+        fclose(Stats);
+ 
+
+        if (ISINF(tmpscore)) // skip illegal
             continue;
 
         if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
@@ -987,7 +995,7 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     }
 
     if (NODECOPIES > 1 && reuse_node_tree == 1)
-        memcpy(NODES, NODES_TMP, max_nodes_to_expand*node_size* sizeof(S32));
+        memcpy(NODES, NODES_TMP, max_nodes_to_expand*sizeof(NodeBlock));
 
     // init vars
     memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));

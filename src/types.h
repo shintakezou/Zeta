@@ -88,12 +88,16 @@ typedef struct {
 //#define EXPANDABLE  9
 //#define node_size   10
 
-#define node_size   8
-
 #define ILL     64
 
+#define INF             1048576
+#define MATESCORE       1040000
+#define DRAWSCORE       0
+#define STALEMATESCORE  0
 
-#define INF 262144
-#define MATESCORE 250000
+// is score a mate in n 
+#define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
+// is score default inf
+#define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 
 #endif
