@@ -183,6 +183,19 @@ int initializeCL() {
         return 1;
     }   
 
+    temp = (memory_slots >= 3)? max_nodes_to_expand : 1;
+    GLOBAL_BOARD_STACK_3_Buffer = clCreateBuffer(
+		              context, 
+                      CL_MEM_READ_WRITE,
+                      sizeof(NodeBlock) * temp,
+                      NULL, 
+                      &status);
+    if(status != CL_SUCCESS) 
+    { 
+        print_debug((char *)"Error: clCreateBuffer (GLOBAL_BOARD_STACK_3_Buffer)\n");
+        return 1;
+    }   
+
     temp = 0;
     GLOBAL_RETURN_BESTMOVE_Buffer = clCreateBuffer(
 				      context, 
@@ -472,6 +485,18 @@ int  runCLKernels(int som, int depth, Move lastmove) {
     if(status != CL_SUCCESS) 
 	{ 
 		print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_2_Buffer)\n");
+		return 1;
+	}
+    i++;
+
+    status = clSetKernelArg(
+                    kernel, 
+                    i, 
+                    sizeof(cl_mem), 
+                    (void *)&GLOBAL_BOARD_STACK_3_Buffer);
+    if(status != CL_SUCCESS) 
+	{ 
+		print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_3_Buffer)\n");
 		return 1;
 	}
     i++;
@@ -944,6 +969,13 @@ int  clGetMemory()
     if(status != CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_STACK_2_Buffer)\n");
+		return 1; 
+	}
+
+    status = clReleaseMemObject(GLOBAL_BOARD_STACK_3_Buffer);
+    if(status != CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_STACK_3_Buffer)\n");
 		return 1; 
 	}
 

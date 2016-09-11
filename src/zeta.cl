@@ -773,6 +773,7 @@ __kernel void bestfirst_gpu(
                             __global Bitboard *init_board,
                             __global NodeBlock *board_stack_1,
                             __global NodeBlock *board_stack_2,
+                            __global NodeBlock *board_stack_3,
                             __global s32 *global_return,
                             __global u64 *COUNTERS,
                             __global int *board_stack_top,
@@ -947,7 +948,7 @@ __kernel void bestfirst_gpu(
         
                 child = board_stack[(index%max_nodes_per_slot)].child + i;
 
-                board_stack_tmp = (child >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+                board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 
                 // if child node is locked or dead
                 if (board_stack_tmp[(child%max_nodes_per_slot)].lock > -1 || board_stack_tmp[(child%max_nodes_per_slot)].children == 0)
@@ -982,7 +983,7 @@ __kernel void bestfirst_gpu(
                 }
             }
 
-            board_stack_tmp = (current >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+            board_stack_tmp = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 
 
             if (current > 0 && (board_stack_tmp[(current%max_nodes_per_slot)].lock > -1 || board_stack_tmp[(current%max_nodes_per_slot)].children == 0) )
@@ -1010,7 +1011,7 @@ __kernel void bestfirst_gpu(
             // got a child, do move
             if (current > 0) {
 
-                board_stack_tmp = (current >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+                board_stack_tmp = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
                 board_stack_tmp[(current%max_nodes_per_slot)].visits++;
 
                 move = board_stack_tmp[(current%max_nodes_per_slot)].move;
@@ -1464,7 +1465,7 @@ __kernel void bestfirst_gpu(
             if ( n > 0 && current+n >= max_nodes_to_expand )
                 n = -1;
 
-            board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 
             if (n > 0 ) {
 
@@ -1474,8 +1475,8 @@ __kernel void bestfirst_gpu(
     
                     parent = (current+i);      
 
-                    board_stack_tmp = (parent >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
-                
+                    board_stack_tmp = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+
                     board_stack_tmp[(parent%max_nodes_per_slot)].move       = move;
                     board_stack_tmp[(parent%max_nodes_per_slot)].score      = -INF;
                     board_stack_tmp[(parent%max_nodes_per_slot)].visits     =  0;
@@ -1554,7 +1555,7 @@ __kernel void bestfirst_gpu(
             mode = MOVEUP;
           
             if (sd < 0) {
-                board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+                board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
                 board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
                 mode = BACKUPSCORE;
       			}
@@ -1600,7 +1601,7 @@ __kernel void bestfirst_gpu(
         if (mode == BACKUPSCORE) {
 
             mode = INIT;
-            board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
             parent = board_stack[(index%max_nodes_per_slot)].parent;
 
 
@@ -1608,14 +1609,14 @@ __kernel void bestfirst_gpu(
             while( parent >= 0 ) {
 
                 score = -INF;
-                board_stack = (parent >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+                board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
                 j = board_stack[(parent%max_nodes_per_slot)].children;
 
                 for(i=0;i<j;i++) {
 
 
                     child = board_stack[(parent%max_nodes_per_slot)].child + i;
-                    board_stack_tmp = (child >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+                    board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 
                     tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
 
@@ -1641,7 +1642,7 @@ __kernel void bestfirst_gpu(
                 parent = board_stack[(parent%max_nodes_per_slot)].parent;
             }
             // release lock
-            board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
             board_stack[(index%max_nodes_per_slot)].lock = -1;
         }
     } 

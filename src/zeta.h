@@ -62,6 +62,7 @@ extern Bitboard BAttacks[0x1480];
 cl_mem   GLOBAL_INIT_BOARD_Buffer;
 cl_mem   GLOBAL_BOARD_STACK_1_Buffer;
 cl_mem   GLOBAL_BOARD_STACK_2_Buffer;
+cl_mem   GLOBAL_BOARD_STACK_3_Buffer;
 cl_mem   GLOBAL_RETURN_BESTMOVE_Buffer;
 cl_mem	 COUNTERS_Buffer;
 cl_mem	 GLOBAL_BOARD_STAK_TOP_Buffer;

@@ -436,7 +436,7 @@ int GuessConfig( int extreme) {
                 fprintf(Cfg, "nodes_per_second: 1; \n");
                 fprintf(Cfg, "max_nodes_to_expand: %i; \n", (int)(devicememalloc/sizeof( NodeBlock)));
                 fprintf(Cfg, "max_nodes: 0; \n");
-                fprintf(Cfg,"memory_slots: %i; // max 2 \n", memory_slots);
+                fprintf(Cfg,"memory_slots: %i; // max 3 \n", memory_slots);
                 fprintf(Cfg, "max_leaf_depth: 0; \n");
                 fprintf(Cfg, "max_depth: 32; \n");
                 fprintf(Cfg, "reuse_node_tree: 0; \n\n");
@@ -482,7 +482,7 @@ int GuessConfig( int extreme) {
                         fprintf(Cfg, "nodes_per_second: 1; \n");
                         fprintf(Cfg, "max_nodes_to_expand: %i; \n", (int)(devicememalloc/sizeof( NodeBlock)));
                         fprintf(Cfg, "max_nodes: 0; \n");
-                        fprintf(Cfg, "memory_slots: %i; // max 2 \n", memory_slots);
+                        fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
                         fprintf(Cfg, "max_leaf_depth: 0; \n");
                         fprintf(Cfg, "max_depth: 32; \n");
                         fprintf(Cfg, "reuse_node_tree: 0; \n\n");
@@ -533,7 +533,7 @@ int GuessConfig( int extreme) {
                         fprintf(Cfg, "nodes_per_second: 1; \n");
                         fprintf(Cfg, "max_nodes_to_expand: %i; \n", (int)(devicememalloc/sizeof( NodeBlock)));
                         fprintf(Cfg, "max_nodes: 0; \n");
-                        fprintf(Cfg, "memory_slots: %i; // max 2 \n", memory_slots);
+                        fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
                         fprintf(Cfg, "max_leaf_depth: 0; \n");
                         fprintf(Cfg, "max_depth: 32; \n");
                         fprintf(Cfg, "reuse_node_tree: 0; \n\n");
@@ -593,7 +593,7 @@ int GuessConfig( int extreme) {
                 fprintf(Cfg,"nodes_per_second: %i; \n", npsreal);
                 fprintf(Cfg,"max_nodes_to_expand: %li; // %i MB \n", (int)devicememalloc/sizeof( NodeBlock), (int)(devicememalloc/1024/1024));
                 fprintf(Cfg,"max_nodes: 0; \n");
-                fprintf(Cfg,"memory_slots: %i; // max 2 \n", memory_slots);
+                fprintf(Cfg,"memory_slots: %i; // max 3 \n", memory_slots);
                 fprintf(Cfg,"max_leaf_depth: 0; \n");
                 fprintf(Cfg,"max_depth: 32; \n");
                 fprintf(Cfg,"reuse_node_tree: 0; \n\n");
@@ -614,7 +614,7 @@ int GuessConfig( int extreme) {
                 printf("nodes_per_second: %i; \n", npsreal);
                 printf("max_nodes_to_expand: %li; // %i MB \n", (int)devicememalloc/sizeof( NodeBlock),(int)(devicememalloc/1024/1024));
                 printf("max_nodes: 0; \n");
-                printf("memory_slots: %i; // max 2 \n", memory_slots);
+                printf("memory_slots: %i; // max 3 \n", memory_slots);
                 printf("max_leaf_depth: 0; \n");
                 printf("max_depth: 32; \n");
                 printf("reuse_node_tree: 0; \n\n");

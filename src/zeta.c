@@ -797,11 +797,12 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         tmpscore = -NODES[j].score;
         tmpvisits = NODES[j].visits;
 
+/*
         FILE 	*Stats;
         Stats = fopen("zeta.debug", "ab+");
         fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
         fclose(Stats);
- 
+*/
 
         if (ISINF(tmpscore)) // skip illegal
             continue;
