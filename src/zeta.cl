@@ -316,90 +316,94 @@ s32 popfirst1(u64 *a)
 */
 
 
-void domove(__private Bitboard *board, Move move) {
+void domove(__private Bitboard *board, Move move)
+{
 
-    Square from = (Square)(move & 0x3F);
-    Square to   = (Square)((move>>6) & 0x3F);
-    Square cpt  = (Square)((move>>12) & 0x3F);
+  Square from = (Square)(move & 0x3F);
+  Square to   = (Square)((move>>6) & 0x3F);
+  Square cpt  = (Square)((move>>12) & 0x3F);
 
-    Bitboard pto   = ((move>>22) & 0xF);
+  Bitboard pto   = ((move>>22) & 0xF);
 
-    Bitboard bbTemp = BBEMPTY;
+  Bitboard bbTemp = BBEMPTY;
 
-    // castle info
-    u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
-    u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
-    Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
+  // castle info
+  u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
+  u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
+  Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
 
-    // unset from capture to and castle from
-    bbTemp = CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to);
-    bbTemp &= (castlefrom==ILL)?BBFULL:CLRMASKBB(castlefrom);
+  // unset from capture to and castle from
+  bbTemp = CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to);
+  bbTemp &= (castlefrom==ILL)?BBFULL:CLRMASKBB(castlefrom);
 
-    board[0] &= bbTemp;
-    board[1] &= bbTemp;
-    board[2] &= bbTemp;
-    board[3] &= bbTemp;
+  board[0] &= bbTemp;
+  board[1] &= bbTemp;
+  board[2] &= bbTemp;
+  board[3] &= bbTemp;
 
-    // set to
-    board[0] |= (pto&1)<<to;
-    board[1] |= ((pto>>1)&1)<<to;
-    board[2] |= ((pto>>2)&1)<<to;
-    board[3] |= ((pto>>3)&1)<<to;
+  // set to
+  board[0] |= (pto&1)<<to;
+  board[1] |= ((pto>>1)&1)<<to;
+  board[2] |= ((pto>>2)&1)<<to;
+  board[3] |= ((pto>>3)&1)<<to;
 
-    // set to castle rook
-    if (castleto < 64 && (castlepciece>>1) == ROOK) {
-        board[0] |= (castlepciece&1)<<castleto;
-        board[1] |= ((castlepciece>>1)&1)<<castleto;
-        board[2] |= ((castlepciece>>2)&1)<<castleto;
-        board[3] |= ((castlepciece>>3)&1)<<castleto;
-    }
+  // set to castle rook
+  if (castleto<64&&(castlepciece>>1)==ROOK)
+  {
+    board[0] |= (castlepciece&1)<<castleto;
+    board[1] |= ((castlepciece>>1)&1)<<castleto;
+    board[2] |= ((castlepciece>>2)&1)<<castleto;
+    board[3] |= ((castlepciece>>3)&1)<<castleto;
+  }
 
 }
 
-void undomove(__private Bitboard *board, Move move) {
+void undomove(__private Bitboard *board, Move move)
+{
 
-    Square from = (Square)(move & 0x3F);
-    Square to   = (Square)((move>>6) & 0x3F);
-    Square cpt  = (Square)((move>>12) & 0x3F);
+  Square from = (Square)(move & 0x3F);
+  Square to   = (Square)((move>>6) & 0x3F);
+  Square cpt  = (Square)((move>>12) & 0x3F);
 
-    Bitboard pfrom = ((move>>18) & 0xF);
-    Bitboard pcpt  = ((move>>26) & 0xF);
+  Bitboard pfrom = ((move>>18) & 0xF);
+  Bitboard pcpt  = ((move>>26) & 0xF);
 
-    Bitboard bbTemp = BBEMPTY;
+  Bitboard bbTemp = BBEMPTY;
 
-    // castle info
-    u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
-    u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
-    Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
+  // castle info
+  u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
+  u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
+  Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
 
-    // unset capture, to and castle to
-    bbTemp = CLRMASKBB(cpt) & CLRMASKBB(to);
-    bbTemp &= (castleto==ILL)?BBFULL:CLRMASKBB(castleto);
+  // unset capture, to and castle to
+  bbTemp = CLRMASKBB(cpt) & CLRMASKBB(to);
+  bbTemp &= (castleto==ILL)?BBFULL:CLRMASKBB(castleto);
 
-    board[0] &= bbTemp;
-    board[1] &= bbTemp;
-    board[2] &= bbTemp;
-    board[3] &= bbTemp;
+  board[0] &= bbTemp;
+  board[1] &= bbTemp;
+  board[2] &= bbTemp;
+  board[3] &= bbTemp;
 
-    // restore cpt
-    board[0] |= (pcpt&1)<<cpt;
-    board[1] |= ((pcpt>>1)&1)<<cpt;
-    board[2] |= ((pcpt>>2)&1)<<cpt;
-    board[3] |= ((pcpt>>3)&1)<<cpt;
+  // restore cpt
+  board[0] |= (pcpt&1)<<cpt;
+  board[1] |= ((pcpt>>1)&1)<<cpt;
+  board[2] |= ((pcpt>>2)&1)<<cpt;
+  board[3] |= ((pcpt>>3)&1)<<cpt;
 
-    // restore from
-    board[0] |= (pfrom&1)<<from;
-    board[1] |= ((pfrom>>1)&1)<<from;
-    board[2] |= ((pfrom>>2)&1)<<from;
-    board[3] |= ((pfrom>>3)&1)<<from;
+  // restore from
+  board[0] |= (pfrom&1)<<from;
+  board[1] |= ((pfrom>>1)&1)<<from;
+  board[2] |= ((pfrom>>2)&1)<<from;
+  board[3] |= ((pfrom>>3)&1)<<from;
 
-    // restore from castle rook
-    if (castlefrom < 64 && (castlepciece>>1) == ROOK) {
-        board[0] |= (castlepciece&1)<<castlefrom;
-        board[1] |= ((castlepciece>>1)&1)<<castlefrom;
-        board[2] |= ((castlepciece>>2)&1)<<castlefrom;
-        board[3] |= ((castlepciece>>3)&1)<<castlefrom;
-    }
+  // restore from castle rook
+  if (castlefrom<64&&(castlepciece>>1)==ROOK)
+  {
+    board[0] |= (castlepciece&1)<<castlefrom;
+    board[1] |= ((castlepciece>>1)&1)<<castlefrom;
+    board[2] |= ((castlepciece>>2)&1)<<castlefrom;
+    board[3] |= ((castlepciece>>3)&1)<<castlefrom;
+  }
 }
 
 
