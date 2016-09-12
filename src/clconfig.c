@@ -439,7 +439,7 @@ int GuessConfig( int extreme) {
                 fprintf(Cfg,"memory_slots: %i; // max 3 \n", memory_slots);
                 fprintf(Cfg, "max_leaf_depth: 0; \n");
                 fprintf(Cfg, "max_depth: 32; \n");
-                fprintf(Cfg, "reuse_node_tree: 0; \n\n");
+                fprintf(Cfg, "reuse_node_tree: 0; // unstable\n\n");
 
                 fprintf(Cfg, "opencl_platform_id: %i; \n",i);
                 fprintf(Cfg, "opencl_device_id: %i; \n\n",j);
@@ -485,7 +485,7 @@ int GuessConfig( int extreme) {
                         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
                         fprintf(Cfg, "max_leaf_depth: 0; \n");
                         fprintf(Cfg, "max_depth: 32; \n");
-                        fprintf(Cfg, "reuse_node_tree: 0; \n\n");
+                        fprintf(Cfg, "reuse_node_tree: 0; // unstable\n\n");
 
                         fprintf(Cfg, "opencl_platform_id: %i; \n",i);
                         fprintf(Cfg, "opencl_device_id: %i; \n\n",j);
@@ -536,7 +536,7 @@ int GuessConfig( int extreme) {
                         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
                         fprintf(Cfg, "max_leaf_depth: 0; \n");
                         fprintf(Cfg, "max_depth: 32; \n");
-                        fprintf(Cfg, "reuse_node_tree: 0; \n\n");
+                        fprintf(Cfg, "reuse_node_tree: 0; // unstable\n\n");
 
                         fprintf(Cfg, "opencl_platform_id: %i; \n",i);
                         fprintf(Cfg, "opencl_device_id: %i; \n\n",j);
@@ -596,7 +596,7 @@ int GuessConfig( int extreme) {
                 fprintf(Cfg,"memory_slots: %i; // max 3 \n", memory_slots);
                 fprintf(Cfg,"max_leaf_depth: 0; \n");
                 fprintf(Cfg,"max_depth: 32; \n");
-                fprintf(Cfg,"reuse_node_tree: 0; \n\n");
+                fprintf(Cfg,"reuse_node_tree: 0; // unstable\n\n");
 
                 fprintf(Cfg,"opencl_platform_id: %i; \n",i);
                 fprintf(Cfg,"opencl_device_id: %i; \n\n",j);
@@ -617,7 +617,7 @@ int GuessConfig( int extreme) {
                 printf("memory_slots: %i; // max 3 \n", memory_slots);
                 printf("max_leaf_depth: 0; \n");
                 printf("max_depth: 32; \n");
-                printf("reuse_node_tree: 0; \n\n");
+                printf("reuse_node_tree: 0; // unstable\n\n");
 
                 printf("opencl_platform_id: %i; \n",i);
                 printf("opencl_device_id: %i; \n\n",j);
