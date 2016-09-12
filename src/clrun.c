@@ -792,7 +792,7 @@ int  runCLKernels(int som, int depth, Move lastmove) {
     globalThreads[2] = threadsZ;
 
     localThreads[0]  = 1;
-    localThreads[1]  = threadsY;
+    localThreads[1]  = 1;
     localThreads[2]  = threadsZ;
 
     status = clEnqueueNDRangeKernel(
