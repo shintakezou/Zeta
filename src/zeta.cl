@@ -808,7 +808,6 @@ __kernel void bestfirst_gpu(
                             __global Move *global_pid_movehistory,
                             __global int *global_finished,
                             __global int *global_movecount,
-                            __global int *global_plyreached,
                             __global Hash *global_HashHistory,
                                const int som_init,
                                const int ply_init,
@@ -1040,7 +1039,8 @@ __kernel void bestfirst_gpu(
 
                 ply++;
 
-                atom_max(global_plyreached, ply);
+                if (ply>COUNTERS[5])
+                  COUNTERS[5] = ply;
 
                 domove(board, move);
 
@@ -1750,8 +1750,7 @@ __kernel void bestfirst_gpu(
         }
     } 
         
-    // return to host
-    COUNTERS[5] = *global_plyreached;
-    COUNTERS[6] = (*board_stack_top >= max_nodes_to_expand)? 1 : 0;
+    // memory full?
+    COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0;
 }
 

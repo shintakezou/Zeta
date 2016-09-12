@@ -334,19 +334,6 @@ int initializeCL() {
 		return 1;
 	}
 
-    temp = 0;
-    GLOBAL_PLYREACHED_Buffer = clCreateBuffer(
-					   context, 
-                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                       sizeof(cl_int) * 1,
-                       &temp, 
-                       &status);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: clCreateBuffer (GLOBAL_PLYREACHED_Buffer)\n");
-		return 1;
-	}
-
     GLOBAL_HASHHISTORY_Buffer = clCreateBuffer(
 					   context, 
                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
@@ -633,18 +620,6 @@ int  runCLKernels(int som, int depth, Move lastmove) {
     if(status != CL_SUCCESS) 
 	{ 
 		print_debug((char *)"Error: Setting kernel argument. (GLOBAL_MOVECOUNT_Buffer)\n");
-		return 1;
-	}
-    i++;
-
-    status = clSetKernelArg(
-                    kernel, 
-                    i, 
-                    sizeof(cl_mem), 
-                    (void *)&GLOBAL_PLYREACHED_Buffer);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PLYREACHED_Buffer)\n");
 		return 1;
 	}
     i++;
@@ -1019,13 +994,6 @@ int  clGetMemory()
     if(status != CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_MOVECOUNT_Buffer)\n");
-		return 1; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PLYREACHED_Buffer);
-    if(status != CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PLYREACHED_Buffer)\n");
 		return 1; 
 	}
 
