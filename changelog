@@ -1,12 +1,14 @@
 Zeta (098e) alpha; urgency=low
 
-  * restored simple heuristics from Zeta Dva engine
+  * mostly cleanup and fixes
+  * restored simple heuristics from Zeta Dva engine again
+  * switched to KoggeStone based move generator
   * protocol fixes
-  * cleanup and fixes
   * fixed autoconfig for AMD GPUs
-  * Zeta 098e on Nvidia GeForce GTX 580, ca. 10 Mnps, est. 1800 Elo
+  * Zeta 098e on Nvidia GeForce GTX 580, ca. 5 Mnps, est. 1800 Elo
   * Zeta 098e on AMD Radeon 7750, ca. 1 Mnps
-  * Zeta 098e on Nvidia GeForce 8800 GT
+  * Zeta 098e on AMD Phenom, X4, ca. 800 Knps
+  * Zeta 098e on Nvidia GeForce 8800 GT, ca. 350 Knps
 
  -- Srdja Matovic <s.matovic@app26.de>  Sep 2016
 
