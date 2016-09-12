@@ -791,6 +791,382 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 
   return false;
 }
+// kogge stone vector based move generator
+void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Move lastmove, s32 sd, const s32 pid, const s32 max_depth, __global Move *global_pid_moves, __global u64 *COUNTERS)
+{
+  bool kic = false;
+  bool rootkic = false;
+
+  s32 i;
+
+  Square kingpos = 0;
+  Square pos;
+  Square to;
+  Square cpt;   
+  Square ep;
+  Piece piece;
+  Piece pieceto;
+  Piece piececpt;
+
+  Cr CR  = 0;
+  Move move = 0;
+
+  Bitboard bbBlockers     = board[1]|board[2]|board[3];
+  Bitboard bbMe           = (som)?board[0]:(board[0]^bbBlockers);
+  Bitboard bbOpp          = (!som)?board[0]:(board[0]^bbBlockers);
+  Bitboard bbTemp;
+  Bitboard bbTempO;
+  Bitboard bbWork;
+  Bitboard bbMoves;
+
+  ulong4 bbWrap4;
+  ulong4 bbPro4;
+  ulong4 bbGen4; 
+
+
+  //get king position
+  bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
+  kingpos = first1(bbTemp);
+
+  rootkic = false;
+  // king in check?
+  rootkic = squareunderattack(board, !som, kingpos);
+
+  CR = (Cr)((lastmove>>36)&0xF);
+
+  bbWork = bbMe;
+
+  while(bbWork)
+  {
+
+    pos  = popfirst1(&bbWork);
+    piece = GETPIECE(board,pos);
+
+    bbTempO  = SETMASKBB(pos);
+    // get koggestone wraps
+    bbWrap4 = wraps4[0];
+    // generator and propagator (piece and empty squares)
+    bbGen4  = (ulong4)bbTempO;
+    bbPro4  = (ulong4)(~bbBlockers);
+    // kogge stone shift left via ulong4 vector
+    bbPro4 &= bbWrap4;
+    bbGen4 |= bbPro4  & (bbGen4 << shift4);
+    bbPro4 &=           (bbPro4 << shift4);
+    bbGen4 |= bbPro4  & (bbGen4 << 2*shift4);
+    bbPro4 &=           (bbPro4 << 2*shift4);
+    bbGen4 |= bbPro4  & (bbGen4 << 4*shift4);
+    bbGen4  = bbWrap4 & (bbGen4 << shift4);
+    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    // get koggestone wraps
+    bbWrap4 = wraps4[1];
+    // set generator and propagator (piece and empty squares)
+    bbGen4  = (ulong4)bbTempO;
+    bbPro4  = (ulong4)(~bbBlockers);
+    // kogge stone shift right via ulong4 vector
+    bbPro4 &= bbWrap4;
+    bbGen4 |= bbPro4  & (bbGen4 >> shift4);
+    bbPro4 &=           (bbPro4 >> shift4);
+    bbGen4 |= bbPro4  & (bbGen4 >> 2*shift4);
+    bbPro4 &=           (bbPro4 >> 2*shift4);
+    bbGen4 |= bbPro4  & (bbGen4 >> 4*shift4);
+    bbGen4  = bbWrap4 & (bbGen4 >> shift4);
+    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    // consider knights
+    bbTemp  = ((piece>>1)==KNIGHT)?BBFULL:bbTemp;
+    // verify captures
+    i       = ((piece>>1)==PAWN)?(s32)som:(piece>>1);
+    bbTempO  = AttackTables[i*64+pos];
+    bbMoves = bbTempO&bbTemp&bbOpp;
+    // verify non captures
+    bbTempO  = ((piece>>1)==PAWN)?(AttackTablesPawnPushes[som*64+pos]):bbTempO;
+    bbMoves |= (!qs||rootkic)?(bbTempO&bbTemp&~bbBlockers):BBEMPTY; 
+
+    while(bbMoves)
+    {
+
+      // pop 1st bit
+      to = popfirst1(&bbMoves);
+
+      // en passant to
+      i = pos-to;
+      ep = ( (piece>>1) == PAWN && abs(i) == 16 ) ? to : 0;
+
+      cpt = to;
+      pieceto = ((piece>>1)==PAWN&&GETRRANK(cpt,piece&0x1)==7)?(QUEEN<<1|(Piece)som):piece; // pawn promotion
+
+      piececpt = GETPIECE(board,cpt);
+
+      // make move
+      move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
+
+      // TODO: pseudo legal move gen: 2x speedup?
+      // domove
+      domove(board, move);
+
+      //get king position
+      bbTemp  = board[0] ^ (board[1] | board[2] | board[3]);
+      bbTemp  = (som&BLACK)? board[0]   : bbTemp ;
+      bbTemp  = bbTemp & board[1] & board[2] & ~board[3]; // get king
+      kingpos = first1(bbTemp);
+
+      // king in check?
+      kic = squareunderattack(board, !som, kingpos);
+
+      if (!kic)
+      {
+
+        k[0]++; // check mate move counter
+
+        if (!qs||(qs&&(piececpt>>1)!=PEMPTY))
+        {
+          // update castle rights        
+          move = updateCR(move, CR);
+          // copy move to global
+          global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+
+          // Movecounters
+          n[0]++;
+          COUNTERS[3]++;
+
+      /*
+          // sort move, obsolete by movepicker
+          i = pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+0;
+          for(j=n-1; j > 0; j--) {
+              if ( EvalMove(global_pid_moves[j+i]) > EvalMove(global_pid_moves[j-1+i])  ) {
+                  tmpmove = global_pid_moves[j+i];
+                  global_pid_moves[j+i] = global_pid_moves[j-1+i];
+                  global_pid_moves[j-1+i] = tmpmove;
+             }
+             else
+              break;
+          }
+      */
+        }
+      }
+
+      // undomove
+      undomove(board, move);
+    }
+  }
+  // ################################
+  // ####       Castle moves      ###
+  // ################################
+
+  // get Rooks
+  bbOpp  = (bbMe & board[1] & ~board[2] & board[3] );
+  //get king position
+  bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
+  kingpos = first1(bbTemp);
+
+  // Queenside
+  bbMoves  = (!som)? 0xE : 0x0E00000000000000;   
+  bbMoves &= (board[1] | board[2] | board[3]); 
+
+  if ( !qs && ( (!som && (CR&0x1)) || ( som && (CR&0x4))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic && (!bbMoves) && (bbOpp & SETMASKBB(kingpos-4)) ) {
+
+      kic      = false;            
+      kic     |= squareunderattack(board, !som, kingpos-2);
+      kic     |= squareunderattack(board, !som, kingpos-1);
+
+      if (!kic) {
+
+
+          // make move
+          to = kingpos-4;
+          cpt = kingpos-1;
+          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
+
+          // update castle rights        
+          move = updateCR(move, CR);
+
+          // copy move to global
+          global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+          // Movecounters
+          n[0]++;
+          k[0]++;
+
+          COUNTERS[3]++;
+      }
+  }
+
+  // kingside
+  bbMoves  = (!som)? 0x60 : 0x6000000000000000;   
+  bbMoves &= (board[1] | board[2] | board[3]); 
+
+  if ( !qs && ( (!som && (CR&0x2)) || (som && (CR&0x8))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic  && (!bbMoves)  && (bbOpp & SETMASKBB(kingpos+3))) {
+
+
+      kic      = false;
+      kic     |= squareunderattack(board, !som, kingpos+1);
+      kic     |= squareunderattack(board, !som, kingpos+2);
+  
+      if (!kic) {
+
+
+          // make move
+          to = kingpos+3;
+          cpt = kingpos+1;
+          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
+
+          // update castle rights        
+          move = updateCR(move, CR);
+
+          // copy move to global
+          global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+          // Movecounters
+          n[0]++;
+          k[0]++;
+
+          COUNTERS[3]++;
+
+      }
+  }
+
+
+  // ################################
+  // ####     En passant moves    ###
+  // ################################
+  cpt = (lastmove>>30)&0x3F;
+
+  if (cpt) {
+
+      piece = ((PAWN<<1) | (Piece)som);
+      pieceto = piece;
+      piececpt = ( (PAWN<<1) | (Piece)(!som) );
+      ep = 0;
+
+      bbMoves  =  bbMe & board[1] & ~board[2]  & ~board[3];
+
+      // white
+      if (!som) {
+          bbMoves &= (0xFF00000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
+          
+      }
+      // black     
+      else {
+          bbMoves &= (0xFF000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
+      }
+      while(bbMoves)
+      {
+
+          // pop 1st bit
+          pos = popfirst1(&bbMoves);
+
+          to  = (som)? cpt-8 : cpt+8;
+          
+          // make move
+          move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
+
+          // domove
+          domove(board, move);
+
+          //get king position
+          bbTemp  = bbMe&board[1]&board[2]&~board[3];
+          kingpos = first1(bbTemp);
+
+          // king in check?
+          kic = squareunderattack(board, !som, kingpos);
+
+          if (!kic) {
+
+              // update castle rights        
+              move = updateCR(move, CR);
+              // copy move to global
+              global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+              // Movecounters
+              n[0]++;
+              k[0]++;
+
+              COUNTERS[3]++;
+          }
+
+          // undomove
+          undomove(board, move);
+      }
+  }
+}
+// evaluation taken from ZetaDva engine, est 2000 Elo.
+Score eval(__private Bitboard *board)
+{
+  s32 j;
+  Square pos;
+  Piece piece;
+
+  Bitboard bbBlockers     =  board[1]|board[2]|board[3];        // all pieces
+  Bitboard bbTemp         = board[1]&~board[2]&~board[3];      // all pawns
+  Bitboard bbWork;
+  Bitboard bbMe;
+  Bitboard bbOpp;
+
+  Score score = 0;
+
+  // white
+  bbMe  = board[0]^bbBlockers;
+  bbOpp = board[0];
+  bbWork = bbMe;
+
+  while (bbWork) 
+  {
+    pos = popfirst1(&bbWork);
+    piece = GETPIECETYPE(board,pos);
+
+    /* piece bonus */
+    score+= 10;
+    /* wodd count */
+    score+= EvalPieceValues[piece];
+    /* piece posuare tables */
+    score+= EvalTable[piece*64+FLOP(pos)];
+    /* posuare control table */
+    score+= EvalControl[FLOP(pos)];
+
+    /* simple pawn structure white */
+    /* blocked */
+    score-=(piece==PAWN&&GETRANK(pos)<RANK_8&&(bbOpp&SETMASKBB(pos+8)))?15:0;
+      /* chain */
+    score+=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos-7)))?10:0;
+    score+=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos-9)))?10:0;
+    /* column */
+    for(j=pos-8;j>7&&piece==PAWN;j-=8)
+      score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
+  }
+  /* duble bishop */
+  score+= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
+
+  // black
+  bbMe  = board[0];
+  bbOpp = board[0]^bbBlockers;
+  bbWork = bbMe;
+
+  while (bbWork) 
+  {
+    pos = popfirst1(&bbWork);
+    piece = GETPIECETYPE(board,pos);
+
+    /* piece bonus */
+    score-= 10;
+    /* wodd count */
+    score-= EvalPieceValues[piece];
+    /* piece posuare tables */
+    score-= EvalTable[piece*64+pos];
+    /* posuare control table */
+    score-= EvalControl[pos];
+
+    /* simple pawn structure black */
+    /* blocked */
+    score+=(piece==PAWN&&GETRANK(pos)>RANK_1&&(bbOpp&SETMASKBB(pos-8)))?15:0;
+      /* chain */
+    score-=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos+7)))?10:0;
+    score-=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos+9)))?10:0;
+    /* column */
+    for(j=pos+8;j<56&&piece==PAWN;j+=8)
+      score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
+
+  }
+  /* duble bishop */
+  score-= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
+
+  return score;
+}
 
 // bestfirst minimax search on gpu
 __kernel void bestfirst_gpu(  
@@ -831,7 +1207,6 @@ __kernel void bestfirst_gpu(
     const s32 totalThreads = get_global_size(0)*get_global_size(1)*get_global_size(2);
 
     bool som = (bool)som_init;
-    bool kic = false;
     bool rootkic = false;
     bool qs = false;
 
@@ -844,8 +1219,7 @@ __kernel void bestfirst_gpu(
     s32 sd = 0;
     s32 ply = 0;
 
-    Cr CR  = 0;
-        
+       
     Move move = 0;
     Move tmpmove = 0;
     Move lastmove = 0;
@@ -859,28 +1233,6 @@ __kernel void bestfirst_gpu(
     s32 j = 0;
     s32 n = 0;
     s32 k = 0;
-
-    Square kingpos = 0;
-    Square pos;
-    Square to;
-    Square cpt;   
-    Square ep;
-    Piece piece;
-    Piece pieceto;
-    Piece piececpt;
-
-    Bitboard bbTemp         = 0;
-    Bitboard bbTempO        = 0;
-    Bitboard bbWork         = 0;
-    Bitboard bbMe           = 0;
-    Bitboard bbOpp          = 0;
-    Bitboard bbBlockers     = 0;
-    Bitboard bbMoves        = 0;
-
-    ulong4 bbWrap4;
-    ulong4 bbPro4;
-    ulong4 bbGen4; 
-
 
     // init vars
 
@@ -906,7 +1258,7 @@ __kernel void bestfirst_gpu(
 
 
     // main loop
-    while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && *global_movecount < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECT)) )
+    while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && COUNTERS[3] < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECT)) )
     {
         // Iterations Counter
         COUNTERS[pid*10+0]++;
@@ -1114,353 +1466,17 @@ __kernel void bestfirst_gpu(
         // #########################################
         n = 0;
         k = 0;
-        bbBlockers  =  board[1]|board[2]|board[3];
-        bbMe        = (som)?board[0]:(board[0]^bbBlockers);
-        bbOpp       = (!som)?board[0]:(board[0]^bbBlockers);
-        bbWork      = bbMe;
-
-        //get king position
-        bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
-        kingpos = first1(bbTemp);
-
-        rootkic = false;
-        // king in check?
-        rootkic = squareunderattack(board, !som, kingpos);
-
-        CR = (Cr)((lastmove>>36)&0xF);
-
-        // in check search extension
-//        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
 
         // enter quiescence search?
         qs = (sd<=depth)?false:true;
         qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
 
-        while( bbWork )  {
-
-            // pop 1st bit
-            pos  = popfirst1(&bbWork);
-            piece = GETPIECE(board,pos);
-
-    bbTempO  = SETMASKBB(pos);
-    // get koggestone wraps
-    bbWrap4 = wraps4[0];
-    // generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbTempO;
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift left via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 << shift4);
-    bbPro4 &=           (bbPro4 << shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 2*shift4);
-    bbPro4 &=           (bbPro4 << 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 << shift4);
-    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-    // get koggestone wraps
-    bbWrap4 = wraps4[1];
-    // set generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbTempO;
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift right via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 >> shift4);
-    bbPro4 &=           (bbPro4 >> shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 2*shift4);
-    bbPro4 &=           (bbPro4 >> 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 >> shift4);
-    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-    // consider knights
-    bbTemp  = ((piece>>1)==KNIGHT)?BBFULL:bbTemp;
-    // verify captures
-    i       = ((piece>>1)==PAWN)?(s32)som:(piece>>1);
-    bbTempO  = AttackTables[i*64+pos];
-    bbMoves = bbTempO&bbTemp&bbOpp;
-    // verify non captures
-    bbTempO  = ((piece>>1)==PAWN)?(AttackTablesPawnPushes[som*64+pos]):bbTempO;
-    bbMoves |= (!qs||rootkic)?(bbTempO&bbTemp&~bbBlockers):BBEMPTY; 
-
-            while( bbMoves )  {
-
-                // pop 1st bit
-                to = popfirst1(&bbMoves);
-
-                // en passant to
-                child = pos-to;
-                ep = ( (piece>>1) == PAWN && abs(child) == 16 ) ? to : 0;
-
-                cpt = to;
-                pieceto = ((piece>>1)==PAWN&&GETRRANK(cpt,piece&0x1)==7)?(QUEEN<<1|(Piece)som):piece; // pawn promotion
-
-                piececpt = GETPIECE(board,cpt);
-
-                // make move
-                move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
-
-                // TODO: pseudo legal move gen: 2x speedup?
-                // domove
-                domove(board, move);
-
-                //get king position
-                bbTemp  = board[0] ^ (board[1] | board[2] | board[3]);
-                bbTemp  = (som&BLACK)? board[0]   : bbTemp ;
-                bbTemp  = bbTemp & board[1] & board[2] & ~board[3]; // get king
-                kingpos = first1(bbTemp);
-
-                kic = false;
-                // king in check?
-                kic = squareunderattack(board, !som, kingpos);
-
-                if (!kic) {
-
-                    k++; // check mate move counter
-
-                    if (!qs||(qs&&(piececpt>>1)!=PEMPTY)) {
-                        // update castle rights        
-                        move = updateCR(move, CR);
-                        // copy move to global
-                        global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n] = move;
-
-                        // Movecounters
-                        n++;
-                        COUNTERS[pid*10+3]++;
-                        atom_inc(global_movecount);
-
-/*
-                        // sort move, obsolete by movepicker
-                        child = pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+0;
-                        for(j=n-1; j > 0; j--) {
-                            if ( EvalMove(global_pid_moves[j+child]) > EvalMove(global_pid_moves[j-1+child])  ) {
-                                tmpmove = global_pid_moves[j+child];
-                                global_pid_moves[j+child] = global_pid_moves[j-1+child];
-                                global_pid_moves[j-1+child] = tmpmove;
-                           }
-                           else
-                            break;
-                        }
-*/
-                    }
-                }
-
-                // undomove
-                undomove(board, move);
-            }
-        }
-        // ################################
-        // ####       Castle moves      ###
-        // ################################
-        // get Rooks
-        bbOpp  = (bbMe & board[1] & ~board[2] & board[3] );
-        //get king position
-        bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
-        kingpos = first1(bbTemp);
-
-        // Queenside
-        bbMoves  = (!som)? 0xE : 0x0E00000000000000;   
-        bbMoves &= (board[1] | board[2] | board[3]); 
-
-        if ( !qs && ( (!som && (CR&0x1)) || ( som && (CR&0x4))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic && (!bbMoves) && (bbOpp & SETMASKBB(kingpos-4)) ) {
-
-            kic      = false;            
-            kic     |= squareunderattack(board, !som, kingpos-2);
-            kic     |= squareunderattack(board, !som, kingpos-1);
-
-            if (!kic) {
-
-
-                // make move
-                to = kingpos-4;
-                cpt = kingpos-1;
-                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
-
-                // update castle rights        
-                move = updateCR(move, CR);
-
-                // copy move to global
-                global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n] = move;
-                // Movecounters
-                n++;
-                k++;
-
-                COUNTERS[pid*10+3]++;
-                atom_inc(global_movecount);
-            }
-        }
-
-        // kingside
-        bbMoves  = (!som)? 0x60 : 0x6000000000000000;   
-        bbMoves &= (board[1] | board[2] | board[3]); 
-
-        if ( !qs && ( (!som && (CR&0x2)) || (som && (CR&0x8))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic  && (!bbMoves)  && (bbOpp & SETMASKBB(kingpos+3))) {
-
-
-            kic      = false;
-            kic     |= squareunderattack(board, !som, kingpos+1);
-            kic     |= squareunderattack(board, !som, kingpos+2);
-        
-            if (!kic) {
-
-
-                // make move
-                to = kingpos+3;
-                cpt = kingpos+1;
-                move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
-
-                // update castle rights        
-                move = updateCR(move, CR);
-
-                // copy move to global
-                global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n] = move;
-                // Movecounters
-                n++;
-                k++;
-
-                COUNTERS[pid*10+3]++;
-                atom_inc(global_movecount);
-
-            }
-        }
-
-
-        // ################################
-        // ####     En passant moves    ###
-        // ################################
-        cpt = (lastmove>>30)&0x3F;
-
-        if (cpt) {
-
-            piece = ((PAWN<<1) | (Piece)som);
-            pieceto = piece;
-            piececpt = ( (PAWN<<1) | (Piece)(!som) );
-            ep = 0;
-
-            bbMoves  =  bbMe & board[1] & ~board[2]  & ~board[3];
-
-            // white
-            if (!som) {
-                bbMoves &= (0xFF00000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
-                
-            }
-            // black     
-            else {
-                bbMoves &= (0xFF000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
-            }
-            while(bbMoves)
-            {
-
-                // pop 1st bit
-                pos = popfirst1(&bbMoves);
-
-                to  = (som)? cpt-8 : cpt+8;
-                
-                // make move
-                move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
-
-                // domove
-                domove(board, move);
-
-                //get king position
-                bbTemp  = bbMe&board[1]&board[2]&~board[3];
-                kingpos = first1(bbTemp);
-
-                // king in check?
-                kic = squareunderattack(board, !som, kingpos);
-
-                if (!kic) {
-
-                    // update castle rights        
-                    move = updateCR(move, CR);
-                    // copy move to global
-                    global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n] = move;
-                    // Movecounters
-                    n++;
-                    k++;
-
-                    COUNTERS[pid*10+3]++;
-                    atom_inc(global_movecount);
-                }
-
-                // undomove
-                undomove(board, move);
-            }
-        }
-
+        gen_moves(board, &n, &k, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS);
 
         // ################################
         // ####        Evaluation       ###
         // ################################
-
-        // new eval, mostly ported from Stockfish
-        bbBlockers  = board[1]|board[2]|board[3];        // all pieces
-        bbTemp      = board[1]&~board[2]&~board[3];      // all pawns
-        score = 0;
-    
-        // white
-        bbMe  = board[0]^bbBlockers;
-        bbOpp = board[0];
-        bbWork = bbMe;
-
-        while (bbWork) 
-        {
-          pos = popfirst1(&bbWork);
-          piece = GETPIECETYPE(board,pos);
-
-          /* piece bonus */
-          score+= 10;
-          /* wodd count */
-          score+= EvalPieceValues[piece];
-          /* piece posuare tables */
-          score+= EvalTable[piece*64+FLOP(pos)];
-          /* posuare control table */
-          score+= EvalControl[FLOP(pos)];
-
-          /* simple pawn structure white */
-          /* blocked */
-          score-=(piece==PAWN&&GETRANK(pos)<RANK_8&&(bbOpp&SETMASKBB(pos+8)))?15:0;
-            /* chain */
-          score+=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos-7)))?10:0;
-          score+=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos-9)))?10:0;
-          /* column */
-          for(j=pos-8;j>7&&piece==PAWN;j-=8)
-            score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-        }
-        /* duble bishop */
-        score+= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
-
-        // black
-        bbMe  = board[0];
-        bbOpp = board[0]^bbBlockers;
-        bbWork = bbMe;
-
-        while (bbWork) 
-        {
-          pos = popfirst1(&bbWork);
-          piece = GETPIECETYPE(board,pos);
-
-          /* piece bonus */
-          score-= 10;
-          /* wodd count */
-          score-= EvalPieceValues[piece];
-          /* piece posuare tables */
-          score-= EvalTable[piece*64+pos];
-          /* posuare control table */
-          score-= EvalControl[pos];
-
-          /* simple pawn structure black */
-          /* blocked */
-          score+=(piece==PAWN&&GETRANK(pos)>RANK_1&&(bbOpp&SETMASKBB(pos-8)))?15:0;
-            /* chain */
-          score-=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos+7)))?10:0;
-          score-=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos+9)))?10:0;
-          /* column */
-          for(j=pos+8;j<56&&piece==PAWN;j+=8)
-            score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-
-        }
-        /* duble bishop */
-        score-= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
-
+        score = eval(board);
         // centi pawn *10
         score*=10;
         // hack for drawscore == 0, site to move bonus
