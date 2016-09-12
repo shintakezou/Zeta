@@ -51,13 +51,19 @@ typedef struct {
 
 #define VERSION "098e"
 
+// engine defaults
+#define MAXPLY      128     // max internal search ply
+#define MAXGAMEPLY  1024    // max ply a game can reach
+#define MAXMOVES    256     // max amount of legal moves per position
+#define TIMESPARE   100     // 100 milliseconds spare
+#define MAXLEGALMOVES 220
+
 #define WHITE 0
 #define BLACK 1
 
 #define true          1
 #define false         0
 
-#define MAXLEGALMOVES 220
 
 #define MAX(a,b)            ((a)>(b)?(a):(b))
 #define MIN(a,b)            ((a)<(b)?(a):(b))

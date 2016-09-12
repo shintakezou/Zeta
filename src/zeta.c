@@ -26,8 +26,8 @@
 #include <math.h>
 #include <sys/time.h>
 
+#include "bitboard.h"
 #include "types.h"
-#include "bitboard.h" // magic Hashtables from <stockfish>
 #include "zobrist.h"
 
 const char filename[]  = "zeta.cl";
@@ -71,8 +71,8 @@ int xboard_debug    = false;
 int post_mode       = false;
 int time_management = false;
 
-Move MoveHistory[1024];
-Hash HashHistory[1024];
+Move *MoveHistory;
+Hash *HashHistory;
 
 // time management
 static double max_time_per_move = 0;
@@ -444,34 +444,14 @@ void free_resources() {
 
 }
 
-void inits() {
-
-    int i;
-
-    // init biboard stuff
-    init_bitboards();
-
-    // MoveHistory
-    for  (i=0;i<1024;i++){
-        MoveHistory[i] = 0;
-        HashHistory[i] = 0;
-    }
-
-
-/*
-    for(i=0;i<max_nodes_to_expand;i++) {
-
-        NODES[i*node_size+MOVE]                =  0;
-        NODES[i*node_size+INFO]                =  0;
-        NODES[i*node_size+SCORE]               = -INF;
-        NODES[i*node_size+VISITS]              =  0;
-        NODES[i*node_size+CHILDREN]            = -1;
-        NODES[i*node_size+PARENT]              = -1;
-        NODES[i*node_size+CHILD]               = -1;
-        NODES[i*node_size+LOCK]                = -1;
-    }
-*/
-
+void inits()
+{
+  if (MoveHistory)
+    free(MoveHistory);
+  MoveHistory = (Move*)calloc(MAXGAMEPLY, sizeof(Move));
+  if (HashHistory)
+    free(HashHistory);
+  HashHistory = (Hash*)calloc(MAXGAMEPLY, sizeof(Hash));
 }
 
 
@@ -536,7 +516,7 @@ Hash computeHash(Bitboard *board, int som) {
         // each piece
         while (bbWork) {
             // pop 1st bit
-            pos = pop_1st_bit(&bbWork);
+            pos = popfirst1(&bbWork);
 
             piece = ( ((board[0]>>pos) &1) + 2*((board[1]>>pos) &1) + 4*((board[2]>>pos) &1) + 8*((board[3]>>pos) &1) )>>1;
 
@@ -623,10 +603,10 @@ void domove(Bitboard *board, Move move, int som) {
     if ( ( (pfrom>>1) == KING) && (to-from == 2) ) {
 
         // unset from rook
-        board[0] &= ClearMaskBB[from+3];
-        board[1] &= ClearMaskBB[from+3];
-        board[2] &= ClearMaskBB[from+3];
-        board[3] &= ClearMaskBB[from+3];
+        board[0] &= CLRMASKBB(from+3);
+        board[1] &= CLRMASKBB(from+3);
+        board[2] &= CLRMASKBB(from+3);
+        board[3] &= CLRMASKBB(from+3);
 
         // set to rook
         board[0] |= (Bitboard)(pfrom&1)<<(to-1); // set som
@@ -638,10 +618,10 @@ void domove(Bitboard *board, Move move, int som) {
     if ( ( (pfrom>>1) == KING) && (from-to == 2) ) {
 
         // unset from rook
-        board[0] &= ClearMaskBB[from-4];
-        board[1] &= ClearMaskBB[from-4];
-        board[2] &= ClearMaskBB[from-4];
-        board[3] &= ClearMaskBB[from-4];
+        board[0] &= CLRMASKBB(from-4);
+        board[1] &= CLRMASKBB(from-4);
+        board[2] &= CLRMASKBB(from-4);
+        board[3] &= CLRMASKBB(from-4);
 
         // set to rook
         board[0] |= (Bitboard)(pfrom&1)<<(to+1); // set som
@@ -653,22 +633,22 @@ void domove(Bitboard *board, Move move, int som) {
 
 
     // unset from
-    board[0] &= ClearMaskBB[from];
-    board[1] &= ClearMaskBB[from];
-    board[2] &= ClearMaskBB[from];
-    board[3] &= ClearMaskBB[from];
+    board[0] &= CLRMASKBB(from);
+    board[1] &= CLRMASKBB(from);
+    board[2] &= CLRMASKBB(from);
+    board[3] &= CLRMASKBB(from);
 
     // unset cpt
-    board[0] &= ClearMaskBB[cpt];
-    board[1] &= ClearMaskBB[cpt];
-    board[2] &= ClearMaskBB[cpt];
-    board[3] &= ClearMaskBB[cpt];
+    board[0] &= CLRMASKBB(cpt);
+    board[1] &= CLRMASKBB(cpt);
+    board[2] &= CLRMASKBB(cpt);
+    board[3] &= CLRMASKBB(cpt);
 
     // unset to
-    board[0] &= ClearMaskBB[to];
-    board[1] &= ClearMaskBB[to];
-    board[2] &= ClearMaskBB[to];
-    board[3] &= ClearMaskBB[to];
+    board[0] &= CLRMASKBB(to);
+    board[1] &= CLRMASKBB(to);
+    board[2] &= CLRMASKBB(to);
+    board[3] &= CLRMASKBB(to);
 
     // set to
     board[0] |= (pto&1)<<to;
@@ -698,10 +678,10 @@ void undomove(Bitboard *board, Move move, int som) {
     if ( ( (pfrom>>1) == KING) && (to-from == 2) ) {
 
         // unset to rook
-        board[0] &= ClearMaskBB[to-1];
-        board[1] &= ClearMaskBB[to-1];
-        board[2] &= ClearMaskBB[to-1];
-        board[3] &= ClearMaskBB[to-1];
+        board[0] &= CLRMASKBB(to-1);
+        board[1] &= CLRMASKBB(to-1);
+        board[2] &= CLRMASKBB(to-1);
+        board[3] &= CLRMASKBB(to-1);
 
         // set from rook
         board[0] |= (Bitboard)(pfrom&1)<<(from+3); // set som
@@ -713,10 +693,10 @@ void undomove(Bitboard *board, Move move, int som) {
     if ( ( (pfrom>>1) == KING) && (from-to == 2) ) {
 
         // unset to rook
-        board[0] &= ClearMaskBB[to+1];
-        board[1] &= ClearMaskBB[to+1];
-        board[2] &= ClearMaskBB[to+1];
-        board[3] &= ClearMaskBB[to+1];
+        board[0] &= CLRMASKBB(to+1);
+        board[1] &= CLRMASKBB(to+1);
+        board[2] &= CLRMASKBB(to+1);
+        board[3] &= CLRMASKBB(to+1);
 
         // set from rook
         board[0] |= (Bitboard)(pfrom&1)<<(from-4); // set som
@@ -727,16 +707,16 @@ void undomove(Bitboard *board, Move move, int som) {
     }
 
     // unset to
-    board[0] &= ClearMaskBB[to];
-    board[1] &= ClearMaskBB[to];
-    board[2] &= ClearMaskBB[to];
-    board[3] &= ClearMaskBB[to];
+    board[0] &= CLRMASKBB(to);
+    board[1] &= CLRMASKBB(to);
+    board[2] &= CLRMASKBB(to);
+    board[3] &= CLRMASKBB(to);
 
     // unset cpt
-    board[0] &= ClearMaskBB[cpt];
-    board[1] &= ClearMaskBB[cpt];
-    board[2] &= ClearMaskBB[cpt];
-    board[3] &= ClearMaskBB[cpt];
+    board[0] &= CLRMASKBB(cpt);
+    board[1] &= CLRMASKBB(cpt);
+    board[2] &= CLRMASKBB(cpt);
+    board[3] &= CLRMASKBB(cpt);
 
     // restore cpt
     board[0] |= (pcpt&1)<<cpt;
@@ -1766,10 +1746,10 @@ void move2alg(Move move, char * movec) {
     Piece pto   = getpto(move);
 
 
-    movec[0] = filec[square_file(from)];
-    movec[1] = rankc[square_rank(from)];
-    movec[2] = filec[square_file(to)];
-    movec[3] = rankc[square_rank(to)];
+    movec[0] = filec[GETFILE(from)];
+    movec[1] = rankc[GETRANK(from)];
+    movec[2] = filec[GETFILE(to)];
+    movec[3] = rankc[GETRANK(to)];
     movec[4] = ' ';
     movec[5] = '\0';
 
@@ -1800,10 +1780,10 @@ Move move_parser(char *usermove, Bitboard *board, int som) {
 
     file = (int)usermove[0] -97;
     rank = (int)usermove[1] -49;
-    from = make_square(file,rank);
+    from = MAKESQ(file,rank);
     file = (int)usermove[2] -97;
     rank = (int)usermove[3] -49;
-    to = make_square(file,rank);
+    to = MAKESQ(file,rank);
 
     pfrom = getPiece(board, from);
     pto = pfrom;
@@ -2052,10 +2032,10 @@ void print_movealg(Move move) {
     Piece pto   = getpto(move);
 
 
-    movec[0] = filec[square_file(from)];
-    movec[1] = rankc[square_rank(from)];
-    movec[2] = filec[square_file(to)];
-    movec[3] = rankc[square_rank(to)];
+    movec[0] = filec[GETFILE(from)];
+    movec[1] = rankc[GETRANK(from)];
+    movec[2] = filec[GETFILE(to)];
+    movec[3] = rankc[GETRANK(to)];
 
     /* pawn promo */
     if ( pfrom>>1 == PAWN && ( to>>3 == 7 || to>>3 == 0 ) ) {
@@ -2085,7 +2065,7 @@ void print_bitboard(Bitboard board) {
         printf("#%i ",i);
         for(j=0;j<8;j++) {
             pos = ((i-1)*8) + j;
-            if (bit_is_set(board, pos)) 
+            if (board&SETMASKBB(pos)) 
                 printf("x");
             else 
                 printf("-");
