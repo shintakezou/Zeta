@@ -72,6 +72,7 @@ cl_mem	 GLOBAL_PID_TODOINDEX_Buffer;
 cl_mem	 GLOBAL_PID_AB_SCORES_Buffer;
 cl_mem	 GLOBAL_PID_DEPTHS_Buffer;
 cl_mem	 GLOBAL_PID_MOVES_Buffer;
+cl_mem	 GLOBAL_PID_MOVE_HISTORY_Buffer;
 cl_mem	 GLOBAL_FINISHED_Buffer;
 cl_mem	 GLOBAL_MOVECOUNT_Buffer;
 cl_mem	 GLOBAL_PLYREACHED_Buffer;

@@ -47,7 +47,7 @@ typedef struct {
 
 // modes
 #define INIT        0
-#define SELECTION   1
+#define SELECT      1
 #define EXPAND      2
 #define EVALLEAF    3
 #define MOVEUP      4
@@ -103,6 +103,8 @@ typedef struct {
                            |  (((board[2]>>(sq))&0x1)<<1) \
                            |  (((board[3]>>(sq))&0x1)<<2) \
                              )
+#define GETCOLOR(p)        ((p)&0x1)
+#define GETPTYPE(p)        (((p)>>1)&0x7)      // 3 bit piece type encoding
 
 // file enumeration
 enum Files
@@ -152,7 +154,7 @@ enum Squares
 #define SKIPMATE             1          // 0 or 1
 #define SKIPDRAW             1         // 0 or 1
 #define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
-#define SCOREWEIGHT          0.11    // factor for board score in select formula
+#define SCOREWEIGHT          0.33    // factor for board score in select formula
 #define ZETAPRUNING          1      // 0 or 1
 
 /* 
@@ -254,19 +256,29 @@ __constant Score EvalTable[7*64] =
   -20,-10,-10, -5, -5,-10,-10,-20
 };
 
+Score evalpiece(Piece piece, Square sq)
+{
+  Score score = 0;
+
+  /* wood count */
+  score+= EvalPieceValues[GETPTYPE(piece)];
+  /* piece square tables */
+  sq = (piece&0x1)?sq:FLOP(sq);
+  score+= EvalTable[GETPTYPE(piece)*64+sq];
+  /* sqaure control */
+  score+= EvalControl[sq];
+
+  return score;
+}
+
 Score EvalMove(Move move)
 {
-/*
-    // castle moves
-    if ( (((move>>54)&0xF)>>1) == ROOK)
-        return INF; 
-*/
-  // MVA
+  // pto (wood + pst) - pfrom (wood + pst)
   if ( (((move>>26)&0xF)>>1) == PEMPTY) 
-    return EvalPieceValues[(((move>>22)&0xF)>>1)];
+    return evalpiece((Piece)((move>>22)&0xF), (Square)((move>>6)&0x3F))-evalpiece((Piece)((move>>18)&0xF), (Square)(move&0x3F));
   // MVV-LVA
   else
-    return EvalPieceValues[(((move>>26)&0xF)>>1)] * 16 - EvalPieceValues[(((move>>22)&0xF)>>1)];
+    return EvalPieceValues[(Piece)(((move>>26)&0xF)>>1)] * 16 - EvalPieceValues[(Piece)(((move>>22)&0xF)>>1)];
 }
 
 // OpenCL 1.2 has popcount function
@@ -442,6 +454,10 @@ void updateHash(__private Bitboard *board, Move move, __global u64 *Zobrist) {
     // castle to
     if (((move>>47) & 0x7F) < ILL && (((move>>54) & 0xF)>>1) == ROOK )
         board[4] ^= Zobrist[(((move>>54) & 0xF)&1)*7*64+(((move>>54) & 0xF)>>1)*64+((move>>47) & 0x3F)];
+
+    // site to move
+    board[4]^=Zobrist[844];
+
 }
 
 Move updateCR(Move move, Cr cr) {
@@ -783,6 +799,7 @@ __kernel void bestfirst_gpu(
                             __global int *global_pid_ab_score,
                             __global int *global_pid_depths,
                             __global Move *global_pid_moves,
+                            __global Move *global_pid_movehistory,
                             __global int *global_finished,
                             __global int *global_movecount,
                             __global int *global_plyreached,
@@ -888,7 +905,7 @@ __kernel void bestfirst_gpu(
 
 
     // main loop
-    while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && *global_movecount < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECTION)) )
+    while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && *global_movecount < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECT)) )
     {
         // Iterations Counter
         COUNTERS[pid*10+0]++;
@@ -918,33 +935,25 @@ __kernel void bestfirst_gpu(
 
             lastmove = board_stack_1[0].move;
 
-
-            mode = SELECTION;
+            mode = SELECT;
 
             zeta = (float)board_stack_1[0].score;
 
         }
 
-        if ( mode == SELECTION) {
+        if ( mode == SELECT) {
 
 
             board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
             n = board_stack[(index%max_nodes_per_slot)].children;
 
 
-            // check movecount
-            if (n<=0)
-                mode = INIT;
-            // check bounds TODO: repetition detection
-            if (sd>=max_depth)
-                mode = INIT;
-
             tmpscorea = -1000000000;
             current = 0;
             k = -1;
 
     		    // selecta best move
-            for (i=0; i < n; i++ ) {
+            for (i=0;i<n; i++ ) {
         
                 child = board_stack[(index%max_nodes_per_slot)].child + i;
 
@@ -965,10 +974,8 @@ __kernel void bestfirst_gpu(
                     continue;
 
                 // prune bad score
-//                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore < zeta )
-//                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+ (EvalPieceValues[QUEEN]/(pid+1)) < zeta )
-//                if (ZETAPRUNING == 1 && index > 0 && abs(board_stack_tmp[(child%max_nodes_per_slot)].score) != INF && abs(zeta) != INF && abs(zeta) < MATESCORE && tmpscore+pid < zeta )
-                if (ZETAPRUNING == 1 && index > 0 && lid < localThreads/4 && !ISINF(tmpscoreb) && !ISINF(zeta) && !ISMATE(zeta) && tmpscoreb < zeta )
+//                if (ZETAPRUNING == 1 && index > 0 && !ISINF(tmpscoreb) && !ISINF(zeta) && !ISMATE(zeta) && tmpscoreb+((float)pid/2) < zeta )
+                if (ZETAPRUNING == 1 && index > 0 && lid < localThreads/16 && !ISINF(tmpscoreb) && !ISINF(zeta) && !ISMATE(zeta) && tmpscoreb < zeta )
                   continue;
                 else if (ROOTSEARCH == 1 && index==0)
                     tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
@@ -999,7 +1006,7 @@ __kernel void bestfirst_gpu(
             if (k != -1 && k != pid)
                 current = 0;
 
-            // got lock, do move and exit selection phase to expand phase
+            // got lock, do move and exit select phase to expand phase
             if (k == pid ) {
                 if (board_stack_tmp[(current%max_nodes_per_slot)].score == -INF)
                     mode = EXPAND;
@@ -1028,8 +1035,8 @@ __kernel void bestfirst_gpu(
 
                 som = !som;    
 
-//                updateHash(board, move, Zobrist);\n
-                board[4] = computeHash(board, som, Zobrist);
+                updateHash(board, move, Zobrist);
+//                board[4] = computeHash(board, som, Zobrist);
 
                 index = current;
 
@@ -1037,7 +1044,7 @@ __kernel void bestfirst_gpu(
             }
         }
 
-        if ( mode == INIT || mode == SELECTION ) {
+        if ( mode == INIT || mode == SELECT ) {
             atom_inc(global_finished);
             continue;
         }
@@ -1066,7 +1073,7 @@ __kernel void bestfirst_gpu(
         CR = (Cr)((lastmove>>36)&0xF);
 
         // in check search extension
-        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
+//        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
 
         // enter quiescence search?
         qs = (sd<=depth)?false:true;
@@ -1165,7 +1172,8 @@ __kernel void bestfirst_gpu(
                         COUNTERS[pid*10+3]++;
                         atom_inc(global_movecount);
 
-                        // sort move
+/*
+                        // sort move, obsolete by movepicker
                         child = pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+0;
                         for(j=n-1; j > 0; j--) {
                             if ( EvalMove(global_pid_moves[j+child]) > EvalMove(global_pid_moves[j-1+child])  ) {
@@ -1176,6 +1184,7 @@ __kernel void bestfirst_gpu(
                            else
                             break;
                         }
+*/
                     }
                 }
 
@@ -1347,9 +1356,9 @@ __kernel void bestfirst_gpu(
           /* wodd count */
           score+= EvalPieceValues[piece];
           /* piece posuare tables */
-          score+= EvalTable[piece*64+FLIPFLOP(pos)];
+          score+= EvalTable[piece*64+FLOP(pos)];
           /* posuare control table */
-          score+= EvalControl[FLIPFLOP(pos)];
+          score+= EvalControl[FLOP(pos)];
 
           /* simple pawn structure white */
           /* blocked */
@@ -1509,8 +1518,8 @@ __kernel void bestfirst_gpu(
             // extensions
             depth = search_depth;
             depth = (rootkic)?search_depth+1:search_depth;
+//            depth = (n==1)?search_depth+1:depth;
 //            depth = (silent)?search_depth+1:depth;
-            depth = (n==1)?search_depth+1:depth;
 
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
@@ -1541,7 +1550,7 @@ __kernel void bestfirst_gpu(
 
                 depth = global_pid_depths[pid*max_depth+sd];
 
-                move = global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+global_pid_todoindex[pid*max_depth+sd]-1];
+                move = global_pid_movehistory[pid*max_depth+sd];
 
                 undomove(board, move);
 
@@ -1567,17 +1576,45 @@ __kernel void bestfirst_gpu(
             COUNTERS[pid*10+2]++;
             atom_inc(total_nodes_visited);
 
-            move = global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+global_pid_todoindex[pid*max_depth+sd]];
+            // movepicker
+            move = MOVENONE;
+            n = global_pid_movecounter[pid*max_depth+sd];
+            child = pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+0;
+            score = -INF;
+            tmpscore = 0;
+            i = 0;
+
+            for(j=0;j<n;j++)
+            {
+              tmpmove = global_pid_moves[j+child];
+              if (tmpmove==MOVENONE)
+                continue;
+
+              tmpscore = EvalMove(tmpmove);
+
+              if ( tmpscore > score)
+              {
+                score = tmpscore;
+                move = tmpmove;
+                i = j;
+              }
+            }
+            global_pid_moves[i+child] = MOVENONE; // reset move
+
+//            move = global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+global_pid_todoindex[pid*max_depth+sd]];
 
             domove(board, move);
 
             lastmove = move;
 
+            global_pid_movehistory[pid*max_depth+sd]=lastmove;
+
+
             // switch site to move
             som = !som;
 
 //            updateHash(board, move, Zobrist);
-            board[4] = computeHash(board, som, Zobrist);
+//            board[4] = computeHash(board, som, Zobrist);
 
             global_pid_todoindex[pid*max_depth+sd]++;
 
