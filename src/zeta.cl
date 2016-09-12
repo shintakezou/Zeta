@@ -791,6 +791,7 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 
   return false;
 }
+
 // bestfirst minimax search on gpu
 __kernel void bestfirst_gpu(  
                             __global Bitboard *init_board,
@@ -851,8 +852,6 @@ __kernel void bestfirst_gpu(
 
     Score score = 0;
     Score tmpscore = 0;
-    float tmpscorea = 0;
-    float tmpscoreb = 0;
 
     s32 mode = INIT;
 
@@ -941,6 +940,8 @@ __kernel void bestfirst_gpu(
 
         if ( mode == SELECT) {
 
+            float tmpscorea = 0;
+            float tmpscoreb = 0;
 
             board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
             n = board_stack[(index%max_nodes_per_slot)].children;
