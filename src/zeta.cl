@@ -153,13 +153,12 @@ enum Squares
 // tuneable search parameter
 #define MAXEVASIONS          3             // in check evasions
 #define TERMINATESOFT        1            // 0 or 1, will finish all searches before exit
-#define SMOOTHUCT            1.00        // factor for uct params in select formula
+#define SMOOTHUCT            0.28        // factor for uct params in select formula
 #define SKIPMATE             1          // 0 or 1
 #define SKIPDRAW             1         // 0 or 1
 #define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.33    // factor for board score in select formula
-#define ZETAPRUNING          1      // 0 or 1
-#define BROADWELL            1     // 0 or 1
+#define BROADWELL            1      // 0 or 1
 
 /* 
   piece square tables based on proposal by Tomasz Mich
@@ -794,7 +793,6 @@ __kernel void bestfirst_gpu(
                             __global NodeBlock *board_stack_1,
                             __global NodeBlock *board_stack_2,
                             __global NodeBlock *board_stack_3,
-                            __global s32 *global_return,
                             __global u64 *COUNTERS,
                             __global int *board_stack_top,
                             __global int *total_nodes_visited,
@@ -852,7 +850,6 @@ __kernel void bestfirst_gpu(
 
     Score score = 0;
     Score tmpscore = 0;
-    float zeta = 0;
     float tmpscorea = 0;
     float tmpscoreb = 0;
 
@@ -915,10 +912,8 @@ __kernel void bestfirst_gpu(
         COUNTERS[pid*10+0]++;
 
         // single reply and mate hack
-        if ( board_stack_1[0].children == 1 || board_stack_1[0].children == 0 || ISMATE(board_stack_1[0].score)) {
-            *global_return = board_stack_1[board_stack_1[0].child].move;
-            break;
-        }
+        if (board_stack_1[0].children==1||board_stack_1[0].children==0||ISMATE(board_stack_1[0].score))
+          break;
 
         if (mode == INIT) {
 
@@ -940,8 +935,6 @@ __kernel void bestfirst_gpu(
             lastmove = board_stack_1[0].move;
 
             mode = SELECT;
-
-            zeta = (float)board_stack_1[0].score;
 
         }
 
@@ -982,14 +975,21 @@ __kernel void bestfirst_gpu(
                 if (SKIPMATE&&index>0&&ISMATE(tmpscoreb))
                     continue;
 
+/*
+                // some of the threads are working in breadth manner
+                else if (BROADWELL&&(lid>localThreads/4))
+                {
+                  tmpscoreb*= SCOREWEIGHT;
+                  tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+                }
+*/
                 // on root deliver work via visit counter
                 if (ROOTSEARCH&&index==0)
                     tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
-                // some of the threads are working in breadth manner
-                else if (BROADWELL&&(pid>=totalThreads/4))
+                else if (BROADWELL&&(pid%8>0))
                 {
                   tmpscoreb*= SCOREWEIGHT;
-                  tmpscoreb+= (s32) (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+                  tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
                 }
 
                 if (tmpscoreb>tmpscorea)
@@ -1049,7 +1049,6 @@ __kernel void bestfirst_gpu(
 
                 index = current;
 
-                zeta = (float)board_stack_tmp[(current%max_nodes_per_slot)].score;
             }
         }
 
@@ -1062,10 +1061,11 @@ __kernel void bestfirst_gpu(
 
         if (mode==UPDATESCORE)
         {
-          mode = EXPAND;
-          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-          parent = board_stack[(index%max_nodes_per_slot)].parent;
 
+          mode = EXPAND;
+
+          board_stack = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          parent = board_stack[(current%max_nodes_per_slot)].parent;
 
           // update score without selected node
           while(parent>=0)
@@ -1084,7 +1084,7 @@ __kernel void bestfirst_gpu(
               child+=i; 
 
               // skip selected node from scoring
-              if (child==index)
+              if (child==current)
                 continue;
 
               board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
@@ -1136,7 +1136,7 @@ __kernel void bestfirst_gpu(
         CR = (Cr)((lastmove>>36)&0xF);
 
         // in check search extension
-        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
+//        depth = (rootkic&&sd-search_depth<MAXEVASIONS)?sd:depth;
 
         // enter quiescence search?
         qs = (sd<=depth)?false:true;
@@ -1558,7 +1558,7 @@ __kernel void bestfirst_gpu(
 
                 board_stack[(index%max_nodes_per_slot)].child = current;
                 board_stack[(index%max_nodes_per_slot)].children = n;
-                mode = EVALLEAF;
+                mode = (index>0)?EVALLEAF:INIT;
             }
             else if (n == 0) {
                 board_stack[(index%max_nodes_per_slot)].score = score;
@@ -1577,10 +1577,11 @@ __kernel void bestfirst_gpu(
 
             sd = 0;
             // extensions
-            depth = search_depth;
+            depth = search_depth; 
+//            depth = (ply<4)?4-ply:search_depth; // on root depth 3 search
             depth = (rootkic)?search_depth+1:search_depth;
             depth = (n==1)?search_depth+1:depth;
-            depth = (silent)?search_depth+1:depth;
+//            depth = (silent)?search_depth+1:depth;
 
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
