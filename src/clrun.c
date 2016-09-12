@@ -196,19 +196,6 @@ int initializeCL() {
         return 1;
     }   
 
-    temp = 0;
-    GLOBAL_RETURN_BESTMOVE_Buffer = clCreateBuffer(
-				      context, 
-                      CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                      sizeof(S32) * 1,
-                      &temp, 
-                      &status);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: clCreateBuffer (  GLOBAL_RETURN_BESTMOVE_Buffer)\n");
-		return 1;
-	}
-
     COUNTERS_Buffer = clCreateBuffer(
 				      context, 
                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
@@ -510,18 +497,6 @@ int  runCLKernels(int som, int depth, Move lastmove) {
     if(status != CL_SUCCESS) 
 	{ 
 		print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_3_Buffer)\n");
-		return 1;
-	}
-    i++;
-
-    status = clSetKernelArg(
-                    kernel, 
-                    i, 
-                    sizeof(cl_mem), 
-                    (void *)&GLOBAL_RETURN_BESTMOVE_Buffer);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: Setting kernel argument. (GLOBAL_RETURN_BESTMOVE_Buffer)\n");
 		return 1;
 	}
     i++;
@@ -849,41 +824,6 @@ int  clGetMemory()
 		return 1;
 	}
 */
-
-    /* Enqueue readBuffer*/
-    status = clEnqueueReadBuffer(
-                commandQueue,
-                GLOBAL_RETURN_BESTMOVE_Buffer,
-                CL_TRUE,
-                0,
-                1 * sizeof(S32),
-                GLOBAL_RETURN_BESTMOVE,
-                0,
-                NULL,
-                &events[1]);
-    
-    if(status != CL_SUCCESS) 
-	{ 
-        print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_RETURN_BESTMOVE)\n");
-
-		return 1;
-    }
-    /* Wait for the read buffer to finish execution */
-    status = clWaitForEvents(1, &events[1]);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_RETURN_BESTMOVE)\n");
-		return 1;
-	}
-    status = clReleaseEvent(events[1]);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: Release event object.(GLOBAL_RETURN_BESTMOVE)\n");
-		return 1;
-	}
-
-
-
     // Enqueue readBuffer
     status = clEnqueueReadBuffer(
                 commandQueue,
@@ -1001,13 +941,6 @@ int  clGetMemory()
     if(status != CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_STACK_3_Buffer)\n");
-		return 1; 
-	}
-
-    status = clReleaseMemObject(GLOBAL_RETURN_BESTMOVE_Buffer);
-    if(status != CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RETURN_BESTMOVE_Buffer)\n");
 		return 1; 
 	}
 

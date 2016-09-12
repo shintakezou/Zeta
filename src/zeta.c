@@ -95,7 +95,6 @@ Bitboard BOARD[5];
 
 // for exchange with OpenCL Device
 Bitboard *GLOBAL_INIT_BOARD;
-S32 *GLOBAL_RETURN_BESTMOVE;
 NodeBlock *NODES = NULL;
 NodeBlock *NODES_TMP = NULL;
 U64 *COUNTERS;
@@ -181,7 +180,6 @@ static Bitboard AttackTablesTo[2*7*64] =
 void free_resources() {
 
     free(GLOBAL_INIT_BOARD);
-    free(GLOBAL_RETURN_BESTMOVE);
     free(COUNTERS);
     free(NODES);
     free(NODES_TMP);
@@ -818,7 +816,6 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
 
     bestscore = score;
 
-//    bestmove = *GLOBAL_RETURN_BESTMOVE;
     if (NODES[0].children == 1) {
         bestscore = 0;
         bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
@@ -1052,7 +1049,6 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
         }
     }
 
-//    bestmove = *GLOBAL_RETURN_BESTMOVE;
     if (NODES[0].children == 1) {
         bestscore = 0;
         bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
@@ -2251,7 +2247,6 @@ void read_config(char configfile[]) {
 
     // allocate memory
     GLOBAL_INIT_BOARD = (Bitboard*)malloc(  5 * sizeof (Bitboard));
-    GLOBAL_RETURN_BESTMOVE = (S32*)malloc(1 * sizeof (S32));
 
     NODES = (NodeBlock*)malloc(max_nodes_to_expand * sizeof(NodeBlock));
     if (NODES == NULL) {
