@@ -821,20 +821,18 @@ __kernel void bestfirst_gpu(
 
 {
 
-    __private Bitboard board[5];
     __global NodeBlock *board_stack;
     __global NodeBlock *board_stack_tmp;
 
-    const s32 lid = get_local_id(2);
+    __private Bitboard board[5];
+
     const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
-    const s32 localThreads = get_global_size(2);
     const s32 totalThreads = get_global_size(0)*get_global_size(1)*get_global_size(2);
 
     bool som = (bool)som_init;
     bool kic = false;
     bool rootkic = false;
     bool qs = false;
-    bool silent = false;
 
     s32 index = 0;
     s32 current = 0;
@@ -978,14 +976,6 @@ __kernel void bestfirst_gpu(
                 if (SKIPMATE&&index>0&&ISMATE(tmpscoreb))
                     continue;
 
-/*
-                // some of the threads are working in breadth manner
-                else if (BROADWELL&&(lid>localThreads/4))
-                {
-                  tmpscoreb*= SCOREWEIGHT;
-                  tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
-                }
-*/
                 // on root deliver work via visit counter
                 if (ROOTSEARCH&&index==0)
                     tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
@@ -1123,7 +1113,6 @@ __kernel void bestfirst_gpu(
         // #########################################
         n = 0;
         k = 0;
-        silent = true;
         bbBlockers  =  board[1]|board[2]|board[3];
         bbMe        = (som)?board[0]:(board[0]^bbBlockers);
         bbOpp       = (!som)?board[0]:(board[0]^bbBlockers);
@@ -1223,8 +1212,6 @@ __kernel void bestfirst_gpu(
                 kic = squareunderattack(board, !som, kingpos);
 
                 if (!kic) {
-
-                    silent = ((piececpt>>1)!=PEMPTY)?false:silent;
 
                     k++; // check mate move counter
 
@@ -1582,10 +1569,8 @@ __kernel void bestfirst_gpu(
             sd = 0;
             // extensions
             depth = search_depth; 
-//            depth = (ply<4)?4-ply:search_depth; // on root depth 3 search
             depth = (rootkic)?search_depth+1:search_depth;
             depth = (n==1)?search_depth+1:depth;
-//            depth = (silent)?search_depth+1:depth;
 
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
