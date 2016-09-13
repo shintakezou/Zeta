@@ -151,7 +151,6 @@ enum Squares
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 
 // tuneable search parameter
-#define MAXEVASIONS          3             // in check evasions
 #define TERMINATESOFT        1            // 0 or 1, will finish all searches before exit
 #define SMOOTHUCT            0.28        // factor for uct params in select formula
 #define SKIPMATE             1          // 0 or 1
@@ -879,7 +878,7 @@ void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Mov
     bbMoves = bbTempO&bbTemp&bbOpp;
     // verify non captures
     bbTempO  = ((piece>>1)==PAWN)?(AttackTablesPawnPushes[som*64+pos]):bbTempO;
-    bbMoves |= (!qs||rootkic)?(bbTempO&bbTemp&~bbBlockers):BBEMPTY; 
+    bbMoves |= (!qs)?(bbTempO&bbTemp&~bbBlockers):BBEMPTY; 
 
     while(bbMoves)
     {
@@ -914,6 +913,17 @@ void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Mov
 
       if (!kic)
       {
+        // update castle rights        
+        move = updateCR(move, CR);
+        // copy move to global
+        global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+        // movecounters
+        n[0]++;
+        COUNTERS[3]++;
+      }
+/*
+      if (!kic)
+      {
 
         k[0]++; // check mate move counter
 
@@ -928,7 +938,6 @@ void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Mov
           n[0]++;
           COUNTERS[3]++;
 
-      /*
           // sort move, obsolete by movepicker
           i = pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+0;
           for(j=n-1; j > 0; j--) {
@@ -940,10 +949,9 @@ void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Mov
              else
               break;
           }
-      */
         }
       }
-
+*/
       // undomove
       undomove(board, move);
     }
@@ -1481,26 +1489,22 @@ __kernel void bestfirst_gpu(
         score*=10;
         // hack for drawscore == 0, site to move bonus
         score+=(!som)?1:-1;
-
         // negamaxed scores
         score = (som)?-score:score;
         // checkmate
-        score = (rootkic&&k==0)?-INF+ply+ply_init:score;
+        score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
         // stalemate
-        score = (!rootkic&&k==0&&!qs)?STALEMATESCORE:score;
+        score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
 
         // draw by 3 fold repetition
-        if (mode==EXPAND&&index>0)
+        for (i=ply+ply_init-2;i>0&&mode==EXPAND;i-=2)
         {
-          for (i=ply+ply_init-2;i>0;i-=2)
+          if (board[4]==global_HashHistory[pid*1024+i])
           {
-            if (board[4] == global_HashHistory[pid*1024+i])
-            {
-              n       = 0;
-              score   = DRAWSCORE;
-              break;
-            }
-          }   
+            n       = 0;
+            score   = DRAWSCORE;
+            break;
+          }
         }   
 
         // out of range
