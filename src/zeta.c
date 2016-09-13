@@ -1353,6 +1353,8 @@ int main(void) {
     else
         sourceSize    = strlen(source);
 
+
+    // xboard command loop
     for(;;) {
 
         if (!xboard_mode) 

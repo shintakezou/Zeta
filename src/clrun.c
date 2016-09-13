@@ -124,6 +124,58 @@ int initializeCLDevice() {
 		return 1;
 	}
 
+	/////////////////////////////////////////////////////////////////
+	// build CL program object, create CL kernel object
+	/////////////////////////////////////////////////////////////////
+//    if (true) {
+    if (program == NULL ) {
+        content = source;
+        contentSize = &sourceSize;
+        program = clCreateProgramWithSource(
+			          context, 
+                      1, 
+                      &content,
+				      contentSize,
+                      &status);
+	    if(status != CL_SUCCESS) 
+	    { 
+	      print_debug((char *)"Error: Loading Binary into cl_program (clCreateProgramWithBinary)\n");
+	      return 1;
+	    }   
+
+        /* create a cl program executable for all the devices specified */
+        status = clBuildProgram(program, 1, &devices[opencl_device_id], NULL, NULL, NULL);
+        if(status != CL_SUCCESS) 
+	    { 
+            char* build_log=0;
+            size_t log_size=0;
+            FILE 	*temp=0;
+
+		    print_debug((char *)"Error: Building Program (clBuildProgram)\n");
+
+
+            // Shows the log
+            // First call to know the proper size
+            clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+            build_log = (char *) malloc(log_size+1);
+            // Second call to get the log
+            status = clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
+            //build_log[log_size] = '\0';
+
+            temp = fopen("zeta.debug", "ab+");
+            fprintf(temp, "buildlog: %s \n", build_log);
+            fclose(temp);
+
+            if(status != CL_SUCCESS) 
+            { 
+              print_debug((char *)"Error: Building Log (clGetProgramBuildInfo)\n");
+            }
+         
+           return 1;
+
+	    }
+    }
+
     return 0;
 }
 
@@ -359,57 +411,6 @@ int initializeCL() {
 	}
 
 
-	/////////////////////////////////////////////////////////////////
-	// build CL program object, create CL kernel object
-	/////////////////////////////////////////////////////////////////
-    if (true) {
-//    if (program == NULL ) {
-        content = source;
-        contentSize = &sourceSize;
-        program = clCreateProgramWithSource(
-			          context, 
-                      1, 
-                      &content,
-				      contentSize,
-                      &status);
-	    if(status != CL_SUCCESS) 
-	    { 
-	      print_debug((char *)"Error: Loading Binary into cl_program (clCreateProgramWithBinary)\n");
-	      return 1;
-	    }   
-
-        /* create a cl program executable for all the devices specified */
-        status = clBuildProgram(program, 1, &devices[opencl_device_id], NULL, NULL, NULL);
-        if(status != CL_SUCCESS) 
-	    { 
-            char* build_log=0;
-            size_t log_size=0;
-            FILE 	*temp=0;
-
-		    print_debug((char *)"Error: Building Program (clBuildProgram)\n");
-
-
-            // Shows the log
-            // First call to know the proper size
-            clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-            build_log = (char *) malloc(log_size+1);
-            // Second call to get the log
-            status = clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
-            //build_log[log_size] = '\0';
-
-            temp = fopen("zeta.debug", "ab+");
-            fprintf(temp, "buildlog: %s \n", build_log);
-            fclose(temp);
-
-            if(status != CL_SUCCESS) 
-            { 
-              print_debug((char *)"Error: Building Log (clGetProgramBuildInfo)\n");
-            }
-         
-           return 1;
-
-	    }
-    }
 
     /* get a kernel object handle for a kernel with the given name */
     kernel = clCreateKernel(program, "bestfirst_gpu", &status);
