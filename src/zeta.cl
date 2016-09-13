@@ -799,7 +799,7 @@ void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Mov
 
   s32 i;
 
-  Square kingpos = 0;
+  Square kingpos;
   Square pos;
   Square to;
   Square cpt;   
