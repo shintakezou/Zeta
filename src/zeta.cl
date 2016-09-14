@@ -162,7 +162,7 @@ enum Squares
 #define SKIPDRAW             1           // 0 or 1
 #define INCHECKEXT           1          // 0 or 1
 #define SINGLEEXT            1         // 0 or 1
-#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
 #define DEPTHWELL            32    // 0 to totalThreads
