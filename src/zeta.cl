@@ -1394,11 +1394,11 @@ __kernel void bestfirst_gpu(
         score = -INF;
         board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
         j = board_stack[(parent%max_nodes_per_slot)].children;
-        child = board_stack[(parent%max_nodes_per_slot)].child;
+        child = board_stack[(parent%max_nodes_per_slot)].child-1;
         // each child from node
         for(i=0;i<j;i++)
         {
-          child+=i; 
+          child++;
           // skip selected node from scoring
           if (child==current)
             continue;
