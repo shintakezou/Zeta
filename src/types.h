@@ -98,8 +98,8 @@ typedef struct {
 
 #define ILL     64
 
-#define INF             1048576
-#define MATESCORE       1040000
+#define INF             1000000
+#define MATESCORE        999000
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
 

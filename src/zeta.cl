@@ -62,8 +62,9 @@ typedef struct {
 #define UPDATESCORE     6
 #define BACKUPSCORE     7
 
-#define INF             1048576
-#define MATESCORE       1040000
+// scores
+#define INF             1000000
+#define MATESCORE        999000
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
 
@@ -80,7 +81,7 @@ typedef struct {
 #define ROOK    5
 #define QUEEN   6
 
-#define ILL     64
+#define ILL     64          // illegal sqaure, for castle square hack
 #define ALPHA   0
 #define BETA    1
 
@@ -95,6 +96,7 @@ typedef struct {
 // bitboard masks, computation prefered over lookup
 #define SETMASKBB(sq)       (((u64)1)<<(sq))
 #define CLRMASKBB(sq)       (~(((u64)1)<<(sq)))
+
 // square helpers
 #define MAKESQ(file,rank)   ((rank)<<3|(file))
 #define GETRANK(sq)         ((sq)>>3)
@@ -103,6 +105,7 @@ typedef struct {
 #define FLIP(sq)            ((sq)^7)
 #define FLOP(sq)            ((sq)^56)
 #define FLIPFLOP(sq)        (((sq)^56)^7)
+
 // piece helpers
 #define GETPIECE(board,sq)  ( \
                                ((board[0]>>(sq))&0x1)\
@@ -133,6 +136,7 @@ enum Files
 #define BBFILEH             0x8080808080808080
 #define BBNOTHFILE          0x7F7F7F7F7F7F7F7F
 #define BBNOTAFILE          0xFEFEFEFEFEFEFEFE
+
 // rank enumeration
 enum Ranks
 {
@@ -142,6 +146,7 @@ enum Ranks
 #define BBRANK5             0x000000FF00000000
 #define BBRANK4             0x00000000FF000000
 #define BBRANK2             0x000000000000FF00
+
 // square enumeration
 enum Squares
 {
@@ -154,6 +159,7 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
+
 // is score a mate in n
 #define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
 // is score default inf
