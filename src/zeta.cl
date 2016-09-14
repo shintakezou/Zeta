@@ -150,12 +150,14 @@ enum Squares
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 
 // tuneable search parameter
-#define MAXEVASIONS          3             // max check evasions from qsearch
-#define TERMINATESOFT        0            // 0 or 1, will finish all searches before exit
-#define SMOOTHUCT            1.00        // factor for uct params in select formula
-#define SKIPMATE             1          // 0 or 1
-#define SKIPDRAW             1         // 0 or 1
-#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
+#define MAXEVASIONS          3               // max check evasions from qsearch
+#define TERMINATESOFT        0              // 0 or 1, will finish all searches before exit
+#define SMOOTHUCT            1.00          // factor for uct params in select formula
+#define SKIPMATE             1            // 0 or 1
+#define SKIPDRAW             1           // 0 or 1
+#define INCHECKEXT           1          // 0 or 1
+#define SINGLEEXT            1         // 0 or 1
+#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1
 
@@ -1629,8 +1631,8 @@ __kernel void bestfirst_gpu(
             sd = 0;
             // extensions
             depth = search_depth;
-//            depth = (rootkic)?search_depth+1:search_depth;
-//            depth = (n==1)?search_depth+1:depth;
+            depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
+            depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
 
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
