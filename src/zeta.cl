@@ -1,13 +1,22 @@
 /*
-    Zeta CL, OpenCL Chess Engine
-    Author: Srdja Matovic <srdja.matovic@googlemail.com>
-    Created at: 20-Jan-2011
-    Updated at:
-    Description: A Chess Engine written in OpenCL, a language suited for GPUs.
+  Name:         Zeta
+  Description:  Experimental chess engine written in OpenCL.
+  Author:       Srdja Matovic <s.matovic@app26.de>
+  Created at:   2011-01-15
+  Updated at:   2016-09
+  License:      GPL >= v2
 
-    Copyright (C) 2011 Srdja Matovic
-    This program is distributed under the GNU General Public License.
-    See file COPYING or http://www.gnu.org/licenses/
+  Copyright (C) 2011-2016 Srdja Matovic
+
+  Zeta is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 2 of the License, or
+  (at your option) any later version.
+
+  Zeta is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 */
 
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics       : enable
@@ -60,9 +69,8 @@ typedef struct {
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
 
-
-#define MAXBFPLY      64
-#define MAXLEGALMOVES 220
+#define MAXBFPLY        64
+#define MAXMOVES        256     // max amount of legal moves per position
 
 #define PEMPTY  0
 #define PAWN    1
@@ -950,7 +958,7 @@ void gen_moves(
         // update castle rights        
         move = updateCR(move, CR);
         // copy move to global
-        global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+        global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
         // movecounters
         n[0]++;
         COUNTERS[3]++;
@@ -966,14 +974,14 @@ void gen_moves(
           // update castle rights        
           move = updateCR(move, CR);
           // copy move to global
-          global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
 
           // Movecounters
           n[0]++;
           COUNTERS[3]++;
 
           // sort move, obsolete by movepicker
-          i = pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+0;
+          i = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
           for(j=n-1; j > 0; j--) {
               if ( EvalMove(global_pid_moves[j+i]) > EvalMove(global_pid_moves[j-1+i])  ) {
                   tmpmove = global_pid_moves[j+i];
@@ -1022,7 +1030,7 @@ void gen_moves(
           move = updateCR(move, CR);
 
           // copy move to global
-          global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
           // Movecounters
           n[0]++;
           k[0]++;
@@ -1054,7 +1062,7 @@ void gen_moves(
           move = updateCR(move, CR);
 
           // copy move to global
-          global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
           // Movecounters
           n[0]++;
           k[0]++;
@@ -1114,7 +1122,7 @@ void gen_moves(
               // update castle rights        
               move = updateCR(move, CR);
               // copy move to global
-              global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+n[0]] = move;
+              global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
               // Movecounters
               n[0]++;
               k[0]++;
@@ -1594,7 +1602,7 @@ __kernel void bestfirst_gpu(
 
                 for(i=0;i<n;i++) {
 
-                    move = global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+i];
+                    move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+i];
     
                     parent = (current+i);      
 
@@ -1692,7 +1700,7 @@ __kernel void bestfirst_gpu(
             // movepicker
             move = MOVENONE;
             n = global_pid_movecounter[pid*max_depth+sd];
-            child = pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+0;
+            child = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
             score = -INF;
             tmpscore = 0;
             i = 0;
@@ -1714,7 +1722,7 @@ __kernel void bestfirst_gpu(
             }
             global_pid_moves[i+child] = MOVENONE; // reset move
 
-//            move = global_pid_moves[pid*max_depth*MAXLEGALMOVES+sd*MAXLEGALMOVES+global_pid_todoindex[pid*max_depth+sd]];
+//            move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
 
             domove(board, move);
 

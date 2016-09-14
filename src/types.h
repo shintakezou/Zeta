@@ -64,7 +64,6 @@ typedef struct {
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
-#define MAXLEGALMOVES 220
 
 #define WHITE 0
 #define BLACK 1

@@ -338,7 +338,7 @@ int initializeCL() {
     GLOBAL_PID_MOVES_Buffer = clCreateBuffer(
 					   context, 
                        CL_MEM_READ_WRITE,
-                       sizeof(Move) * totalThreads * max_depth * MAXLEGALMOVES,
+                       sizeof(Move) * totalThreads * max_depth * MAXMOVES,
                        NULL, 
                        &status);
     if(status != CL_SUCCESS) 
