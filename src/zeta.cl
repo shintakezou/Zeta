@@ -48,31 +48,30 @@ typedef struct {
 }  NodeBlock;
 
 
-#define WHITE       0
-#define BLACK       1
-
-#define ALPHA       0
-#define BETA        1
+#define WHITE 0
+#define BLACK 1
 
 // modes
-#define INIT        0
-#define SELECT      1
-#define EXPAND      2
-#define EVALLEAF    3
-#define MOVEUP      4
-#define MOVEDOWN    5
-#define UPDATESCORE 6
-#define BACKUPSCORE 7
+#define INIT            0
+#define SELECT          1
+#define EXPAND          2
+#define EVALLEAF        3
+#define MOVEUP          4
+#define MOVEDOWN        5
+#define UPDATESCORE     6
+#define BACKUPSCORE     7
 
 #define INF             1048576
 #define MATESCORE       1040000
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
 
-#define MAXBFPLY        64
+#define MAXBFPLY        128     // max ply of bestfirst search tree
+#define MAXGAMEPLY      1024    // max ply a game can reach
 #define MAXMOVES        256     // max amount of legal moves per position
 
-#define PEMPTY  0
+// piece encodings
+#define PNONE   0
 #define PAWN    1
 #define KNIGHT  2
 #define KING    3
@@ -81,6 +80,8 @@ typedef struct {
 #define QUEEN   6
 
 #define ILL     64
+#define ALPHA   0
+#define BETA    1
 
 // u64 defaults 
 #define BBEMPTY             0x0000000000000000
@@ -297,7 +298,7 @@ Score evalpiece(Piece piece, Square sq)
 Score EvalMove(Move move)
 {
   // pto (wood + pst) - pfrom (wood + pst)
-  if ( (((move>>26)&0xF)>>1) == PEMPTY) 
+  if ( (((move>>26)&0xF)>>1) == PNONE) 
     return evalpiece((Piece)((move>>22)&0xF), (Square)((move>>6)&0x3F))-evalpiece((Piece)((move>>18)&0xF), (Square)(move&0x3F));
   // MVV-LVA
   else
@@ -350,7 +351,7 @@ void domove(__private Bitboard *board, Move move)
   // castle info
   u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
   u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
-  Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
+  Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PNONE
 
   // unset from capture to and castle from
   bbTemp = CLRMASKBB(from) & CLRMASKBB(cpt) & CLRMASKBB(to);
@@ -393,7 +394,7 @@ void undomove(__private Bitboard *board, Move move)
   // castle info
   u32 castlefrom   = (u32)((move>>40) & 0x7F); // is set to illegal square 64 when empty
   u32 castleto     = (u32)((move>>47) & 0x7F); // is set to illegal square 64 when empty
-  Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PEMPTY
+  Bitboard castlepciece = ((move>>54) & 0xF);  // is set to 0 when PNONE
 
   // unset capture, to and castle to
   bbTemp = CLRMASKBB(cpt) & CLRMASKBB(to);
@@ -479,7 +480,7 @@ void updateHash(__private Bitboard *board, Move move)
   board[4] ^= rotate(zobrist,pos);
 
   // capture
-  if ( (((move>>26) & 0xF)>>1) != PEMPTY)
+  if ( (((move>>26) & 0xF)>>1) != PNONE)
   {
     zobrist = Zobrist[(((move>>26)&0xF)>>1)-1];
     pos = (u64)((move>>12)&0x3F);
@@ -938,7 +939,7 @@ void gen_moves(
       piececpt = GETPIECE(board,cpt);
 
       // make move
-      move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
+      move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PNONE<<54)&0x03C0000000000000) );
 
       // TODO: pseudo legal move gen: 2x speedup?
       // domove
@@ -969,7 +970,7 @@ void gen_moves(
 
         k[0]++; // check mate move counter
 
-        if (!qs||(qs&&(piececpt>>1)!=PEMPTY))
+        if (!qs||(qs&&(piececpt>>1)!=PNONE))
         {
           // update castle rights        
           move = updateCR(move, CR);
@@ -1024,7 +1025,7 @@ void gen_moves(
           // make move
           to = kingpos-4;
           cpt = kingpos-1;
-          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
+          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PNONE<<26)&0x000000003C000000) | (((Move)PNONE<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
 
           // update castle rights        
           move = updateCR(move, CR);
@@ -1056,7 +1057,7 @@ void gen_moves(
           // make move
           to = kingpos+3;
           cpt = kingpos+1;
-          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PEMPTY<<26)&0x000000003C000000) | (((Move)PEMPTY<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
+          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PNONE<<26)&0x000000003C000000) | (((Move)PNONE<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
 
           // update castle rights        
           move = updateCR(move, CR);
@@ -1105,7 +1106,7 @@ void gen_moves(
           to  = (som)? cpt-8 : cpt+8;
           
           // make move
-          move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PEMPTY<<54)&0x03C0000000000000) );
+          move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PNONE<<54)&0x03C0000000000000) );
 
           // domove
           domove(board, move);
@@ -1349,7 +1350,7 @@ __kernel void bestfirst_gpu(
             n = board_stack[(index%max_nodes_per_slot)].children;
 
             // check bounds
-            if (ply>=MAXBFPLY)
+            if (ply>=MAXBFPLY||ply+ply_init>=MAXGAMEPLY)
               n=0;
 
             tmpscorea = -1000000000;

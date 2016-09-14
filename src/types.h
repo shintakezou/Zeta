@@ -60,7 +60,6 @@ typedef struct {
 #define VERSION "098e"
 
 // engine defaults
-#define MAXPLY      128     // max internal search ply
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
@@ -77,7 +76,7 @@ typedef struct {
 
 #define SwitchSide(som)     ((som == WHITE)? BLACK : WHITE)
 
-#define PEMPTY  0
+#define PNONE   0
 #define PAWN    1
 #define KNIGHT  2
 #define KING    3

@@ -513,7 +513,7 @@ void updateHash(Bitboard *board, Move move)
 {
   Square castlefrom   = (Square)((move>>40) & 0x7F); // is set to illegal square 64 when empty
   Square castleto     = (Square)((move>>47) & 0x7F); // is set to illegal square 64 when empty
-  Bitboard castlepciece = ((move>>54) & 0xF)>>1;  // is set to 0 when PEMPTY
+  Bitboard castlepciece = ((move>>54) & 0xF)>>1;  // is set to 0 when PNONE
   Square pos;
   Hash zobrist;
 
@@ -528,7 +528,7 @@ void updateHash(Bitboard *board, Move move)
   board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
 
   // capture
-  if ( ((move>>26)&0xF)!=PEMPTY)
+  if ( ((move>>26)&0xF)!=PNONE)
   {
     zobrist = Zobrist[(((move>>26)&0xF)>>1)-1];
     pos = (Square)((move>>12)&0x3F);
@@ -536,7 +536,7 @@ void updateHash(Bitboard *board, Move move)
   }
 
   // castle from
-  if (castlefrom<ILL&&castlepciece!=PEMPTY )
+  if (castlefrom<ILL&&castlepciece!=PNONE )
   {
     zobrist = Zobrist[ROOK-1];
     pos = castlefrom;
@@ -544,7 +544,7 @@ void updateHash(Bitboard *board, Move move)
   }
 
   // castle to
-  if (castleto < ILL && castlepciece != PEMPTY )
+  if (castleto < ILL && castlepciece != PNONE )
   {
     zobrist = Zobrist[ROOK-1];
     pos = castleto;
@@ -1785,8 +1785,8 @@ Move move_parser(char *usermove, Bitboard *board, int som) {
     pcpt = getPiece(board, cpt);
 
     // en passant
-    cpt = ( (pfrom>>1) == PAWN && (som == WHITE) && (from>>3) == 4 && to-from != 8 && (pcpt>>1) == PEMPTY ) ? to-8 : cpt;
-    cpt = ( (pfrom>>1) == PAWN && (som == BLACK) && (from>>3) == 3 && from-to != 8 && (pcpt>>1) == PEMPTY ) ? to+8 : cpt;
+    cpt = ( (pfrom>>1) == PAWN && (som == WHITE) && (from>>3) == 4 && to-from != 8 && (pcpt>>1) == PNONE ) ? to-8 : cpt;
+    cpt = ( (pfrom>>1) == PAWN && (som == BLACK) && (from>>3) == 3 && from-to != 8 && (pcpt>>1) == PNONE ) ? to+8 : cpt;
 
     pcpt = getPiece(board, cpt);
     
@@ -2074,7 +2074,7 @@ void print_bitboard(Bitboard board) {
 void print_board(Bitboard *board) {
 
     int i,j,pos;
-    Piece piece = PEMPTY;
+    Piece piece = PNONE;
     char wpchars[] = "-PNKBRQ";
     char bpchars[] = "-pnkbrq";
 
@@ -2092,9 +2092,9 @@ void print_board(Bitboard *board) {
 
             piece = getPiece(board, pos);
 
-            if (piece != PEMPTY && (piece&BLACK))
+            if (piece != PNONE && (piece&BLACK))
                 printf("%c", bpchars[piece>>1]);
-            else if (piece != PEMPTY)
+            else if (piece != PNONE)
                 printf("%c", wpchars[piece>>1]);
             else 
                 printf("-");
