@@ -181,6 +181,8 @@ int initializeCLDevice() {
 
 int initializeCL() {
 
+    cl_event events[2];
+
 	/////////////////////////////////////////////////////////////////
 	// Create an OpenCL command queue
 	/////////////////////////////////////////////////////////////////
@@ -212,15 +214,50 @@ int initializeCL() {
 
     GLOBAL_BOARD_STACK_1_Buffer = clCreateBuffer(
 		              context, 
-                      CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                      CL_MEM_READ_WRITE,
                       sizeof(NodeBlock) * max_nodes_to_expand,
-                      NODES, 
+                      NULL, 
                       &status);
     if(status != CL_SUCCESS) 
     { 
         print_debug((char *)"Error: clCreateBuffer (GLOBAL_BOARD_STACK_1_Buffer)\n");
         return 1;
     }
+
+        // Enqueue writeBuffer
+        status = clEnqueueWriteBuffer(
+                    commandQueue,
+                    GLOBAL_BOARD_STACK_1_Buffer,
+                    CL_TRUE,
+                    0,
+                    sizeof(NodeBlock) * 1,
+                    NODES,
+                    0,
+                    NULL,
+                    &events[1]);
+        
+        if(status != CL_SUCCESS) 
+	    { 
+            print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+
+		    return 1;
+        }
+        // Wait for the read buffer to finish execution
+        status = clWaitForEvents(1, &events[1]);
+        if(status != CL_SUCCESS) 
+	    { 
+		    print_debug((char *)"Error: Waiting for write buffer call to finish. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+		    return 1;
+	    }
+        status = clReleaseEvent(events[1]);
+        if(status != CL_SUCCESS) 
+	    { 
+		    print_debug((char *)"Error: Release event object.(GLOBAL_BOARD_STACK_1_Buffer)\n");
+		    return 1;
+	    }
+
+
+
 
     temp = (memory_slots >= 2)? max_nodes_to_expand : 1;
     GLOBAL_BOARD_STACK_2_Buffer = clCreateBuffer(
@@ -830,7 +867,7 @@ int  clGetMemory()
                     GLOBAL_BOARD_STACK_1_Buffer,
                     CL_TRUE,
                     0,
-                    sizeof(NodeBlock) * max_nodes_to_expand,
+                    sizeof(NodeBlock) * MAXMOVES+1,
                     NODES,
                     0,
                     NULL,

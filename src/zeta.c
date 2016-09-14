@@ -881,7 +881,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     Score tmpscore = -INF;
     int visits = 0;
     int tmpvisits = 0;
-    Move PV[1024];
+//    Move PV[1024];
 
     Move bestmove = 0;
     double start, end;
@@ -1012,13 +1012,13 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         NODECOUNT+=     COUNTERS[i*10+0];
         TNODECOUNT+=    COUNTERS[i*10+1];
         ABNODECOUNT+=   COUNTERS[i*10+2];
-        MOVECOUNT+=     COUNTERS[i*10+3];
     }
 
 //    bestscore = (S32)COUNTERS[totalThreads*4+0];
+    MOVECOUNT = COUNTERS[3];
     plyreached = COUNTERS[5];
     MEMORYFULL = COUNTERS[6];
-//    bestmoveply= COUNTERS[7];
+    bestmoveply = COUNTERS[7];
 
     
 /*
@@ -1031,8 +1031,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
 
 
     // Get PV
-
-
+/*
     int tempo = -INF;
     int tempomat = 0;
     int tempomate = 0;
@@ -1064,7 +1063,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         pvi++;
         bestmoveply = pvi;
     }
-
+*/
 
 /*
     // print debug node tree
@@ -1117,10 +1116,13 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         if ( xboard_mode == false )
             printf("depth score time nodes bfdepth pv \n");
         printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (int)(Elapsed*100), ABNODECOUNT, plyreached);          
+        print_movealg(bestmove);
+/*
         for (i=0;i<pvi;i++) {
             printf(" ");
             print_movealg(PV[i]);
         }
+*/
         printf("\n");
     }
 
@@ -1245,9 +1247,9 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
         NODECOUNT+=     COUNTERS[i*10+0];
         TNODECOUNT+=    COUNTERS[i*10+1];
         ABNODECOUNT+=   COUNTERS[i*10+2];
-        MOVECOUNT+=     COUNTERS[i*10+3];
     }
 
+    MOVECOUNT =     COUNTERS[3];
     bestscore = (S32)COUNTERS[4];
     plyreached = COUNTERS[5];
     MEMORYFULL = COUNTERS[6];
@@ -2166,7 +2168,7 @@ void read_config(char configfile[]) {
     // allocate memory
     GLOBAL_INIT_BOARD = (Bitboard*)malloc(  5 * sizeof (Bitboard));
 
-    NODES = (NodeBlock*)malloc(max_nodes_to_expand * sizeof(NodeBlock));
+    NODES = (NodeBlock*)calloc((MAXMOVES+1), sizeof(NodeBlock));
     if (NODES == NULL) {
         printf("memory alloc failed\n");
         free_resources();
