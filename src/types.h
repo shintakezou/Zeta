@@ -1,17 +1,25 @@
-/* 
-    Zeta Dva, yet another amateur level chess engine
-    Author: Srdja Matovic <srdja@matovic.de>
-    Created at: 15-Jan-2011
-    Updated at: 31-Jan-2011
-    Description: Amateur chesss programm
+/*
+  Name:         Zeta
+  Description:  Experimental chess engine written in OpenCL.
+  Author:       Srdja Matovic <s.matovic@app26.de>
+  Created at:   2011-01-15
+  Updated at:   2016-09
+  License:      GPL >= v2
 
-    Copyright (C) 2011 Srdja Matovic
-    This program is distributed under the GNU General Public License.
-    See file COPYING or http://www.gnu.org/licenses/
+  Copyright (C) 2011-2016 Srdja Matovic
 
+  Zeta is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 2 of the License, or
+  (at your option) any later version.
+
+  Zeta is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 */
 
-#if !defined(TYPES_H_INCLUDED)
+#ifndef TYPES_H_INCLUDED
 #define TYPES_H_INCLUDED
 
 /* C99 headers */
@@ -177,4 +185,5 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 
-#endif
+#endif // TYPES_H_INCLUDED
+
