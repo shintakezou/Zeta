@@ -68,7 +68,6 @@ typedef struct {
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
 
-#define MAXBFPLY        128     // max ply of bestfirst search tree
 #define MAXGAMEPLY      1024    // max ply a game can reach
 #define MAXMOVES        256     // max amount of legal moves per position
 // piece encodings
@@ -167,6 +166,7 @@ enum Squares
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
 #define DEPTHWELL            32    // 0 to totalThreads
+#define MAXBFPLY             128  // max ply of bestfirst search tree
 // rotate left based zobrist hashing
 __constant Hash Zobrist[17]=
 {
