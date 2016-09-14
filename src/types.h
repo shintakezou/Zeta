@@ -32,8 +32,8 @@
 
 typedef cl_ulong U64;
 typedef cl_uint U32;
-
 typedef cl_int S32;
+typedef cl_uchar U8;
 
 typedef U64 Move;
 typedef U64 Bitboard;
@@ -41,9 +41,8 @@ typedef U32 Cr;
 typedef U64 Hash;
 
 typedef S32 Score;
-typedef S32 MoveScore;
-typedef U32 Square;
-typedef U32 Piece;
+typedef U8 Square;
+typedef U8 Piece;
 
 
 typedef struct {

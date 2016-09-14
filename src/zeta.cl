@@ -21,22 +21,23 @@
 
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics       : enable
 #pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics   : enable
-//#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics        : enable
-//#pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
+#pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
 
 typedef ulong   u64;
 typedef uint    u32;
 typedef int     s32;
+typedef uchar    u8;
 
 typedef s32     Score;
-typedef u32     Square;
-typedef u32     Piece;
+typedef u8      Square;
+typedef u8      Piece;
 
 typedef u64     Cr;
 typedef u64     Move;
 typedef u64     Bitboard;
 typedef u64     Hash;
 
+// node tree entry
 typedef struct {
     Move move;
     Score score;
@@ -47,7 +48,7 @@ typedef struct {
     s32 parent;
 }  NodeBlock;
 
-
+// colors
 #define WHITE 0
 #define BLACK 1
 
