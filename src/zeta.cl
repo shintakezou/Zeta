@@ -162,11 +162,13 @@ enum Squares
 #define SKIPDRAW             1           // 0 or 1
 #define INCHECKEXT           1          // 0 or 1
 #define SINGLEEXT            1         // 0 or 1
-#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
 #define DEPTHWELL            32    // 0 to totalThreads
 #define MAXBFPLY             128  // max ply of bestfirst search tree
+// functions
+Score EvalMove(Move move);
 // rotate left based zobrist hashing
 __constant Hash Zobrist[17]=
 {
@@ -807,6 +809,7 @@ void gen_moves(
 {
   bool kic = false;
   s32 i;
+  s32 j;
   Square kingpos;
   Square pos;
   Square to;
@@ -817,6 +820,7 @@ void gen_moves(
   Piece piececpt;
   Cr CR = (Cr)((lastmove>>36)&0xF);
   Move move = 0;
+  Move tmpmove = 0;
   Bitboard bbBlockers     = board[1]|board[2]|board[3];
   Bitboard bbMe           = (som)?board[0]:(board[0]^bbBlockers);
   Bitboard bbOpp          = (!som)?board[0]:(board[0]^bbBlockers);
@@ -917,6 +921,20 @@ void gen_moves(
         // movecounters
         n[0]++;
         COUNTERS[3]++;
+
+        // sort moves
+        i = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
+        for(j=n[0]-1;j>0;j--)
+        {
+          if (EvalMove(global_pid_moves[j+i])>EvalMove(global_pid_moves[j-1+i]))
+          {
+            tmpmove = global_pid_moves[j+i];
+            global_pid_moves[j+i] = global_pid_moves[j-1+i];
+            global_pid_moves[j-1+i] = tmpmove;
+           }
+           else
+            break;
+        }
       }
 /*
       if (!kic)
@@ -1448,7 +1466,7 @@ __kernel void bestfirst_gpu(
     // negamaxed scores
     score = (som)?-score:score;
     // checkmate
-    score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
+    score = (!qs&&rootkic&&n==0&&sd<=search_depth)?-INF+ply+ply_init:score;
     // stalemate
     score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
     // draw by 3 fold repetition
@@ -1571,9 +1589,16 @@ __kernel void bestfirst_gpu(
         undomove(board, move);
         // switch site to move
         som = !som;
-
 //        updateHash(board, move);
 //        board[4] = computeHash(board, som);
+        // store score to child from expanded node
+        if (sd==0)
+        {
+          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          child = board_stack[(index%max_nodes_per_slot)].child + global_pid_todoindex[pid*max_depth+sd]-1;
+          board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          board_stack_tmp[(child%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+1*2+ALPHA];
+        }
       }
       mode = MOVEUP;
       // on root, set score of current node block and backup score
@@ -1590,7 +1615,7 @@ __kernel void bestfirst_gpu(
       // alphabeta search node counter
       COUNTERS[pid*10+2]++;
       atom_inc(total_nodes_visited);
-      // movepicker
+      /* movepicker
       move = MOVENONE;
       n = global_pid_movecounter[pid*max_depth+sd];
       child = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
@@ -1611,7 +1636,8 @@ __kernel void bestfirst_gpu(
         }
       }
       global_pid_moves[i+child] = MOVENONE; // reset move
-//          move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
+*/
+      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
       domove(board, move);
       lastmove = move;
       global_pid_movehistory[pid*max_depth+sd]=lastmove;
@@ -1628,8 +1654,8 @@ __kernel void bestfirst_gpu(
       global_pid_todoindex[pid*max_depth+sd] = 0;
       global_pid_depths[pid*max_depth+sd] = depth;
       // set alpha beta values for next depth
-      global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
-      global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
+      global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = (sd==0)?-INF:-global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
+      global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = (sd==0)?+INF:-global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
       continue;
     }
     // backup score from alphabeta search in bestfirst node tree
