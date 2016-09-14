@@ -19,14 +19,12 @@
   GNU General Public License for more details.
 */
 
-#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <math.h>
-#include <sys/time.h>
 
 #include "bitboard.h"
+#include "timer.h"
 #include "types.h"
 #include "zobrist.h"
 
@@ -406,25 +404,6 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
 
   return false;
 }
-
-
-/* ############################# */
-/* ###        time           ### */
-/* ############################# */
-
-double time_diff(struct timeval x , struct timeval y)
-{
-	double x_ms , y_ms , diff;
-	
-	x_ms = (double)x.tv_sec + (double)x.tv_usec/1000000;
-	y_ms = (double)y.tv_sec + (double)y.tv_usec/1000000;
-	
-	diff = (double)y_ms - (double)x_ms;
-	
-	return diff;
-}
-
-
 
 /* ############################# */
 /* ###        inits          ### */
@@ -905,7 +884,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     Move PV[1024];
 
     Move bestmove = 0;
-    struct timeval start , end;
+    double start, end;
 
     PLYPLAYED++;
     
@@ -916,11 +895,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     NODECOPIES  = 0;
     MEMORYFULL  = 0;
 
-    gettimeofday(&start , NULL);
-
-    // set up random  numbers
-    srand ( start.tv_sec );
-
+    start = get_time(); 
 
     // prepare nodes from previous run
     NODECOPIES = 0;
@@ -1127,11 +1102,12 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         tempomate = tempomat;
     }
 */
-    gettimeofday(&end , NULL);
-    Elapsed = time_diff(start , end);
+    end = get_time();
+    Elapsed = end-start;
+    Elapsed/=1000;
 
     // compute next nps value
-    nps_current =  (int)(ABNODECOUNT/Elapsed);
+    nps_current =  (int)(ABNODECOUNT/(Elapsed));
     nodes_per_second+= (ABNODECOUNT > (U64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
 
 
@@ -1139,7 +1115,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     if (post_mode == true || xboard_mode == false) {
         if ( xboard_mode == false )
             printf("depth score time nodes bfdepth pv \n");
-        printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (int)(Elapsed * 100), ABNODECOUNT, plyreached);          
+        printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (int)(Elapsed*100), ABNODECOUNT, plyreached);          
         for (i=0;i<pvi;i++) {
             printf(" ");
             print_movealg(PV[i]);
@@ -1162,7 +1138,7 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     Score tmpscore = -INF;
 
     Move bestmove = 0;
-    struct timeval start , end;
+    double start, end;
 
     PLYPLAYED++;
     
@@ -1172,12 +1148,7 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     MOVECOUNT   = 0;
     NODECOPIES  = 0;
 
-
-    gettimeofday(&start , NULL);
-
-    // set up random  numbers
-    srand ( start.tv_sec );
-
+    start = get_time();
 
     // prepare nodes from previous run
     NODECOPIES = 0;
@@ -1229,8 +1200,9 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     if (status != 0)
         return -1;
 
-    gettimeofday(&end , NULL);
-    Elapsed = time_diff(start , end);
+    end = get_time();
+    Elapsed = end-start;
+    Elapsed/=1000;
 
     status = clGetMemory();
     if (status != 0)
