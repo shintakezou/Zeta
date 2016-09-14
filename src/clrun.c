@@ -401,7 +401,7 @@ int initializeCL() {
     ZobristBuffer = clCreateBuffer(
 					   context, 
                        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                       sizeof(cl_ulong) * 896,
+                       sizeof(cl_ulong) * 17,
                        &Zobrist, 
                        &status);
     if(status != CL_SUCCESS) 
@@ -724,17 +724,6 @@ int  runCLKernels(int som, int depth, Move lastmove) {
 	}
     i++;
 
-    status = clSetKernelArg(
-                    kernel, 
-                    i, 
-                    sizeof(cl_mem), 
-                    (void *)&ZobristBuffer);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: Setting kernel argument. (ZobristBuffer)\n");
-		return 1;
-	}
-    i++;
     /* 
      * Enqueue a kernel run call.
      */

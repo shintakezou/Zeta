@@ -54,7 +54,7 @@ int nodes_per_second    =  0;
 U64 max_nodes           =  0;
 int nps_current         =  0;
 int max_nodes_to_expand =  0;
-int memory_slots        =  1;
+int memory_slots        =  2;
 int max_leaf_depth      =  0;
 int max_depth           = 99;
 int reuse_node_tree     =  0;
@@ -505,6 +505,7 @@ Hash computeHash(Bitboard *board, int som) {
     Bitboard bbBoth[2];
     Bitboard bbWork = 0;
     Hash hash = 0;
+    Hash zobrist;
 
     bbBoth[0]   = ( board[0] ^ (board[1] | board[2] | board[3]));
     bbBoth[1]   =   board[0];
@@ -517,42 +518,61 @@ Hash computeHash(Bitboard *board, int som) {
         while (bbWork) {
             // pop 1st bit
             pos = popfirst1(&bbWork);
-
-            piece = ( ((board[0]>>pos) &1) + 2*((board[1]>>pos) &1) + 4*((board[2]>>pos) &1) + 8*((board[3]>>pos) &1) )>>1;
-
-            hash ^= Zobrist[side*7*64+piece*64+pos];
+            piece = GETPIECETYPE(board, pos);
+            zobrist = Zobrist[piece-1];
+            hash ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
 
         }
     }
     if (!som)
-      hash^=Zobrist[844];
+      hash^=Zobrist[16];
 
     return hash;    
 }
 
-void updateHash(Bitboard *board, Move move) {
+void updateHash(Bitboard *board, Move move)
+{
+  Square castlefrom   = (Square)((move>>40) & 0x7F); // is set to illegal square 64 when empty
+  Square castleto     = (Square)((move>>47) & 0x7F); // is set to illegal square 64 when empty
+  Bitboard castlepciece = ((move>>54) & 0xF)>>1;  // is set to 0 when PEMPTY
+  Square pos;
+  Hash zobrist;
 
-    Square castlefrom   = (Square)((move>>40) & 0x7F); // is set to illegal square 64 when empty
-    Square castleto     = (Square)((move>>47) & 0x7F); // is set to illegal square 64 when empty
-    Bitboard castlepciece = ((move>>54) & 0xF)>>1;  // is set to 0 when PEMPTY
+  // from
+  zobrist = Zobrist[(((move>>18)&0xF)>>1)-1];
+  pos = (Square)(move&0x3F);
+  board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
 
-    // from
-    board[4] ^= Zobrist[(((move>>18) & 0xF)&1)*7*64+(((move>>18) & 0xF)>>1)*64+(move & 0x3F)];
+  // to
+  zobrist = Zobrist[(((move>>22)&0xF)>>1)-1];
+  pos = (Square)((move>>6)&0x3F);
+  board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
 
-    // to
-    board[4] ^= Zobrist[(((move>>22) & 0xF)&1)*7*64+(((move>>22) & 0xF)>>1)*64+((move>>6) & 0x3F)];
+  // capture
+  if ( ((move>>26)&0xF)!=PEMPTY)
+  {
+    zobrist = Zobrist[(((move>>26)&0xF)>>1)-1];
+    pos = (Square)((move>>12)&0x3F);
+    board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
+  }
 
-    // capture
-    if ( ((move>>26) & 0xF) != PEMPTY)
-        board[4] ^= Zobrist[(((move>>26) & 0xF)&1)*7*64+(((move>>26) & 0xF)>>1)*64+((move>>12) & 0x3F)];
+  // castle from
+  if (castlefrom<ILL&&castlepciece!=PEMPTY )
+  {
+    zobrist = Zobrist[ROOK-1];
+    pos = castlefrom;
+    board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
+  }
 
-    // castle from
-    if (castlefrom < ILL && castlepciece != PEMPTY )
-        board[4] ^= Zobrist[(((move>>54) & 0xF)&1)*7*64+(((move>>54) & 0xF)>>1)*64+((move>>40) & 0x7F)];
-
-    // castle to
-    if (castleto < ILL && castlepciece != PEMPTY )
-        board[4] ^= Zobrist[(((move>>54) & 0xF)&1)*7*64+(((move>>54) & 0xF)>>1)*64+((move>>47) & 0x7F)];
+  // castle to
+  if (castleto < ILL && castlepciece != PEMPTY )
+  {
+    zobrist = Zobrist[ROOK-1];
+    pos = castleto;
+    board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
+  }
+  // site to move
+  board[4]^=Zobrist[16];
 }
 
 

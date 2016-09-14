@@ -125,7 +125,7 @@ typedef struct {
                            |  (((board[3]>>(sq))&0x1)<<3) \
                              )
 #define GETPIECETYPE(board,sq) ( \
-                           |  (((board[1]>>(sq))&0x1)) \
+                              (((board[1]>>(sq))&0x1)) \
                            |  (((board[2]>>(sq))&0x1)<<1) \
                            |  (((board[3]>>(sq))&0x1)<<2) \
                              )

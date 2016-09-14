@@ -15,18 +15,18 @@
 //#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics        : enable
 //#pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
 
-typedef unsigned long   u64;
-typedef unsigned int    u32;
-typedef signed int      s32;
+typedef ulong   u64;
+typedef uint    u32;
+typedef int     s32;
 
-typedef s32             Score;
-typedef u32             Square;
-typedef u32             Piece;
+typedef s32     Score;
+typedef u32     Square;
+typedef u32     Piece;
 
-typedef u64 Cr;
-typedef u64 Move;
-typedef u64 Bitboard;
-typedef u64 Hash;
+typedef u64     Cr;
+typedef u64     Move;
+typedef u64     Bitboard;
+typedef u64     Hash;
 
 typedef struct {
     Move move;
@@ -151,13 +151,24 @@ enum Squares
 
 // tuneable search parameter
 #define MAXEVASIONS          3             // max check evasions from qsearch
-#define TERMINATESOFT        1            // 0 or 1, will finish all searches before exit
+#define TERMINATESOFT        0            // 0 or 1, will finish all searches before exit
 #define SMOOTHUCT            1.00        // factor for uct params in select formula
 #define SKIPMATE             1          // 0 or 1
 #define SKIPDRAW             1         // 0 or 1
-#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1
+
+
+/* rotate left based zobrist hashing */
+__constant Hash Zobrist[17]=
+{
+  0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,
+  0x75834465489C0C89, 0x3290AC3A203001BF, 0x0FBBAD1F61042279, 0xE83A908FF2FB60CA,
+  0x0D7E765D58755C10, 0x1A083822CEAFE02D, 0x9605D5F0E25EC3B0, 0xD021FF5CD13A2ED5,
+  0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC,
+  0x05D1A1AE85B49AA1
+};
 
 /* 
   piece square tables based on proposal by Tomasz Mich
@@ -410,59 +421,79 @@ void undomove(__private Bitboard *board, Move move)
 /* ###         Hash          ### */
 /* ############################# */
 
-Hash computeHash(__private Bitboard *board, bool stm, __global u64 *Zobrist) {
+Hash computeHash(__private Bitboard *board, bool stm)
+{
+  Piece piece;
+  s32 side;
+  u64 pos;
+  Bitboard bbBoth[2];
+  Bitboard bbWork = 0;
+  Hash hash = 0;
+  Hash zobrist;
 
-    Piece piece;
-    int side;
-    Square pos;
-    Bitboard bbBoth[2];
-    Bitboard bbWork = 0;
-    Hash hash = 0;
+  bbBoth[WHITE] = board[0]^(board[1]|board[2]|board[3]);
+  bbBoth[BLACK] = board[0];
 
-    bbBoth[0]   = ( board[0] ^ (board[1] | board[2] | board[3]));
-    bbBoth[1]   =   board[0];
-
-    // for each side
-    for(side=0; side<2;side++) {
-        bbWork = bbBoth[side];
-
-        // each piece
-        while (bbWork) {
-            // pop 1st bit
-            pos     = popfirst1(&bbWork);
-            piece = GETPIECETYPE(board, pos);
-            hash ^= Zobrist[side*7*64+piece*64+pos];
-
-        }
+  // for each side
+  for(side=0;side<2;side++)
+  {
+    bbWork = bbBoth[side];
+    // each piece
+    while (bbWork)
+    {
+      pos = (u64)popfirst1(&bbWork);
+      piece = GETPIECETYPE(board, pos);
+      zobrist = Zobrist[piece-1];
+      hash ^= rotate(zobrist,pos);
     }
-    if (!stm)
-      hash^=Zobrist[844];
+  }
+  if (!stm)
+    hash^=Zobrist[16];
 
-    return hash;    
+  return hash;    
 }
 
-void updateHash(__private Bitboard *board, Move move, __global u64 *Zobrist) {
+void updateHash(__private Bitboard *board, Move move)
+{
+  u64 zobrist;
+  u64 pos;
 
-    // from
-    board[4] ^= Zobrist[(((move>>18) & 0xF)&1)*7*64+(((move>>18) & 0xF)>>1)*64+(move & 0x3F)];
+  // from
+  zobrist = Zobrist[(((move>>18)&0xF)>>1)-1];
+  pos = (u64)(move&0x3F);
+  board[4] ^= rotate((ulong)zobrist,pos);
 
-    // to
-    board[4] ^= Zobrist[(((move>>22) & 0xF)&1)*7*64+(((move>>22) & 0xF)>>1)*64+((move>>6) & 0x3F)];
+  // to
+  zobrist = Zobrist[(((move>>22)&0xF)>>1)-1];
+  pos = (u64)((move>>6)&0x3F);
+  board[4] ^= rotate(zobrist,pos);
 
-    // capture
-    if ( (((move>>26) & 0xF)>>1) != PEMPTY)
-        board[4] ^= Zobrist[(((move>>26) & 0xF)&1)*7*64+(((move>>26) & 0xF)>>1)*64+((move>>12) & 0x3F)];
+  // capture
+  if ( (((move>>26) & 0xF)>>1) != PEMPTY)
+  {
+    zobrist = Zobrist[(((move>>26)&0xF)>>1)-1];
+    pos = (u64)((move>>12)&0x3F);
+    board[4] ^= rotate(zobrist,pos);
+  }
 
-    // castle from
-    if (((move>>40) & 0x7F) < ILL && (((move>>54) & 0xF)>>1) == ROOK )
+  // castle from
+  if (((move>>40)&0x7F)<ILL&&(((move>>54)&0xF)>>1)==ROOK)
+  {
+    zobrist = Zobrist[ROOK-1];
+    pos =  (u64)((move>>40)&0x3F);
+    board[4] ^= rotate(zobrist,pos);
+  }
         board[4] ^= Zobrist[(((move>>54) & 0xF)&1)*7*64+(((move>>54) & 0xF)>>1)*64+((move>>40) & 0x3F)];
 
-    // castle to
-    if (((move>>47) & 0x7F) < ILL && (((move>>54) & 0xF)>>1) == ROOK )
-        board[4] ^= Zobrist[(((move>>54) & 0xF)&1)*7*64+(((move>>54) & 0xF)>>1)*64+((move>>47) & 0x3F)];
-
-    // site to move
-    board[4]^=Zobrist[844];
+  // castle to
+  if (((move>>47)&0x7F)<ILL&&(((move>>54)&0xF)>>1)==ROOK)
+  {
+    zobrist = Zobrist[ROOK-1];
+    pos =  (u64)((move>>47)&0x3F);
+    board[4] ^= rotate(zobrist,pos);
+  }
+  // site to move
+  board[4]^=Zobrist[16];
 
 }
 
@@ -1202,10 +1233,8 @@ __kernel void bestfirst_gpu(
                                const s32 max_nodes_to_expand,
                                const s32 max_nodes_per_slot,
                                const u64 max_nodes,
-                               const s32 max_depth,
-                            __global u64 *Zobrist
+                               const s32 max_depth
 )
-
 {
 
     __global NodeBlock *board_stack;
@@ -1402,8 +1431,8 @@ __kernel void bestfirst_gpu(
 
                 som = !som;    
 
-                updateHash(board, move, Zobrist);
-//                board[4] = computeHash(board, som, Zobrist);
+                updateHash(board, move);
+//                board[4] = computeHash(board, som);
 
                 index = current;
 
@@ -1639,8 +1668,8 @@ __kernel void bestfirst_gpu(
                 // switch site to move
                 som = !som;
 
-//                updateHash(board, move, Zobrist);
-//                board[4] = computeHash(board, som, Zobrist);
+//                updateHash(board, move);
+//                board[4] = computeHash(board, som);
             }
  
             mode = MOVEUP;
@@ -1695,8 +1724,8 @@ __kernel void bestfirst_gpu(
             // switch site to move
             som = !som;
 
-//            updateHash(board, move, Zobrist);
-//            board[4] = computeHash(board, som, Zobrist);
+//            updateHash(board, move);
+//            board[4] = computeHash(board, som);
 
             global_pid_todoindex[pid*max_depth+sd]++;
 
