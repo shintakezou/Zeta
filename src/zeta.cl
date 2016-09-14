@@ -800,7 +800,6 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 void gen_moves(
                 __private Bitboard *board, 
                           s32 *n, 
-                          s32 *k, 
                           bool som, 
                           bool qs, 
                           Move lastmove, 
@@ -995,7 +994,6 @@ void gen_moves(
           global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
           // Movecounters
           n[0]++;
-          k[0]++;
 
           COUNTERS[3]++;
       }
@@ -1027,8 +1025,6 @@ void gen_moves(
           global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
           // Movecounters
           n[0]++;
-          k[0]++;
-
           COUNTERS[3]++;
 
       }
@@ -1087,8 +1083,6 @@ void gen_moves(
               global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
               // Movecounters
               n[0]++;
-              k[0]++;
-
               COUNTERS[3]++;
           }
 
@@ -1513,7 +1507,7 @@ __kernel void bestfirst_gpu(
         qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
         qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
 
-        gen_moves(board, &n, &k, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
+        gen_moves(board, &n, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
 
         // ################################
         // ####        Evaluation       ###
@@ -1539,257 +1533,233 @@ __kernel void bestfirst_gpu(
             score   = DRAWSCORE;
             break;
           }
-        }   
+        }
 
         // out of range
         if (sd>=max_depth)
           n = 0;
-
         global_pid_movecounter[pid*max_depth+sd] = n;
-
-        // eval leaf node
-        if (mode == MOVEUP && n == 0 ) {
-            global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score;
-            mode = MOVEDOWN;
+        // terminal node
+        if (mode==MOVEUP&&n==0)
+        {
+          global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score;
+          mode = MOVEDOWN;
         }
-
-        // stand pat
-        // return Beta
-        if (mode == MOVEUP && qs && !rootkic && score >= global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA] ) {
-//            global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA]; // fail hard
-            global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score; // fail soft
-      			mode = MOVEDOWN;
+        // stand pat in qsearch
+        // return beta
+        if (mode==MOVEUP&&qs&&!rootkic&&score>=global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA])
+        {
+//          global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA]; // fail hard
+          global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score; // fail soft
+    			mode = MOVEDOWN;
         }
-
-        // stand pat
-        // set Alpha
-        if (mode == MOVEUP && qs && !rootkic ) {
-            atom_max(&global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA], score);
+        // stand pat in qsearch
+        // set alpha
+        if (mode==MOVEUP&&qs&&!rootkic)
+        {
+          atom_max(&global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA], score);
     		}
+        // expand node
+        if (mode==EXPAND)
+        {
 
+          // expand node counter
+          COUNTERS[pid*10+1]++;
 
-        // Expand Node
-        if (mode == EXPAND ) {
+          // create child nodes
+          current = atom_add(board_stack_top,n);
 
-           // Expand Node Counter
-            COUNTERS[pid*10+1]++;
+          // expand only if we got enough memory
+          if (n>0&&current+n>=max_nodes_to_expand)
+            n = -1;
 
-            // create child nodes
-            current = atom_add(board_stack_top,n);
+          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 
-            // expand only if we got enough memory
-            if ( n > 0 && current+n >= max_nodes_to_expand )
-                n = -1;
+          for(i=0;i<n;i++) {
 
-            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+              move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+i];
 
-            if (n > 0 ) {
+              parent = (current+i);      
 
-                for(i=0;i<n;i++) {
+              board_stack_tmp = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 
-                    move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+i];
-    
-                    parent = (current+i);      
+              board_stack_tmp[(parent%max_nodes_per_slot)].move       = move;
+              board_stack_tmp[(parent%max_nodes_per_slot)].score      = -INF;
+              board_stack_tmp[(parent%max_nodes_per_slot)].visits     =  0;
+              board_stack_tmp[(parent%max_nodes_per_slot)].children   = -1;
+              board_stack_tmp[(parent%max_nodes_per_slot)].parent     = index;
+              board_stack_tmp[(parent%max_nodes_per_slot)].child      = -1;
+              board_stack_tmp[(parent%max_nodes_per_slot)].lock       = -1;
+          }
 
-                    board_stack_tmp = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          board_stack[(index%max_nodes_per_slot)].child = current;
+          board_stack[(index%max_nodes_per_slot)].children = n;
+          mode = (index>0)?EVALLEAF:INIT;
 
-                    board_stack_tmp[(parent%max_nodes_per_slot)].move       = move;
-                    board_stack_tmp[(parent%max_nodes_per_slot)].score      = -INF;
-                    board_stack_tmp[(parent%max_nodes_per_slot)].visits     =  0;
-                    board_stack_tmp[(parent%max_nodes_per_slot)].children   = -1;
-                    board_stack_tmp[(parent%max_nodes_per_slot)].parent     = index;
-                    board_stack_tmp[(parent%max_nodes_per_slot)].child      = -1;
-                    board_stack_tmp[(parent%max_nodes_per_slot)].lock       = -1;
-                }
-
-                board_stack[(index%max_nodes_per_slot)].child = current;
-                board_stack[(index%max_nodes_per_slot)].children = n;
-                mode = (index>0)?EVALLEAF:INIT;
-            }
-            else if (n == 0) {
-                board_stack[(index%max_nodes_per_slot)].score = score;
-                board_stack[(index%max_nodes_per_slot)].children = n;
-                mode = BACKUPSCORE;
-            }
-            else if (n < 0) {
-                // release lock
-                board_stack[(index%max_nodes_per_slot)].score = -INF;
-                board_stack[(index%max_nodes_per_slot)].lock = -1;
-                mode = INIT;
-            }
+          // terminal expand node, set score and backup
+          if (n==0)
+          {
+            board_stack[(index%max_nodes_per_slot)].score = score;
+            board_stack[(index%max_nodes_per_slot)].children = n;
+            mode = BACKUPSCORE;
+          }
+          // something went wrong, release lock
+          if (n<0)
+          {
+            // release lock
+            board_stack[(index%max_nodes_per_slot)].score = -INF;
+            board_stack[(index%max_nodes_per_slot)].lock = -1;
+            mode = INIT;
+          }
         }
-
-        if (mode == EVALLEAF) {
-
-            sd = 0;
-            // extensions
-            depth = search_depth;
-            depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
-            depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
-
-            global_pid_todoindex[pid*max_depth+sd] = 0;
-
-            // set init Alpha Beta values
-            global_pid_ab_score[pid*max_depth*2+0*2+ALPHA] = -INF;
-            global_pid_ab_score[pid*max_depth*2+0*2+BETA]  =  INF;
-
-            global_pid_depths[pid*max_depth+sd] = depth;
-
-            mode = MOVEUP;
+        if (mode==EVALLEAF)
+        {
+          sd = 0;
+          // search extensions
+          depth = search_depth;
+          depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
+          depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
+          // set move todo index
+          global_pid_todoindex[pid*max_depth+sd] = 0;
+          // set init Alpha Beta values
+          global_pid_ab_score[pid*max_depth*2+0*2+ALPHA] = -INF;
+          global_pid_ab_score[pid*max_depth*2+0*2+BETA]  =  INF;
+          // set current search depth
+          global_pid_depths[pid*max_depth+sd] = depth;
+          mode = MOVEUP;
         }
+        if (mode==MOVEDOWN)
+        {
 
-        if (mode == MOVEDOWN ) {
+          // incl. alphabeta pruning
+          while (    global_pid_todoindex[pid*max_depth+sd]>=global_pid_movecounter[pid*max_depth+sd]
+                 || (global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA]>=global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA])
+                ) 
+          {
 
-            // incl AlphaBeta Pruning
-            while (global_pid_todoindex[pid*max_depth+sd] >= global_pid_movecounter[pid*max_depth+sd] || (  global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] >= global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA] ) ) {
+            // do alphabeta negamax scoring
+            score = global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA];
+            if (abs(score)!=INF&&sd>0)
+              atom_max(&global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA],-score);
 
-                // do negamax-scoring
-                score = global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA];
-                if ( abs(score) != INF && sd > 0)
-                    atom_max(&global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA], -score);
+            sd--;
+            ply--;
 
-                sd--;
-                ply--;
+            // this is the end
+            if (sd < 0)
+                break;
 
-                if (sd < 0)
-                    break;
-
-                depth = global_pid_depths[pid*max_depth+sd];
-
-                move = global_pid_movehistory[pid*max_depth+sd];
-
-                undomove(board, move);
-
-                // switch site to move
-                som = !som;
-
-//                updateHash(board, move);
-//                board[4] = computeHash(board, som);
-            }
- 
-            mode = MOVEUP;
-          
-            if (sd < 0) {
-                board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-                board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
-                mode = BACKUPSCORE;
-      			}
-        }
-
-        if (mode == MOVEUP ) {
-
-            // AB Search Node Counter
-            COUNTERS[pid*10+2]++;
-            atom_inc(total_nodes_visited);
-
-            // movepicker
-            move = MOVENONE;
-            n = global_pid_movecounter[pid*max_depth+sd];
-            child = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
-            score = -INF;
-            tmpscore = 0;
-            i = 0;
-
-            for(j=0;j<n;j++)
-            {
-              tmpmove = global_pid_moves[j+child];
-              if (tmpmove==MOVENONE)
-                continue;
-
-              tmpscore = EvalMove(tmpmove);
-
-              if ( tmpscore > score)
-              {
-                score = tmpscore;
-                move = tmpmove;
-                i = j;
-              }
-            }
-            global_pid_moves[i+child] = MOVENONE; // reset move
-
-//            move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
-
-            domove(board, move);
-
-            lastmove = move;
-
-            global_pid_movehistory[pid*max_depth+sd]=lastmove;
-
-
+            depth = global_pid_depths[pid*max_depth+sd];
+            move = global_pid_movehistory[pid*max_depth+sd];
+            undomove(board, move);
             // switch site to move
             som = !som;
 
 //            updateHash(board, move);
 //            board[4] = computeHash(board, som);
-
-            global_pid_todoindex[pid*max_depth+sd]++;
-
-            sd++;
-            ply++;
-
-            global_HashHistory[pid*1024+ply+ply_init] = board[4];
-
-            global_pid_movecounter[pid*max_depth+sd] = 0;
-            global_pid_todoindex[pid*max_depth+sd] = 0;
-            global_pid_depths[pid*max_depth+sd] = depth;
-
-
-            // Get Alpha and Beta from prev depth
-            global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
-            global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
-
-            continue;
+          }
+          mode = MOVEUP;
+          // on root, set score of current node block and backup score
+          if (sd < 0)
+          {
+            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+            board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
+            mode = BACKUPSCORE;
+    			}
         }
-  
-        if (mode == BACKUPSCORE) {
+        if (mode==MOVEUP)
+        {
+          // alphabeta search node counter
+          COUNTERS[pid*10+2]++;
+          atom_inc(total_nodes_visited);
 
-            mode = INIT;
-            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-            parent = board_stack[(index%max_nodes_per_slot)].parent;
-
-
-            // backup score
-            while( parent >= 0 ) {
-
-                score = -INF;
-                board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-                j = board_stack[(parent%max_nodes_per_slot)].children;
-
-                for(i=0;i<j;i++) {
-
-
-                    child = board_stack[(parent%max_nodes_per_slot)].child + i;
-                    board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-
-                    tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
-
-                    if (ISINF(tmpscore)) { // skip unexplored 
-                        score = -INF;
-                        break;
-                    }
-                    if (tmpscore > score) {
-                        score = tmpscore;
-                    }
-                }
-
-
-                if (!ISINF(score))
-                {
-                    tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
-                    if (parent == 0 && score > tmpscore)
-                        COUNTERS[7] = (u64)ply+1;
-                }
-                else
-                    break;
-
-                parent = board_stack[(parent%max_nodes_per_slot)].parent;
+          // movepicker
+          move = MOVENONE;
+          n = global_pid_movecounter[pid*max_depth+sd];
+          child = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
+          score = -INF;
+          tmpscore = 0;
+          i = 0;
+          for(j=0;j<n;j++)
+          {
+            tmpmove = global_pid_moves[j+child];
+            if (tmpmove==MOVENONE)
+              continue;
+            tmpscore = EvalMove(tmpmove);
+            if (tmpscore>score)
+            {
+              score = tmpscore;
+              move = tmpmove;
+              i = j;
             }
-            // release lock
-            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-            board_stack[(index%max_nodes_per_slot)].lock = -1;
+          }
+          global_pid_moves[i+child] = MOVENONE; // reset move
+//          move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
+          domove(board, move);
+          lastmove = move;
+          global_pid_movehistory[pid*max_depth+sd]=lastmove;
+          // switch site to move
+          som = !som;
+//          updateHash(board, move);
+//          board[4] = computeHash(board, som);
+          global_pid_todoindex[pid*max_depth+sd]++;
+          sd++;
+          ply++;
+          global_HashHistory[pid*1024+ply+ply_init] = board[4];
+          // set values for next depth
+          global_pid_movecounter[pid*max_depth+sd] = 0;
+          global_pid_todoindex[pid*max_depth+sd] = 0;
+          global_pid_depths[pid*max_depth+sd] = depth;
+          // set alpha beta values for next depth
+          global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
+          global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
+
+          continue;
+        }
+        if (mode==BACKUPSCORE)
+        {
+          mode = INIT;
+          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          parent = board_stack[(index%max_nodes_per_slot)].parent;
+
+          // backup score
+          while(parent>=0)
+          {
+            score = -INF;
+            board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+            j = board_stack[(parent%max_nodes_per_slot)].children;
+
+            for(i=0;i<j;i++)
+            {
+              child = board_stack[(parent%max_nodes_per_slot)].child + i;
+              board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+              tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
+
+              // skip not fully explored nodes
+              if (ISINF(tmpscore))
+              {
+                  score = -INF;
+                  break;
+              }
+              if (tmpscore > score)
+                score = tmpscore;
+            }
+            if (!ISINF(score))
+            {
+                tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
+                // store ply of last score for xboard output
+                if (parent==0&&score>tmpscore)
+                    COUNTERS[7] = (u64)ply+1;
+            }
+            else
+                break;
+            parent = board_stack[(parent%max_nodes_per_slot)].parent;
+          }
+          // release lock
+          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          board_stack[(index%max_nodes_per_slot)].lock = -1;
         }
     } 
-        
     // memory full?
     COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0;
 }
