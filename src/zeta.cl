@@ -155,14 +155,14 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
-#define MAXEVASIONS          4               // max check evasions from qsearch
+#define MAXEVASIONS          3               // max check evasions from qsearch
 #define TERMINATESOFT        0              // 0 or 1, will finish all searches before exit
 #define SMOOTHUCT            1.00          // factor for uct params in select formula
 #define SKIPMATE             1            // 0 or 1
 #define SKIPDRAW             1           // 0 or 1
 #define INCHECKEXT           1          // 0 or 1
 #define SINGLEEXT            1         // 0 or 1
-#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
 #define DEPTHWELL            32    // 0 to totalThreads
@@ -1470,7 +1470,7 @@ __kernel void bestfirst_gpu(
     // stalemate
     score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
     // draw by 3 fold repetition
-    for (i=ply+ply_init-2;i>0&&mode==EXPAND;i-=2)
+    for (i=ply+ply_init-2;i>0&&mode==EXPAND&&index>0;i-=2)
     {
       if (board[4]==global_HashHistory[pid*1024+i])
       {
