@@ -74,14 +74,13 @@ typedef struct {
 
 #define ILL     64
 
-/* u64 defaults */
+// u64 defaults 
 #define BBEMPTY             0x0000000000000000
 #define BBFULL              0xFFFFFFFFFFFFFFFF
 #define MOVENONE            0x0000000000000000
 #define HASHNONE            0x0000000000000000
 #define CRNONE              0x0000000000000000
 #define SCORENONE           0x0000000000000000
-
 
 // bitboard masks, computation prefered over lookup
 #define SETMASKBB(sq)       (((u64)1)<<(sq))
@@ -145,18 +144,19 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
-/* is score a mate in n */
+// is score a mate in n
 #define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
-/* is score default inf */
+// is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 
 // tuneable search parameter
+#define MAXEVASIONS          3             // max check evasions from qsearch
 #define TERMINATESOFT        1            // 0 or 1, will finish all searches before exit
-#define SMOOTHUCT            0.28        // factor for uct params in select formula
+#define SMOOTHUCT            1.00        // factor for uct params in select formula
 #define SKIPMATE             1          // 0 or 1
 #define SKIPDRAW             1         // 0 or 1
 #define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
-#define SCOREWEIGHT          0.33    // factor for board score in select formula
+#define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1
 
 /* 
@@ -166,12 +166,12 @@ ewski
   https://chessprogramming.wikispaces.com/Simplified+evaluation+function
 */
 
-/* piece values */
-/* pnone, pawn, knight, king, bishop, rook, queen */
-/* const Score EvalPieceValues[7] = {0, 100, 300, 0, 300, 500, 900}; */
+// piece values
+// pnone, pawn, knight, king, bishop, rook, queen
+// const Score EvalPieceValues[7] = {0, 100, 300, 0, 300, 500, 900};
 __constant Score EvalPieceValues[7] = {0, 100, 400, 0, 400, 600, 1200};
-/* square control bonus, black view */
-/* flop square for white-index: sq^56*/
+// square control bonus, black view
+// flop square for white-index: sq^56
 __constant Score EvalControl[64] =
 {
     0,  0,  5,  5,  5,  5,  0,  0,
@@ -183,11 +183,11 @@ __constant Score EvalControl[64] =
     0,  0,  5,  5,  5,  5,  0,  0,
     0,  0,  5,  5,  5,  5,  0,  0
 };
-/* piece square tables, black view */
-/* flop square for white-index: sq^56*/
+// piece square tables, black view
+// flop square for white-index: sq^56
 __constant Score EvalTable[7*64] =
 {
-    /* piece none  */
+    // piece none 
     0,  0,  0,  0,  0,  0,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,
@@ -197,7 +197,7 @@ __constant Score EvalTable[7*64] =
     0,  0,  0,  0,  0,  0,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,
 
-    /* pawn */
+    // pawn
     0,  0,  0,  0,  0,  0,  0,  0,
    50, 50, 50, 50, 50, 50, 50, 50,
    30, 30, 30, 30, 30, 30, 30, 30,
@@ -207,7 +207,7 @@ __constant Score EvalTable[7*64] =
     0,  0,  0, -5, -5,  0,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,
 
-     /* knight */
+     // knight
   -50,-40,-30,-30,-30,-30,-40,-50,
   -40,-20,  0,  0,  0,  0,-20,-40,
   -30,  0, 10, 15, 15, 10,  0,-30,
@@ -217,17 +217,17 @@ __constant Score EvalTable[7*64] =
   -40,-20, 0,   5,  5,  0,-20,-40,
   -50,-40,-30,-30,-30,-30,-40,-50,
 
-    /* king */
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
+    // king 
+   -1, -1, -1, -1, -1, -1, -1, -1,
+   -1,  0,  0,  0,  0,  0,  0, -1,
+   -1,  0,  0,  0,  0,  0,  0, -1,
+   -1,  0,  0,  0,  0,  0,  0, -1,
+   -1,  0,  0,  0,  0,  0,  0, -1,
+   -1,  0,  0,  0,  0,  0,  0, -1,
+   -1,  0,  0,  0,  0,  0,  0, -1,
+   -1, -1, -1, -1, -1, -1, -1, -1,
 
-    /* bishop */
+    // bishop
   -20,-10,-10,-10,-10,-10,-10,-20,
   -10,  0,  0,  0,  0,  0,  0,-10,
   -10,  0,  5, 10, 10,  5,  0,-10,
@@ -237,7 +237,7 @@ __constant Score EvalTable[7*64] =
   -10,  5,  0,  0,  0,  0,  5,-10,
   -20,-10,-10,-10,-10,-10,-10,-20,
 
-    /* rook */
+    // rook
     0,  0,  0,  0,  0,  0,  0,  0,
     5, 10, 10, 10, 10, 10, 10,  5,
    -5,  0,  0,  0,  0,  0,  0, -5,
@@ -247,7 +247,7 @@ __constant Score EvalTable[7*64] =
    -5,  0,  0,  0,  0,  0,  0, -5,
     0,  0,  0,  5,  5,  0,  0,  0,
 
-    /* queen */
+    // queen
   -20,-10,-10, -5, -5,-10,-10,-20,
   -10,  0,  0,  0,  0,  0,  0,-10,
   -10,  0,  5,  5,  5,  5,  0,-10,
@@ -791,11 +791,22 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
   return false;
 }
 // kogge stone vector based move generator
-void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Move lastmove, s32 sd, const s32 pid, const s32 max_depth, __global Move *global_pid_moves, __global u64 *COUNTERS)
+void gen_moves(
+                __private Bitboard *board, 
+                          s32 *n, 
+                          s32 *k, 
+                          bool som, 
+                          bool qs, 
+                          Move lastmove, 
+                          s32 sd, 
+                          const s32 pid, 
+                          const s32 max_depth,
+                __global Move *global_pid_moves, 
+                __global u64 *COUNTERS, 
+                          bool rootkic
+)
 {
   bool kic = false;
-  bool rootkic = false;
-
   s32 i;
 
   Square kingpos;
@@ -807,7 +818,7 @@ void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Mov
   Piece pieceto;
   Piece piececpt;
 
-  Cr CR  = 0;
+  Cr CR = (Cr)((lastmove>>36)&0xF);
   Move move = 0;
 
   Bitboard bbBlockers     = board[1]|board[2]|board[3];
@@ -822,16 +833,6 @@ void gen_moves(__private Bitboard *board, s32 *n, s32 *k, bool som, bool qs, Mov
   ulong4 bbPro4;
   ulong4 bbGen4; 
 
-
-  //get king position
-  bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
-  kingpos = first1(bbTemp);
-
-  rootkic = false;
-  // king in check?
-  rootkic = squareunderattack(board, !som, kingpos);
-
-  CR = (Cr)((lastmove>>36)&0xF);
 
   bbWork = bbMe;
 
@@ -1100,8 +1101,8 @@ Score eval(__private Bitboard *board)
   Square pos;
   Piece piece;
 
-  Bitboard bbBlockers     =  board[1]|board[2]|board[3];        // all pieces
-  Bitboard bbTemp         = board[1]&~board[2]&~board[3];      // all pawns
+  Bitboard bbBlockers = board[1]|board[2]|board[3];        // all pieces
+  Bitboard bbTemp     = board[1]&~board[2]&~board[3];      // all pawns
   Bitboard bbWork;
   Bitboard bbMe;
   Bitboard bbOpp;
@@ -1136,6 +1137,7 @@ Score eval(__private Bitboard *board)
     /* column */
     for(j=pos-8;j>7&&piece==PAWN;j-=8)
       score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
+
   }
   /* duble bishop */
   score+= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
@@ -1218,6 +1220,8 @@ __kernel void bestfirst_gpu(
     bool rootkic = false;
     bool qs = false;
 
+    s32 mode = INIT;
+
     s32 index = 0;
     s32 current = 0;
     s32 parent  = 0;
@@ -1226,7 +1230,6 @@ __kernel void bestfirst_gpu(
     s32 depth = search_depth;
     s32 sd = 0;
     s32 ply = 0;
-
        
     Move move = 0;
     Move tmpmove = 0;
@@ -1235,12 +1238,12 @@ __kernel void bestfirst_gpu(
     Score score = 0;
     Score tmpscore = 0;
 
-    s32 mode = INIT;
-
     s32 i = 0;
     s32 j = 0;
     s32 n = 0;
     s32 k = 0;
+
+    Bitboard bbTemp;
 
     // init vars
 
@@ -1340,7 +1343,7 @@ __kernel void bestfirst_gpu(
                 // on root deliver work via visit counter
                 if (ROOTSEARCH&&index==0)
                     tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
-                else if (BROADWELL&&(pid%8>0))
+                else if (BROADWELL&&(pid%16>0))
                 {
                   tmpscoreb*= SCOREWEIGHT;
                   tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
@@ -1475,11 +1478,18 @@ __kernel void bestfirst_gpu(
         n = 0;
         k = 0;
 
+        //get king position
+        bbTemp  = (som)?board[0]:board[0]^(board[1]|board[2]|board[3]);
+        bbTemp &= board[1]&board[2]&~board[3]; // get king
+        // king in check?
+        rootkic = squareunderattack(board, !som, first1(bbTemp));
+
         // enter quiescence search?
         qs = (sd<=depth)?false:true;
         qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
+        qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
 
-        gen_moves(board, &n, &k, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS);
+        gen_moves(board, &n, &k, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
 
         // ################################
         // ####        Evaluation       ###
@@ -1589,9 +1599,9 @@ __kernel void bestfirst_gpu(
 
             sd = 0;
             // extensions
-            depth = search_depth; 
-            depth = (rootkic)?search_depth+1:search_depth;
-            depth = (n==1)?search_depth+1:depth;
+            depth = search_depth;
+//            depth = (rootkic)?search_depth+1:search_depth;
+//            depth = (n==1)?search_depth+1:depth;
 
             global_pid_todoindex[pid*max_depth+sd] = 0;
 
