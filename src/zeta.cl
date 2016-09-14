@@ -21,6 +21,7 @@
 
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics       : enable
 #pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics   : enable
+// otpional
 #pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
 
 typedef ulong   u64;
@@ -61,7 +62,6 @@ typedef struct {
 #define MOVEDOWN        5
 #define UPDATESCORE     6
 #define BACKUPSCORE     7
-
 // scores
 #define INF             1000000
 #define MATESCORE        999000
@@ -71,7 +71,6 @@ typedef struct {
 #define MAXBFPLY        128     // max ply of bestfirst search tree
 #define MAXGAMEPLY      1024    // max ply a game can reach
 #define MAXMOVES        256     // max amount of legal moves per position
-
 // piece encodings
 #define PNONE   0
 #define PAWN    1
@@ -80,11 +79,10 @@ typedef struct {
 #define BISHOP  4
 #define ROOK    5
 #define QUEEN   6
-
+// defaults
 #define ILL     64          // illegal sqaure, for castle square hack
 #define ALPHA   0
 #define BETA    1
-
 // u64 defaults 
 #define BBEMPTY             0x0000000000000000
 #define BBFULL              0xFFFFFFFFFFFFFFFF
@@ -92,11 +90,9 @@ typedef struct {
 #define HASHNONE            0x0000000000000000
 #define CRNONE              0x0000000000000000
 #define SCORENONE           0x0000000000000000
-
 // bitboard masks, computation prefered over lookup
 #define SETMASKBB(sq)       (((u64)1)<<(sq))
 #define CLRMASKBB(sq)       (~(((u64)1)<<(sq)))
-
 // square helpers
 #define MAKESQ(file,rank)   ((rank)<<3|(file))
 #define GETRANK(sq)         ((sq)>>3)
@@ -105,7 +101,6 @@ typedef struct {
 #define FLIP(sq)            ((sq)^7)
 #define FLOP(sq)            ((sq)^56)
 #define FLIPFLOP(sq)        (((sq)^56)^7)
-
 // piece helpers
 #define GETPIECE(board,sq)  ( \
                                ((board[0]>>(sq))&0x1)\
@@ -120,7 +115,6 @@ typedef struct {
                              )
 #define GETCOLOR(p)        ((p)&0x1)
 #define GETPTYPE(p)        (((p)>>1)&0x7)      // 3 bit piece type encoding
-
 // file enumeration
 enum Files
 {
@@ -136,7 +130,6 @@ enum Files
 #define BBFILEH             0x8080808080808080
 #define BBNOTHFILE          0x7F7F7F7F7F7F7F7F
 #define BBNOTAFILE          0xFEFEFEFEFEFEFEFE
-
 // rank enumeration
 enum Ranks
 {
@@ -146,7 +139,6 @@ enum Ranks
 #define BBRANK5             0x000000FF00000000
 #define BBRANK4             0x00000000FF000000
 #define BBRANK2             0x000000000000FF00
-
 // square enumeration
 enum Squares
 {
@@ -159,12 +151,10 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
-
 // is score a mate in n
 #define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
-
 // tuneable search parameter
 #define MAXEVASIONS          3               // max check evasions from qsearch
 #define TERMINATESOFT        0              // 0 or 1, will finish all searches before exit
@@ -175,9 +165,7 @@ enum Squares
 #define SINGLEEXT            1         // 0 or 1
 #define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
-#define BROADWELL            1      // 0 or 1
-
-
+#define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
 // rotate left based zobrist hashing
 __constant Hash Zobrist[17]=
 {
@@ -187,18 +175,15 @@ __constant Hash Zobrist[17]=
   0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC,
   0x05D1A1AE85B49AA1
 };
-
 /* 
-  piece square tables based on proposal by Tomasz Mich
-ni
-ewski
+  piece square tables based on proposal by Tomasz Michniewski
   https://chessprogramming.wikispaces.com/Simplified+evaluation+function
 */
 
 // piece values
 // pnone, pawn, knight, king, bishop, rook, queen
-// const Score EvalPieceValues[7] = {0, 100, 300, 0, 300, 500, 900};
-__constant Score EvalPieceValues[7] = {0, 100, 400, 0, 400, 600, 1200};
+__constant Score EvalPieceValues[7] = {0, 100, 300, 0, 300, 500, 900};
+//__constant Score EvalPieceValues[7] = {0, 100, 400, 0, 400, 600, 1200};
 // square control bonus, black view
 // flop square for white-index: sq^56
 __constant Score EvalControl[64] =
@@ -286,32 +271,6 @@ __constant Score EvalTable[7*64] =
   -10,  0,  0,  0,  0 , 0 , 0,-10,
   -20,-10,-10, -5, -5,-10,-10,-20
 };
-
-Score evalpiece(Piece piece, Square sq)
-{
-  Score score = 0;
-
-  // wood count
-  score+= EvalPieceValues[GETPTYPE(piece)];
-  // piece square tables
-  sq = (piece&0x1)?sq:FLOP(sq);
-  score+= EvalTable[GETPTYPE(piece)*64+sq];
-  // sqaure control
-  score+= EvalControl[sq];
-
-  return score;
-}
-
-Score EvalMove(Move move)
-{
-  // pto (wood + pst) - pfrom (wood + pst)
-  if ( (((move>>26)&0xF)>>1) == PNONE) 
-    return evalpiece((Piece)((move>>22)&0xF), (Square)((move>>6)&0x3F))-evalpiece((Piece)((move>>18)&0xF), (Square)(move&0x3F));
-  // MVV-LVA
-  else
-    return EvalPieceValues[(Piece)(((move>>26)&0xF)>>1)] * 16 - EvalPieceValues[(Piece)(((move>>22)&0xF)>>1)];
-}
-
 // OpenCL 1.2 has popcount function
 #if __OPENCL_VERSION__ < 120
 // population count, Donald Knuth SWAR style
@@ -326,22 +285,26 @@ s32 popcount(u64 x)
   return (s32)x;
 }
 #endif
+
 //  pre condition: x != 0;
 s32 first1(u64 x)
 {
   return popcount((x&-x)-1);
 }
 //  pre condition: x != 0;
+
 s32 popfirst1(u64 *a)
 {
   u64 b = *a;
   *a &= (*a-1);  // clear lsb 
   return popcount((b&-b)-1); // return pop count of isolated lsb
 }
+
 /* bit twiddling hacks
   bb_work=bb_temp&-bb_temp;  // get lsb 
   bb_temp&=bb_temp-1;       // clear lsb
 */
+
 void domove(__private Bitboard *board, Move move)
 {
 
@@ -383,6 +346,7 @@ void domove(__private Bitboard *board, Move move)
   }
 
 }
+
 void undomove(__private Bitboard *board, Move move)
 {
 
@@ -430,6 +394,7 @@ void undomove(__private Bitboard *board, Move move)
     board[3] |= ((castlepciece>>3)&1)<<castlefrom;
   }
 }
+
 // compute zobrist hash via rotate left
 Hash computeHash(__private Bitboard *board, bool stm)
 {
@@ -462,6 +427,7 @@ Hash computeHash(__private Bitboard *board, bool stm)
 
   return hash;    
 }
+
 // update zobrist hash via rotate left
 void updateHash(__private Bitboard *board, Move move)
 {
@@ -507,32 +473,33 @@ void updateHash(__private Bitboard *board, Move move)
 
 }
 
-Move updateCR(Move move, Cr cr) {
+// update castle rights, TODO: make nice
+Move updateCR(Move move, Cr cr)
+{
 
-    Square from   =  (Square)(move&0x3F);
-    Piece piece   =  (Piece)(((move>>18)&0xF)>>1);
-    bool som      =  (bool)((move>>18)&0xF)&1;
+  Square from   =  (Square)(move&0x3F);
+  Piece piece   =  (Piece)(((move>>18)&0xF)>>1);
+  bool som      =  (bool)((move>>18)&0xF)&1;
 
-    // update castle rights, TODO: make nice
-    // clear white queenside
-    cr&= ( (piece == ROOK && som == WHITE && from == 0) || ( piece == KING && som == WHITE && from == 4)) ? 0xE : 0xF;
-    // clear white kingside
-    cr&= ( (piece == ROOK && som == WHITE && from == 7) || ( piece == KING && som == WHITE && from == 4)) ? 0xD : 0xF;
-    // clear black queenside
-    cr&= ( (piece == ROOK && som == BLACK && from == 56) || ( piece == KING && som == BLACK && from == 60)) ? 0xB : 0xF;
-    // clear black kingside
-    cr&= ( (piece == ROOK && som == BLACK && from == 63) || ( piece == KING && som == BLACK && from == 60)) ? 0x7 : 0xF;
+  // clear white queenside
+  cr&= ((piece==ROOK&&som==WHITE&&from==0)||(piece==KING&&som==WHITE&&from==4))?0xE:0xF;
+  // clear white kingside
+  cr&= ((piece==ROOK&&som==WHITE&&from==7)||(piece==KING&&som==WHITE&&from==4))?0xD:0xF;
+  // clear black queenside
+  cr&= ((piece==ROOK&&som==BLACK&&from==56)||(piece==KING&&som==BLACK&&from==60))?0xB:0xF;
+  // clear black kingside
+  cr&= ((piece==ROOK&&som==BLACK&&from==63)||(piece==KING&&som==BLACK&&from==60))?0x7:0xF;
 
+  move &= 0xFFFFFF0FFFFFFFFF; // clear old cr
+  move |= ((Move)cr<<36)&0x000000F000000000; // set new cr
 
-    move &= 0xFFFFFF0FFFFFFFFF; // clear old cr
-    move |= ((Move)cr<<36)&0x000000F000000000; // set new cr
-
-    return move;
+  return move;
 }
+
 // move generator costants
-// wraps for kogge stone shifts
 __constant ulong4 shift4 = (ulong4)( 9, 1, 7, 8);
 
+// wraps for kogge stone shifts
 __constant ulong4 wraps4[2] =
 {
   // wraps shift left
@@ -778,8 +745,6 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
          ks_attacks_rs7(bbBlockers, sq) |
          ks_attacks_rs9(bbBlockers, sq);
 }
-
-
 // is square attacked by an enemy piece, via superpiece approach
 bool squareunderattack(__private Bitboard *board, bool stm, Square sq) 
 {
@@ -842,14 +807,13 @@ void gen_moves(
                           s32 sd, 
                           const s32 pid, 
                           const s32 max_depth,
-                __global Move *global_pid_moves, 
-                __global u64 *COUNTERS, 
+                __global  Move *global_pid_moves, 
+                __global  u64 *COUNTERS, 
                           bool rootkic
 )
 {
   bool kic = false;
   s32 i;
-
   Square kingpos;
   Square pos;
   Square to;
@@ -858,10 +822,8 @@ void gen_moves(
   Piece piece;
   Piece pieceto;
   Piece piececpt;
-
   Cr CR = (Cr)((lastmove>>36)&0xF);
   Move move = 0;
-
   Bitboard bbBlockers     = board[1]|board[2]|board[3];
   Bitboard bbMe           = (som)?board[0]:(board[0]^bbBlockers);
   Bitboard bbOpp          = (!som)?board[0]:(board[0]^bbBlockers);
@@ -1134,6 +1096,29 @@ void gen_moves(
           undomove(board, move);
       }
   }
+}
+Score evalpiece(Piece piece, Square sq)
+{
+  Score score = 0;
+
+  // wood count
+  score+= EvalPieceValues[GETPTYPE(piece)];
+  // piece square tables
+  sq = (piece&0x1)?sq:FLOP(sq);
+  score+= EvalTable[GETPTYPE(piece)*64+sq];
+  // sqaure control
+  score+= EvalControl[sq];
+
+  return score;
+}
+Score EvalMove(Move move)
+{
+  // pto (wood + pst) - pfrom (wood + pst)
+  if ( (((move>>26)&0xF)>>1) == PNONE) 
+    return evalpiece((Piece)((move>>22)&0xF), (Square)((move>>6)&0x3F))-evalpiece((Piece)((move>>18)&0xF), (Square)(move&0x3F));
+  // MVV-LVA
+  else
+    return EvalPieceValues[(Piece)(((move>>26)&0xF)>>1)] * 16 - EvalPieceValues[(Piece)(((move>>22)&0xF)>>1)];
 }
 // evaluation taken from ZetaDva engine, est 2000 Elo.
 Score eval(__private Bitboard *board)
