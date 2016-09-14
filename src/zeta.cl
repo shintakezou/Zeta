@@ -285,26 +285,22 @@ s32 popcount(u64 x)
   return (s32)x;
 }
 #endif
-
 //  pre condition: x != 0;
 s32 first1(u64 x)
 {
   return popcount((x&-x)-1);
 }
 //  pre condition: x != 0;
-
 s32 popfirst1(u64 *a)
 {
   u64 b = *a;
   *a &= (*a-1);  // clear lsb 
   return popcount((b&-b)-1); // return pop count of isolated lsb
 }
-
 /* bit twiddling hacks
   bb_work=bb_temp&-bb_temp;  // get lsb 
   bb_temp&=bb_temp-1;       // clear lsb
 */
-
 void domove(__private Bitboard *board, Move move)
 {
 
@@ -346,7 +342,6 @@ void domove(__private Bitboard *board, Move move)
   }
 
 }
-
 void undomove(__private Bitboard *board, Move move)
 {
 
@@ -394,7 +389,6 @@ void undomove(__private Bitboard *board, Move move)
     board[3] |= ((castlepciece>>3)&1)<<castlefrom;
   }
 }
-
 // compute zobrist hash via rotate left
 Hash computeHash(__private Bitboard *board, bool stm)
 {
@@ -427,7 +421,6 @@ Hash computeHash(__private Bitboard *board, bool stm)
 
   return hash;    
 }
-
 // update zobrist hash via rotate left
 void updateHash(__private Bitboard *board, Move move)
 {
@@ -1120,13 +1113,11 @@ Score eval(__private Bitboard *board)
   s32 j;
   Square pos;
   Piece piece;
-
   Bitboard bbBlockers = board[1]|board[2]|board[3];        // all pieces
   Bitboard bbTemp     = board[1]&~board[2]&~board[3];      // all pawns
   Bitboard bbWork;
   Bitboard bbMe;
   Bitboard bbOpp;
-
   Score score = 0;
 
   // white
@@ -1138,7 +1129,6 @@ Score eval(__private Bitboard *board)
   {
     pos = popfirst1(&bbWork);
     piece = GETPIECETYPE(board,pos);
-
     // piece bonus
     score+= 10;
     // wodd count
@@ -1147,7 +1137,6 @@ Score eval(__private Bitboard *board)
     score+= EvalTable[piece*64+FLOP(pos)];
     // posuare control table
     score+= EvalControl[FLOP(pos)];
-
     // simple pawn structure white
     // blocked
     score-=(piece==PAWN&&GETRANK(pos)<RANK_8&&(bbOpp&SETMASKBB(pos+8)))?15:0;
@@ -1157,7 +1146,6 @@ Score eval(__private Bitboard *board)
     // column
     for(j=pos-8;j>7&&piece==PAWN;j-=8)
       score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-
   }
   // duble bishop
   score+= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
@@ -1171,7 +1159,6 @@ Score eval(__private Bitboard *board)
   {
     pos = popfirst1(&bbWork);
     piece = GETPIECETYPE(board,pos);
-
     // piece bonus
     score-= 10;
     // wodd count
@@ -1180,7 +1167,6 @@ Score eval(__private Bitboard *board)
     score-= EvalTable[piece*64+pos];
     // posuare control table
     score-= EvalControl[pos];
-
     // simple pawn structure black
     // blocked
     score+=(piece==PAWN&&GETRANK(pos)>RANK_1&&(bbOpp&SETMASKBB(pos-8)))?15:0;
@@ -1190,7 +1176,6 @@ Score eval(__private Bitboard *board)
     // column
     for(j=pos+8;j<56&&piece==PAWN;j+=8)
       score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-
   }
   // duble bishop
   score-= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
@@ -1225,542 +1210,472 @@ __kernel void bestfirst_gpu(
                                const s32 max_depth
 )
 {
+  __global NodeBlock *board_stack;
+  __global NodeBlock *board_stack_tmp;
+  __private Bitboard board[5];
+  const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
+  const s32 totalThreads = get_global_size(0)*get_global_size(1)*get_global_size(2);
+  bool som = (bool)som_init;
+  bool rootkic = false;
+  bool qs = false;
+  Score score = 0;
+  Score tmpscore = 0;
+  s32 mode = INIT;
+  s32 index = 0;
+  s32 current = 0;
+  s32 parent  = 0;
+  s32 child   = 0;
+  s32 depth = search_depth;
+  s32 sd = 0;
+  s32 ply = 0;
+  s32 i = 0;
+  s32 j = 0;
+  s32 n = 0;
+  s32 k = 0;
+  Move move = 0;
+  Move tmpmove = 0;
+  Move lastmove = 0;
+  Bitboard bbTemp;
 
-    __global NodeBlock *board_stack;
-    __global NodeBlock *board_stack_tmp;
+  // assign root node to pid 0 for expand mode
+  if (pid==0&&*board_stack_top==1)
+  {
+    // root node
+    index = 0;
+    // get init board
+    board[0] = init_board[0];
+    board[1] = init_board[1];
+    board[2] = init_board[2];
+    board[3] = init_board[3];
+    board[4] = init_board[4]; // Hash
+    som      = (bool)som_init;
+    ply      = 0;
+    sd       = 0;
+    lastmove = board_stack_1[0].move;
+    mode     = EXPAND;
+  }
 
-    __private Bitboard board[5];
-
-    const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
-    const s32 totalThreads = get_global_size(0)*get_global_size(1)*get_global_size(2);
-
-    bool som = (bool)som_init;
-    bool rootkic = false;
-    bool qs = false;
-
-    s32 mode = INIT;
-
-    s32 index = 0;
-    s32 current = 0;
-    s32 parent  = 0;
-    s32 child   = 0;
-
-    s32 depth = search_depth;
-    s32 sd = 0;
-    s32 ply = 0;
-       
-    Move move = 0;
-    Move tmpmove = 0;
-    Move lastmove = 0;
-
-    Score score = 0;
-    Score tmpscore = 0;
-
-    s32 i = 0;
-    s32 j = 0;
-    s32 n = 0;
-    s32 k = 0;
-
-    Bitboard bbTemp;
-
-    // init vars
-
-    // assign root node to pid 0
-    if (pid == 0 && *board_stack_top == 1) {
-
-        // root node
-        index = 0;
-        // get init board
-        board[0] = init_board[0];
-        board[1] = init_board[1];
-        board[2] = init_board[2];
-        board[3] = init_board[3];
-        board[4] = init_board[4]; // Hash
-
-        som     = (bool)som_init;
-        ply     = 0;
-        sd      = 0;
-
-        lastmove = board_stack_1[0].move;
-        mode    = EXPAND;
-    }
-
-
-    // main loop
-    while( (*board_stack_top < max_nodes_to_expand && *global_finished < max_nodes*8 && *total_nodes_visited < max_nodes && COUNTERS[3] < max_nodes*12) || (TERMINATESOFT == 1 && (mode!=INIT && mode != SELECT)) )
+  // main loop
+  while(  (*board_stack_top<max_nodes_to_expand
+         &&*global_finished<max_nodes*8
+         &&*total_nodes_visited<max_nodes
+         &&COUNTERS[3] < max_nodes*12
+          ) 
+        || (TERMINATESOFT&&(mode!=INIT&&mode!=SELECT))
+      )
+  {
+    // iterations counter
+    COUNTERS[pid*10+0]++;
+    // single reply and mate hack
+    if (board_stack_1[0].children==1||board_stack_1[0].children==0||ISMATE(board_stack_1[0].score))
+      break;
+    // inititialize select phase
+    if (mode==INIT)
     {
-        // Iterations Counter
-        COUNTERS[pid*10+0]++;
+      index = 0;
+      board_stack_1[0].visits++;
+      // get init quadbitboard with hash
+      board[0] = init_board[0];
+      board[1] = init_board[1];
+      board[2] = init_board[2];
+      board[3] = init_board[3];
+      board[4] = init_board[4]; // hash
+      depth    = search_depth;
+      som      = (bool)som_init;
+      ply      = 0;
+      sd       = 0;
+      lastmove = board_stack_1[0].move;
+      mode     = SELECT;
+    }
+    if (mode==SELECT)
+    {
+      float tmpscorea = 0;
+      float tmpscoreb = 0;
 
-        // single reply and mate hack
-        if (board_stack_1[0].children==1||board_stack_1[0].children==0||ISMATE(board_stack_1[0].score))
-          break;
+      board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
+      n = board_stack[(index%max_nodes_per_slot)].children;
+      // check bounds
+      if (ply>=MAXBFPLY||ply+ply_init>=MAXGAMEPLY)
+        n=0;
+      tmpscorea = -1000000000;
+      current = 0;
+      k = -1;
+      // selecta best move from stored node tree
+      for (i=0;i<n;i++)
+      {
+        child = board_stack[(index%max_nodes_per_slot)].child + i;
+        board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 
-        if (mode == INIT) {
-
-            index = 0;
-            board_stack_1[0].visits++;
-
-            // get init board
-            board[0] = init_board[0];
-            board[1] = init_board[1];
-            board[2] = init_board[2];
-            board[3] = init_board[3];
-            board[4] = init_board[4]; // Hash
-
-            depth   = search_depth;
-            som     = (bool)som_init;
-            ply     = 0;
-            sd      = 0;
-
-            lastmove = board_stack_1[0].move;
-
-            mode = SELECT;
-
-        }
-
-        if ( mode == SELECT) {
-
-            float tmpscorea = 0;
-            float tmpscoreb = 0;
-
-            board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
-            n = board_stack[(index%max_nodes_per_slot)].children;
-
-            // check bounds
-            if (ply>=MAXBFPLY||ply+ply_init>=MAXGAMEPLY)
-              n=0;
-
-            tmpscorea = -1000000000;
-            current = 0;
-            k = -1;
-
-    		    // selecta best move
-            for (i=0;i<n; i++ ) {
-        
-                child = board_stack[(index%max_nodes_per_slot)].child + i;
-
-                board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-
-                // if child node is locked or dead
-                if (board_stack_tmp[(child%max_nodes_per_slot)].lock > -1 || board_stack_tmp[(child%max_nodes_per_slot)].children == 0)
-                    continue;
-
-                tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].score;
-
-                tmpscoreb/=10; // back to centipawn based scores
-
-                // skip draw score
-                if (SKIPDRAW&&tmpscoreb==0)
-                    continue;
-
-                // skip check mate
-                if (SKIPMATE&&index>0&&ISMATE(tmpscoreb))
-                    continue;
-
-                // on root deliver work via visit counter
-                if (ROOTSEARCH&&index==0)
-                    tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
-                else if (BROADWELL&&(pid%16>0))
-                {
-                  tmpscoreb*= SCOREWEIGHT;
-                  tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
-                }
-
-                if (tmpscoreb>tmpscorea)
-                {
-                  tmpscorea = tmpscoreb;
-                  current = child;
-                }
-            }
-
-            board_stack_tmp = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-
-
-            if (current > 0 && (board_stack_tmp[(current%max_nodes_per_slot)].lock > -1 || board_stack_tmp[(current%max_nodes_per_slot)].children == 0) )
-                current = 0;
-
-            // get lock
-            if (current > 0 && board_stack_tmp[(current%max_nodes_per_slot)].children == -1) {
-                atom_cmpxchg(&board_stack_tmp[(current%max_nodes_per_slot)].lock, -1, pid);
-                k = atom_cmpxchg(&board_stack_tmp[(current%max_nodes_per_slot)].lock, pid, pid);
-            }
-
-            // if otherwise locked, repeat
-            if (k != -1 && k != pid)
-                current = 0;
-
-            // got lock, do move and exit select phase to expand phase
-            if (k==pid)
-            {
-              mode = UPDATESCORE;
-            }                    
-            // nothing goes
-            if ( current == 0 )
-                mode = INIT;
-
-            // got a child, do move
-            if (current > 0) {
-
-                board_stack_tmp = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-                board_stack_tmp[(current%max_nodes_per_slot)].visits++;
-
-                move = board_stack_tmp[(current%max_nodes_per_slot)].move;
-
-                lastmove = move;
-
-                ply++;
-
-                if (ply>COUNTERS[5])
-                  COUNTERS[5] = ply;
-
-                domove(board, move);
-
-                global_HashHistory[pid*1024+ply+ply_init] = board[4];
-
-                som = !som;    
-
-                updateHash(board, move);
-//                board[4] = computeHash(board, som);
-
-                index = current;
-
-            }
-        }
-
-        if ( mode == INIT || mode == SELECT ) {
-            atom_inc(global_finished);
+        // if child node is locked or dead
+        if (board_stack_tmp[(child%max_nodes_per_slot)].lock>-1||board_stack_tmp[(child%max_nodes_per_slot)].children==0)
+          continue;
+        // get node block score
+        tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].score;
+        tmpscoreb/=10; // back to centipawn based scores
+        // skip draw score
+        if (SKIPDRAW&&tmpscoreb==DRAWSCORE)
             continue;
-        }
-
-        atom_add(global_finished, 8);
-
-        if (mode==UPDATESCORE)
+        // skip check mate
+        if (SKIPMATE&&index>0&&ISMATE(tmpscoreb))
+            continue;
+        // on root node deliver work via visit counter
+        if (ROOTSEARCH&&index==0)
+            tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
+        // most threads go to breadth, some go to depth
+        else if (BROADWELL&&(pid%16>0))
         {
-
-          mode = EXPAND;
-
-          board_stack = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-          parent = board_stack[(current%max_nodes_per_slot)].parent;
-
-          // update score without selected node
-          while(parent>=0)
+          // parallel best first select formula
+          tmpscoreb*= SCOREWEIGHT;
+          tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+        }
+        if (tmpscoreb>tmpscorea)
+        {
+          tmpscorea = tmpscoreb;
+          current = child;
+        }
+      }
+      board_stack_tmp = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+      // check if selected node is locked or dead
+      if (current>0&&(board_stack_tmp[(current%max_nodes_per_slot)].lock>-1||board_stack_tmp[(current%max_nodes_per_slot)].children==0))
+        current = 0;
+      // get lock
+      if (current>0&&board_stack_tmp[(current%max_nodes_per_slot)].children==-1)
+      {
+        atom_cmpxchg(&board_stack_tmp[(current%max_nodes_per_slot)].lock, -1, pid);
+        k = atom_cmpxchg(&board_stack_tmp[(current%max_nodes_per_slot)].lock, pid, pid);
+      }
+      // if otherwise locked, repeat init run
+      if (k != -1 && k != pid)
+          current = 0;
+      // got lock, do move and exit select phase to expand phase
+      if (k==pid)
+      {
+        mode = UPDATESCORE; // update score tree first, then expand node
+      }
+      // nothing goes
+      if (current==0)
+        mode = INIT;
+      // got a child, do move
+      if (current > 0)
+      {
+        board_stack_tmp = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+        board_stack_tmp[(current%max_nodes_per_slot)].visits++;
+        move = board_stack_tmp[(current%max_nodes_per_slot)].move;
+        lastmove = move;
+        ply++;
+        // remember bestfirst depth for xboard output
+        if (ply>COUNTERS[5])
+          COUNTERS[5] = ply;
+        domove(board, move);
+        global_HashHistory[pid*1024+ply+ply_init] = board[4];
+        som = !som;    
+        updateHash(board, move);
+//        board[4] = computeHash(board, som);
+        index = current;
+      }
+    }
+    if (mode==INIT||mode==SELECT)
+    {
+      atom_inc(global_finished);
+      continue;
+    }
+    // termination coubter 
+    atom_add(global_finished, 8);
+    // update score tree without selected node
+    if (mode==UPDATESCORE)
+    {
+      mode = EXPAND;
+      board_stack = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+      parent = board_stack[(current%max_nodes_per_slot)].parent;
+      // all nodead back to root
+      while(parent>=0)
+      {
+        score = -INF;
+        board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+        j = board_stack[(parent%max_nodes_per_slot)].children;
+        child = board_stack[(parent%max_nodes_per_slot)].child;
+        // each child from node
+        for(i=0;i<j;i++)
+        {
+          child+=i; 
+          // skip selected node from scoring
+          if (child==current)
+            continue;
+          board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
+          // skip unexplored 
+          if (ISINF(tmpscore))
           {
-
             score = -INF;
-            board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-
-            j = board_stack[(parent%max_nodes_per_slot)].children;
-
-            child = board_stack[(parent%max_nodes_per_slot)].child;
-
-            for(i=0;i<j;i++)
-            {
-
-              child+=i; 
-
-              // skip selected node from scoring
-              if (child==current)
-                continue;
-
-              board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-
-              tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
-
-              // skip unexplored 
-              if (ISINF(tmpscore))
-              {
-                score = -INF;
-                break;
-              }
-              if (tmpscore > score)
-                score = tmpscore;
-            }
-
-
-            if (!ISINF(score))
-            {
-                tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
-            }
-            else
-                break;
-
-            parent = board_stack[(parent%max_nodes_per_slot)].parent;
-          }
-        }
-
-
-        // #########################################
-        // ####         Move Generator          ####
-        // #########################################
-        n = 0;
-        k = 0;
-
-        //get king position
-        bbTemp  = (som)?board[0]:board[0]^(board[1]|board[2]|board[3]);
-        bbTemp &= board[1]&board[2]&~board[3]; // get king
-        // king in check?
-        rootkic = squareunderattack(board, !som, first1(bbTemp));
-
-        // enter quiescence search?
-        qs = (sd<=depth)?false:true;
-        qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
-        qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
-
-        gen_moves(board, &n, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
-
-        // ################################
-        // ####        Evaluation       ###
-        // ################################
-        score = eval(board);
-        // centi pawn *10
-        score*=10;
-        // hack for drawscore == 0, site to move bonus
-        score+=(!som)?1:-1;
-        // negamaxed scores
-        score = (som)?-score:score;
-        // checkmate
-        score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
-        // stalemate
-        score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
-
-        // draw by 3 fold repetition
-        for (i=ply+ply_init-2;i>0&&mode==EXPAND;i-=2)
-        {
-          if (board[4]==global_HashHistory[pid*1024+i])
-          {
-            n       = 0;
-            score   = DRAWSCORE;
             break;
           }
+          if (tmpscore > score)
+            score = tmpscore;
         }
+        if (!ISINF(score))
+          tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
+        else
+          break;
+        parent = board_stack[(parent%max_nodes_per_slot)].parent;
+      }
+    }
+    // #########################################
+    // ####         nove generator          ####
+    // #########################################
+    n = 0;
+    k = 0;
+    //get king position
+    bbTemp  = (som)?board[0]:board[0]^(board[1]|board[2]|board[3]);
+    bbTemp &= board[1]&board[2]&~board[3]; // get king
+    // king in check?
+    rootkic = squareunderattack(board, !som, first1(bbTemp));
+    // enter quiescence search?
+    qs = (sd<=depth)?false:true;
+    qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
+    qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
+    // generate moves
+    gen_moves(board, &n, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
+    // ################################
+    // ####        evaluation       ###
+    // ################################
+    score = eval(board);
+    // centi pawn *10
+    score*=10;
+    // hack for drawscore == 0, site to move bonus
+    score+=(!som)?1:-1;
+    // negamaxed scores
+    score = (som)?-score:score;
+    // checkmate
+    score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
+    // stalemate
+    score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
+    // draw by 3 fold repetition
+    for (i=ply+ply_init-2;i>0&&mode==EXPAND;i-=2)
+    {
+      if (board[4]==global_HashHistory[pid*1024+i])
+      {
+        n       = 0;
+        score   = DRAWSCORE;
+        break;
+      }
+    }
+    // ################################
+    // ####     alphabeta stuff     ###
+    // ################################
+    // out of range
+    if (sd>=max_depth)
+      n = 0;
+    global_pid_movecounter[pid*max_depth+sd] = n;
+    // terminal node
+    if (mode==MOVEUP&&n==0)
+    {
+      global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score;
+      mode = MOVEDOWN;
+    }
+    // stand pat in qsearch
+    // return beta
+    if (mode==MOVEUP&&qs&&!rootkic&&score>=global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA])
+    {
+//      global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA]; // fail hard
+      global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score; // fail soft
+			mode = MOVEDOWN;
+    }
+    // stand pat in qsearch
+    // set alpha
+    if (mode==MOVEUP&&qs&&!rootkic)
+    {
+      atom_max(&global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA], score);
+		}
+    // expand node
+    if (mode==EXPAND)
+    {
+      // expand node counter
+      COUNTERS[pid*10+1]++;
+      // create child nodes
+      current = atom_add(board_stack_top,n);
+      // expand only if we got enough memory
+      if (n>0&&current+n>=max_nodes_to_expand)
+        n = -1;
+      board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+      // each child from node
+      for(i=0;i<n;i++)
+      {
+        move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+i];
+        parent = (current+i);      
+        board_stack_tmp = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+        board_stack_tmp[(parent%max_nodes_per_slot)].move       = move;
+        board_stack_tmp[(parent%max_nodes_per_slot)].score      = -INF;
+        board_stack_tmp[(parent%max_nodes_per_slot)].visits     =  0;
+        board_stack_tmp[(parent%max_nodes_per_slot)].children   = -1;
+        board_stack_tmp[(parent%max_nodes_per_slot)].parent     = index;
+        board_stack_tmp[(parent%max_nodes_per_slot)].child      = -1;
+        board_stack_tmp[(parent%max_nodes_per_slot)].lock       = -1;
+      }
+      board_stack[(index%max_nodes_per_slot)].child = current;
+      board_stack[(index%max_nodes_per_slot)].children = n;
+      mode = (index>0)?EVALLEAF:INIT;
+      // terminal expand node, set score and backup
+      if (n==0)
+      {
+        board_stack[(index%max_nodes_per_slot)].score = score;
+        board_stack[(index%max_nodes_per_slot)].children = n;
+        mode = BACKUPSCORE;
+      }
+      // something went wrong, release lock
+      if (n<0)
+      {
+        // release lock
+        board_stack[(index%max_nodes_per_slot)].score = -INF;
+        board_stack[(index%max_nodes_per_slot)].lock = -1;
+        mode = INIT;
+      }
+    }
+    // init values for alphabeta search
+    if (mode==EVALLEAF)
+    {
+      sd = 0;
+      // search extensions
+      depth = search_depth;
+      depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
+      depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
+      // set move todo index
+      global_pid_todoindex[pid*max_depth+sd] = 0;
+      // set init Alpha Beta values
+      global_pid_ab_score[pid*max_depth*2+0*2+ALPHA] = -INF;
+      global_pid_ab_score[pid*max_depth*2+0*2+BETA]  =  INF;
+      // set current search depth
+      global_pid_depths[pid*max_depth+sd] = depth;
+      mode = MOVEUP;
+    }
+    // move down in alphabeta search
+    if (mode==MOVEDOWN)
+    {
+      // incl. alphabeta pruning
+      while (    global_pid_todoindex[pid*max_depth+sd]>=global_pid_movecounter[pid*max_depth+sd]
+             || (global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA]>=global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA])
+            ) 
+      {
+        // do alphabeta negamax scoring
+        score = global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA];
+        if (abs(score)!=INF&&sd>0)
+          atom_max(&global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA],-score);
+        sd--;
+        ply--;
+        // this is the end
+        if (sd < 0)
+            break;
+        depth = global_pid_depths[pid*max_depth+sd];
+        move = global_pid_movehistory[pid*max_depth+sd];
+        undomove(board, move);
+        // switch site to move
+        som = !som;
 
-        // out of range
-        if (sd>=max_depth)
-          n = 0;
-        global_pid_movecounter[pid*max_depth+sd] = n;
-        // terminal node
-        if (mode==MOVEUP&&n==0)
-        {
-          global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score;
-          mode = MOVEDOWN;
-        }
-        // stand pat in qsearch
-        // return beta
-        if (mode==MOVEUP&&qs&&!rootkic&&score>=global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA])
-        {
-//          global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA]; // fail hard
-          global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA] = score; // fail soft
-    			mode = MOVEDOWN;
-        }
-        // stand pat in qsearch
-        // set alpha
-        if (mode==MOVEUP&&qs&&!rootkic)
-        {
-          atom_max(&global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA], score);
-    		}
-        // expand node
-        if (mode==EXPAND)
-        {
-
-          // expand node counter
-          COUNTERS[pid*10+1]++;
-
-          // create child nodes
-          current = atom_add(board_stack_top,n);
-
-          // expand only if we got enough memory
-          if (n>0&&current+n>=max_nodes_to_expand)
-            n = -1;
-
-          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-
-          for(i=0;i<n;i++) {
-
-              move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+i];
-
-              parent = (current+i);      
-
-              board_stack_tmp = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-
-              board_stack_tmp[(parent%max_nodes_per_slot)].move       = move;
-              board_stack_tmp[(parent%max_nodes_per_slot)].score      = -INF;
-              board_stack_tmp[(parent%max_nodes_per_slot)].visits     =  0;
-              board_stack_tmp[(parent%max_nodes_per_slot)].children   = -1;
-              board_stack_tmp[(parent%max_nodes_per_slot)].parent     = index;
-              board_stack_tmp[(parent%max_nodes_per_slot)].child      = -1;
-              board_stack_tmp[(parent%max_nodes_per_slot)].lock       = -1;
-          }
-
-          board_stack[(index%max_nodes_per_slot)].child = current;
-          board_stack[(index%max_nodes_per_slot)].children = n;
-          mode = (index>0)?EVALLEAF:INIT;
-
-          // terminal expand node, set score and backup
-          if (n==0)
-          {
-            board_stack[(index%max_nodes_per_slot)].score = score;
-            board_stack[(index%max_nodes_per_slot)].children = n;
-            mode = BACKUPSCORE;
-          }
-          // something went wrong, release lock
-          if (n<0)
-          {
-            // release lock
-            board_stack[(index%max_nodes_per_slot)].score = -INF;
-            board_stack[(index%max_nodes_per_slot)].lock = -1;
-            mode = INIT;
-          }
-        }
-        if (mode==EVALLEAF)
-        {
-          sd = 0;
-          // search extensions
-          depth = search_depth;
-          depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
-          depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
-          // set move todo index
-          global_pid_todoindex[pid*max_depth+sd] = 0;
-          // set init Alpha Beta values
-          global_pid_ab_score[pid*max_depth*2+0*2+ALPHA] = -INF;
-          global_pid_ab_score[pid*max_depth*2+0*2+BETA]  =  INF;
-          // set current search depth
-          global_pid_depths[pid*max_depth+sd] = depth;
-          mode = MOVEUP;
-        }
-        if (mode==MOVEDOWN)
-        {
-
-          // incl. alphabeta pruning
-          while (    global_pid_todoindex[pid*max_depth+sd]>=global_pid_movecounter[pid*max_depth+sd]
-                 || (global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA]>=global_pid_ab_score[pid*max_depth*2+(sd)*2+BETA])
-                ) 
-          {
-
-            // do alphabeta negamax scoring
-            score = global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA];
-            if (abs(score)!=INF&&sd>0)
-              atom_max(&global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA],-score);
-
-            sd--;
-            ply--;
-
-            // this is the end
-            if (sd < 0)
-                break;
-
-            depth = global_pid_depths[pid*max_depth+sd];
-            move = global_pid_movehistory[pid*max_depth+sd];
-            undomove(board, move);
-            // switch site to move
-            som = !som;
-
-//            updateHash(board, move);
-//            board[4] = computeHash(board, som);
-          }
-          mode = MOVEUP;
-          // on root, set score of current node block and backup score
-          if (sd < 0)
-          {
-            board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-            board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
-            mode = BACKUPSCORE;
-    			}
-        }
-        if (mode==MOVEUP)
-        {
-          // alphabeta search node counter
-          COUNTERS[pid*10+2]++;
-          atom_inc(total_nodes_visited);
-
-          // movepicker
-          move = MOVENONE;
-          n = global_pid_movecounter[pid*max_depth+sd];
-          child = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
-          score = -INF;
-          tmpscore = 0;
-          i = 0;
-          for(j=0;j<n;j++)
-          {
-            tmpmove = global_pid_moves[j+child];
-            if (tmpmove==MOVENONE)
-              continue;
-            tmpscore = EvalMove(tmpmove);
-            if (tmpscore>score)
-            {
-              score = tmpscore;
-              move = tmpmove;
-              i = j;
-            }
-          }
-          global_pid_moves[i+child] = MOVENONE; // reset move
-//          move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
-          domove(board, move);
-          lastmove = move;
-          global_pid_movehistory[pid*max_depth+sd]=lastmove;
-          // switch site to move
-          som = !som;
-//          updateHash(board, move);
-//          board[4] = computeHash(board, som);
-          global_pid_todoindex[pid*max_depth+sd]++;
-          sd++;
-          ply++;
-          global_HashHistory[pid*1024+ply+ply_init] = board[4];
-          // set values for next depth
-          global_pid_movecounter[pid*max_depth+sd] = 0;
-          global_pid_todoindex[pid*max_depth+sd] = 0;
-          global_pid_depths[pid*max_depth+sd] = depth;
-          // set alpha beta values for next depth
-          global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
-          global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
-
+//        updateHash(board, move);
+//        board[4] = computeHash(board, som);
+      }
+      mode = MOVEUP;
+      // on root, set score of current node block and backup score
+      if (sd < 0)
+      {
+        board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+        board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
+        mode = BACKUPSCORE;
+			}
+    }
+    // move up in alphabeta search
+    if (mode==MOVEUP)
+    {
+      // alphabeta search node counter
+      COUNTERS[pid*10+2]++;
+      atom_inc(total_nodes_visited);
+      // movepicker
+      move = MOVENONE;
+      n = global_pid_movecounter[pid*max_depth+sd];
+      child = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
+      score = -INF;
+      tmpscore = 0;
+      i = 0;
+      for(j=0;j<n;j++)
+      {
+        tmpmove = global_pid_moves[j+child];
+        if (tmpmove==MOVENONE)
           continue;
-        }
-        if (mode==BACKUPSCORE)
+        tmpscore = EvalMove(tmpmove);
+        if (tmpscore>score)
         {
-          mode = INIT;
-          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-          parent = board_stack[(index%max_nodes_per_slot)].parent;
-
-          // backup score
-          while(parent>=0)
-          {
-            score = -INF;
-            board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-            j = board_stack[(parent%max_nodes_per_slot)].children;
-
-            for(i=0;i<j;i++)
-            {
-              child = board_stack[(parent%max_nodes_per_slot)].child + i;
-              board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-              tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
-
-              // skip not fully explored nodes
-              if (ISINF(tmpscore))
-              {
-                  score = -INF;
-                  break;
-              }
-              if (tmpscore > score)
-                score = tmpscore;
-            }
-            if (!ISINF(score))
-            {
-                tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
-                // store ply of last score for xboard output
-                if (parent==0&&score>tmpscore)
-                    COUNTERS[7] = (u64)ply+1;
-            }
-            else
-                break;
-            parent = board_stack[(parent%max_nodes_per_slot)].parent;
-          }
-          // release lock
-          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-          board_stack[(index%max_nodes_per_slot)].lock = -1;
+          score = tmpscore;
+          move = tmpmove;
+          i = j;
         }
-    } 
-    // memory full?
-    COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0;
+      }
+      global_pid_moves[i+child] = MOVENONE; // reset move
+//          move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
+      domove(board, move);
+      lastmove = move;
+      global_pid_movehistory[pid*max_depth+sd]=lastmove;
+      // switch site to move
+      som = !som;
+//      updateHash(board, move);
+//      board[4] = computeHash(board, som);
+      global_pid_todoindex[pid*max_depth+sd]++;
+      sd++;
+      ply++;
+      global_HashHistory[pid*1024+ply+ply_init] = board[4];
+      // set values for next depth
+      global_pid_movecounter[pid*max_depth+sd] = 0;
+      global_pid_todoindex[pid*max_depth+sd] = 0;
+      global_pid_depths[pid*max_depth+sd] = depth;
+      // set alpha beta values for next depth
+      global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
+      global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
+      continue;
+    }
+    // backup score from alphabeta search in bestfirst node tree
+    if (mode==BACKUPSCORE)
+    {
+      mode = INIT;
+      board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+      parent = board_stack[(index%max_nodes_per_slot)].parent;
+
+      // backup score
+      while(parent>=0)
+      {
+        score = -INF;
+        board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+        j = board_stack[(parent%max_nodes_per_slot)].children;
+
+        for(i=0;i<j;i++)
+        {
+          child = board_stack[(parent%max_nodes_per_slot)].child + i;
+          board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+          tmpscore = -board_stack_tmp[(child%max_nodes_per_slot)].score;
+
+          // skip not fully explored nodes
+          if (ISINF(tmpscore))
+          {
+              score = -INF;
+              break;
+          }
+          if (tmpscore > score)
+            score = tmpscore;
+        }
+        if (!ISINF(score))
+        {
+            tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
+            // store ply of last score for xboard output
+            if (parent==0&&score>tmpscore)
+                COUNTERS[7] = (u64)ply+1;
+        }
+        else
+            break;
+        parent = board_stack[(parent%max_nodes_per_slot)].parent;
+      }
+      // release lock
+      board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+      board_stack[(index%max_nodes_per_slot)].lock = -1;
+    }
+  } 
+  // memory full?
+  COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0;
 }
 
