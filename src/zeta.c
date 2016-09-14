@@ -1018,7 +1018,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
 //    bestscore = (S32)COUNTERS[totalThreads*4+0];
     plyreached = COUNTERS[5];
     MEMORYFULL = COUNTERS[6];
-    bestmoveply= COUNTERS[7];
+//    bestmoveply= COUNTERS[7];
 
     
 /*
@@ -1062,6 +1062,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
 
         PV[pvi] = NODES[tempomate].move;
         pvi++;
+        bestmoveply = pvi;
     }
 
 
