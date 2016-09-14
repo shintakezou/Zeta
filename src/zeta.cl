@@ -1562,7 +1562,7 @@ __kernel void bestfirst_gpu(
       depth = search_depth;
       depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
       depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
-      depth = (PROMOEXT&&(((lastmove>>18)&0xF)>>1)==PAWN&&(GETRRANK(((lastmove>>6)&0x3F),(((lastmove>>18)&0xF)&0x1))>=6))?search_depth+1:depth;
+      depth = (PROMOEXT&&(((lastmove>>18)&0xF)>>1)==PAWN&&(GETRRANK(((lastmove>>6)&0x3F),(((lastmove>>18)&0xF)&0x1))>=RANK_7))?search_depth+1:depth;
       // set move todo index
       global_pid_todoindex[pid*max_depth+sd] = 0;
       // set init Alpha Beta values
