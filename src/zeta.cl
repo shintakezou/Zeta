@@ -155,14 +155,13 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
-#define MAXEVASIONS          3                // max check evasions from qsearch
-#define TERMINATESOFT        0               // 0 or 1, will finish all searches before exit
+#define MAXEVASIONS          3               // max check evasions from qsearch
 #define SMOOTHUCT            1.00           // factor for uct params in select formula
 #define SKIPMATE             1             // 0 or 1
 #define SKIPDRAW             1            // 0 or 1
 #define INCHECKEXT           1           // 0 or 1
 #define SINGLEEXT            1          // 0 or 1
-#define PROMOEXT              1        // 0 or 1
+#define PROMOEXT             1         // 0 or 1
 #define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.40    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
@@ -1278,12 +1277,10 @@ __kernel void bestfirst_gpu(
   }
 
   // main loop
-  while(  (*board_stack_top<max_nodes_to_expand
-         &&*global_finished<max_nodes*8
-         &&*total_nodes_visited<max_nodes
-         &&COUNTERS[3] < max_nodes*12
-          ) 
-        || (TERMINATESOFT&&(mode!=INIT&&mode!=SELECT))
+  while(    *board_stack_top<max_nodes_to_expand
+         && *global_finished<max_nodes*8
+         && *total_nodes_visited<max_nodes
+         && COUNTERS[3] < max_nodes*12
       )
   {
     // iterations counter
@@ -1596,7 +1593,7 @@ __kernel void bestfirst_gpu(
         som = !som;
 //        updateHash(board, move);
 //        board[4] = computeHash(board, som);
-        // unstable score, store to child from expanded node
+        // store score to child from expanded node
         if (sd==0)
         {
           board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
@@ -1626,6 +1623,7 @@ __kernel void bestfirst_gpu(
       score = -INF;
       tmpscore = 0;
       i = 0;
+      // iterate and eval moves
       for(j=0;j<n;j++)
       {
         tmpmove = global_pid_moves[j+current];
@@ -1639,6 +1637,7 @@ __kernel void bestfirst_gpu(
           i = j;
         }
       }
+      // remember child node index
       if (sd==0)
       {
           board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
