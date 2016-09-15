@@ -185,8 +185,8 @@ __constant Hash Zobrist[17]=
 
 // piece values
 // pnone, pawn, knight, king, bishop, rook, queen
-__constant Score EvalPieceValues[7] = {0, 100, 300, 0, 300, 500, 900};
-//__constant Score EvalPieceValues[7] = {0, 100, 400, 0, 400, 600, 1200};
+//__constant Score EvalPieceValues[7] = {0, 100, 300, 0, 300, 500, 900};
+__constant Score EvalPieceValues[7] = {0, 100, 400, 0, 400, 600, 1200};
 // square control bonus, black view
 // flop square for white-index: sq^56
 __constant Score EvalControl[64] =
