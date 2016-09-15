@@ -52,7 +52,6 @@ typedef struct {
 // colors
 #define WHITE 0
 #define BLACK 1
-
 // modes
 #define INIT            0
 #define SELECT          1
@@ -67,7 +66,7 @@ typedef struct {
 #define MATESCORE        999000
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
-
+// limits
 #define MAXGAMEPLY      1024    // max ply a game can reach
 #define MAXMOVES        256     // max amount of legal moves per position
 // piece encodings
