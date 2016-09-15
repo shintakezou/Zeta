@@ -170,13 +170,12 @@ enum Squares
 // functions
 Score EvalMove(Move move);
 // rotate left based zobrist hashing
-__constant Hash Zobrist[17]=
+__constant Hash Zobrist[16]=
 {
   0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,
   0x75834465489C0C89, 0x3290AC3A203001BF, 0x0FBBAD1F61042279, 0xE83A908FF2FB60CA,
   0x0D7E765D58755C10, 0x1A083822CEAFE02D, 0x9605D5F0E25EC3B0, 0xD021FF5CD13A2ED5,
-  0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC,
-  0x05D1A1AE85B49AA1
+  0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC
 };
 /* 
   piece square tables based on proposal by Tomasz Michniewski
@@ -420,7 +419,7 @@ Hash computeHash(__private Bitboard *board, bool stm)
     }
   }
   if (!stm)
-    hash^=Zobrist[16];
+    hash^=0x1;
 
   return hash;    
 }
@@ -465,7 +464,7 @@ void updateHash(__private Bitboard *board, Move move)
     board[4] ^= rotate(zobrist,pos);
   }
   // site to move
-  board[4]^=Zobrist[16];
+  board[4]^=0x1;
 
 }
 
@@ -1539,7 +1538,7 @@ __kernel void bestfirst_gpu(
       }
       board_stack[(index%max_nodes_per_slot)].child = current;
       board_stack[(index%max_nodes_per_slot)].children = n;
-      mode = (index>0)?EVALLEAF:INIT;
+      mode = EVALLEAF;
       // terminal expand node, set score and backup
       if (n==0)
       {
