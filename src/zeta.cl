@@ -163,9 +163,9 @@ enum Squares
 #define SINGLEEXT            1          // 0 or 1
 #define PROMOEXT             1         // 0 or 1
 #define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
-#define SCOREWEIGHT          0.40    // factor for board score in select formula
+#define SCOREWEIGHT          0.30    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
-#define DEPTHWELL            32    // 0 to totalThreads
+#define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
 #define MAXBFPLY             128  // max ply of bestfirst search tree
 // functions
 Score EvalMove(Move move);
@@ -1412,11 +1412,10 @@ __kernel void bestfirst_gpu(
         score = -INF;
         board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
         j = board_stack[(parent%max_nodes_per_slot)].children;
-        child = board_stack[(parent%max_nodes_per_slot)].child-1;
         // each child from node
         for(i=0;i<j;i++)
         {
-          child++;
+          child = board_stack[(parent%max_nodes_per_slot)].child + i;
           // skip selected node from scoring
           if (child==current)
             continue;
