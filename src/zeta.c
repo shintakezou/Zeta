@@ -37,34 +37,34 @@ u64 ABNODECOUNT = 0;
 s32 NODECOPIES = 0;
 u64 MEMORYFULL = 0;
 
-int PLY = 0;
-int PLYPLAYED = 0;
+s32  PLY = 0;
+s32  PLYPLAYED = 0;
 bool STM = WHITE;
 
 // config
-int threadsX            =  0;
-int threadsY            =  0;
-int threadsZ            =  0;
-int totalThreads        =  0;
-int nodes_per_second    =  0;
+s32  threadsX            =  0;
+s32  threadsY            =  0;
+s32  threadsZ            =  0;
+s32  totalThreads        =  0;
+s32  nodes_per_second    =  0;
 u64 max_nodes           =  0;
-int nps_current         =  0;
-int max_nodes_to_expand =  0;
-int memory_slots        =  1;
-int max_leaf_depth      =  0;
-int max_depth           = 99;
-int opencl_device_id    =  0;
-int opencl_platform_id  =  0;
+s32  nps_current         =  0;
+s32  max_nodes_to_expand =  0;
+s32  memory_slots        =  1;
+s32  max_leaf_depth      =  0;
+s32  max_depth           = 99;
+s32  opencl_device_id    =  0;
+s32  opencl_platform_id  =  0;
 
-int search_depth    = 0;
+s32  search_depth    = 0;
 u64 max_mem_mb      = 512;
-int max_cores       = 1;
-int force_mode      = false;
-int random_mode     = false;
-int xboard_mode     = false;
-int xboard_debug    = false;
-int post_mode       = false;
-int time_management = false;
+s32  max_cores       = 1;
+s32  force_mode      = false;
+s32  random_mode     = false;
+s32  xboard_mode     = false;
+s32  xboard_debug    = false;
+s32  post_mode       = false;
+s32  time_management = false;
 
 Move *MoveHistory;
 Hash *HashHistory;
@@ -72,18 +72,18 @@ Hash *HashHistory;
 // time management
 static double max_time_per_move = 0;
 static double time_per_move     = 0;
-static int max_moves            = 0;
-static int time_seconds         = 0;
-static int time_minutes         = 0;
+static s32  max_moves            = 0;
+static s32  time_seconds         = 0;
+static s32  time_minutes         = 0;
 static double time_left_opponent = 0;  
 static double time_left_computer = 0;  
 static char time_string[128];
-static int max_nps_per_move     = 0;
+static s32  max_nps_per_move     = 0;
 
 double Elapsed;
 Score bestscore = 0;
-int plyreached = 0;
-int bestmoveply = 0;
+s32  plyreached = 0;
+s32  bestmoveply = 0;
 
 // our quad bitboard
 Bitboard BOARD[5];
@@ -109,16 +109,16 @@ void print_bitboard(Bitboard board);
 void print_board(Bitboard *board);
 void print_stats();
 void read_config();
-int walkNodesRecursive(int parent, int current, int n);
+s32  walkNodesRecursive(s32  parent, s32  current, s32  n);
 
-extern int load_file_to_string(const char *filename, char **result);
+extern s32  load_file_to_string(const char *filename, char **result);
 // cl functions
-extern int initializeCLDevice();
-extern int initializeCL();
-extern int runCLKernels(bool stm, int depth);
-extern int clGetMemory();
-extern int releaseCLDevice();
-extern int GuessConfig(int extreme);
+extern s32  initializeCLDevice();
+extern s32  initializeCL();
+extern s32  runCLKernels(bool stm, s32  depth);
+extern s32  clGetMemory();
+extern s32  releaseCLDevice();
+extern s32 GuessConfig(s32  extreme);
 
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
@@ -474,7 +474,7 @@ Piece getPiece (Bitboard *board, Square sq) {
 Hash computeHash(Bitboard *board, bool stm) {
 
     Piece piece;
-    int side;
+    s32  side;
     Square pos;
     Bitboard bbBoth[2];
     Bitboard bbWork = 0;
@@ -729,14 +729,14 @@ void undomove(Bitboard *board, Move move) {
 /* ############################# */
 /* ###      root search      ### */
 /* ############################# */
-Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
+Move rootsearch(Bitboard *board, bool stm, s32  depth, Move lastmove) {
 
-    int status = 0;
-    int i,j= 0;
+    s32  status = 0;
+    s32  i,j= 0;
     Score score;
     Score tmpscore;
-    int visits = 0;
-    int tmpvisits = 0;
+    s32  visits = 0;
+    s32  tmpvisits = 0;
 
     Move bestmove = 0;
     double start, end;
@@ -855,13 +855,13 @@ Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
     Elapsed = end-start;
     Elapsed/=1000;
     // compute next nps value
-    nps_current =  (int)(ABNODECOUNT/(Elapsed));
+    nps_current =  (s32 )(ABNODECOUNT/(Elapsed));
     nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
     // print xboard output
     if (post_mode == true || xboard_mode == false) {
         if ( xboard_mode == false )
             printf("depth score time nodes bfdepth pv \n");
-        printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (int)(Elapsed*100), ABNODECOUNT, plyreached);          
+        printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (s32 )(Elapsed*100), ABNODECOUNT, plyreached);          
         print_movealg(bestmove);
         printf("\n");
     }
@@ -870,14 +870,14 @@ Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
     return bestmove;
 }
 // run an benchmark for current set up
-s32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
+s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 {
-    int status = 0;
-    int i,j= 0;
+    s32 status = 0;
+    s32 i,j= 0;
     Score score = -INF;
     Score tmpscore = -INF;
-    int tmpvisits = 0;
-    int visits = 0;
+    s32 tmpvisits = 0;
+    s32 visits = 0;
 
     Move bestmove = 0;
     double start, end;
@@ -991,10 +991,10 @@ s32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
     return 0;
 }
 // get nodes per second for temp config and specified position
-s32 benchmarkNPS(int benchsec)
+s32 benchmarkNPS(s32 benchsec)
 {
-    signed int bench = 0;
-    int status = 0;
+    s32 bench = 0;
+    s32 status = 0;
 
     PLY =0;
     // read temp config created by clconfig
@@ -1044,11 +1044,11 @@ int main(void) {
     char line[256];
     char command[256];
     char c_usermove[256];
-    int go = false;
+    s32 go = false;
     Move move;
     Move usermove;
-    signed int status = 0;
-    int benchsec = 0;
+    s32 status = 0;
+    s32 benchsec = 0;
     char configfile[256] = "config.ini";
     
   /* print engine info to console */
@@ -1485,8 +1485,8 @@ void move2alg(Move move, char * movec) {
 
 Move move_parser(char *usermove, Bitboard *board, bool stm) {
 
-    int file;
-    int rank;
+    s32 file;
+    s32 rank;
     Square from,to,cpt;
     Piece pto, pfrom, pcpt;
     Move move;
@@ -1533,19 +1533,19 @@ Move move_parser(char *usermove, Bitboard *board, bool stm) {
 
 void setboard(char *fen) {
 
-    int i, j, side;
-    int index;
-    int file = 0;
-    int rank = 7;
-    int pos  = 0;
+    s32 i, j, side;
+    s32 index;
+    s32 file = 0;
+    s32 rank = 7;
+    s32 pos  = 0;
     char temp;
     char position[255];
     char csom[1];
     char castle[5];
     char castlechar;
     char ep[3];
-    int bla;
-    int blubb;
+    s32 bla;
+    s32 blubb;
     Cr cr = 0;
     char string[] = {" PNKBRQ pnkbrq/12345678"};
 
@@ -1633,19 +1633,19 @@ void setboard(char *fen) {
 
 void setboard_epd(char *fen) {
 
-    int i, j, side;
-    int index;
-    int file = 0;
-    int rank = 7;
-    int pos  = 0;
+    s32 i, j, side;
+    s32 index;
+    s32 file = 0;
+    s32 rank = 7;
+    s32 pos  = 0;
     char temp;
     char position[255];
     char csom[1];
     char castle[5];
     char castlechar;
     char ep[3];
-    int bla;
-    int blubb;
+    s32 bla;
+    s32 blubb;
     Cr cr = 0;
     char string[] = {" PNKBRQ pnkbrq/12345678"};
 
@@ -1773,7 +1773,7 @@ void print_movealg(Move move) {
 
 void print_bitboard(Bitboard board) {
 
-    int i,j,pos;
+    s32 i,j,pos;
     printf("###ABCDEFGH###\n");
    
     for(i=8;i>0;i--) {
@@ -1794,7 +1794,7 @@ void print_bitboard(Bitboard board) {
 
 void print_board(Bitboard *board) {
 
-    int i,j,pos;
+    s32 i,j,pos;
     Piece piece = PNONE;
     char wpchars[] = "-PNKBRQ";
     char bpchars[] = "-pnkbrq";
