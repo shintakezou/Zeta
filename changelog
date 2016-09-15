@@ -1,14 +1,17 @@
 Zeta (098e) alpha; urgency=low
 
   * mostly cleanup and fixes
-  * restored simple heuristics from Zeta Dva engine again
-  * switched to KoggeStone based move generator
+  * restored simple heuristics from Zeta Dva (~2000 Elo on CCRL) engine
   * protocol fixes
-  * fixed autoconfig for AMD GPUs
-  * Zeta 098e on Nvidia GeForce GTX 580, ca. 5 Mnps, est. 1800 Elo
-  * Zeta 098e on AMD Radeon HD 7750, ca. 1 Mnps
-  * Zeta 098e on AMD Phenom X4, ca. 800 Knps
-  * Zeta 098e on Nvidia GeForce 8800 GT, ca. 350 Knps
+  * fixed autoconfig for AMD gpus
+  * switched to KoggeStone based move generator
+  * switched to rotate left based Zobrist hashes
+  * switched to move picker
+  * switched to GPL >= 2
+  * Zeta 098e on Nvidia GeForce GTX 580, ca. 7 Mnps, STS1-15 est. 1800 Elo
+  * Zeta 098e on AMD Radeon HD 7750, ca. 1.5 Mnps
+  * Zeta 098e on AMD Phenom X4, ca. 1 Mnps
+  * Zeta 098e on Nvidia GeForce 8800 GT, ca. 500 Knps
 
  -- Srdja Matovic <s.matovic@app26.de>  Sep 2016
 
