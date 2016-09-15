@@ -45,6 +45,7 @@ extern s32 max_depth;
 extern s32 max_leaf_depth;
 // globals
 extern s32 PLY;
+extern u64 max_mem_mb;
 extern s32 BOARD_STACK_TOP;
 extern Bitboard *GLOBAL_INIT_BOARD;
 extern Move *GLOBAL_INIT_LASTMOVE;

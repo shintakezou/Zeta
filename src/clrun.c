@@ -21,7 +21,7 @@
 
 #include <stdio.h>      // for file io
 
-#include "zeta.h"
+#include "zeta.h"       // for global vars
 
 cl_int status = 0;
 cl_uint deviceListSize;
@@ -32,8 +32,10 @@ size_t localThreads[3];
 
 int temp = 0;
 
+extern int load_file_to_string(const char *filename, char **result);
+void print_debug(char *debug);
 
-int initializeCLDevice() {
+int cl_init_device() {
 
     context = NULL;
     kernel  = NULL;
@@ -183,7 +185,7 @@ int initializeCLDevice() {
     return 0;
 }
 
-int initializeCL() {
+int cl_init_objects() {
 
     cl_event events[2];
 
@@ -460,7 +462,7 @@ int initializeCL() {
  *        Bind host variables to kernel arguments 
  *		  Run the CL kernel
  */
-int  runCLKernels(bool stm, int depth) {
+int  cl_run_kernel(bool stm, int depth) {
 
     int i = 0;
 
@@ -798,7 +800,7 @@ int  runCLKernels(bool stm, int depth) {
 	}
   return 0;
 }
-int  clGetMemory()
+int  cl_get_and_release_memory()
 {
     cl_event events[2];
 
@@ -1024,7 +1026,7 @@ int  clGetMemory()
 }
 
 
-int  releaseCLDevice() {
+int  cl_release_device() {
 
 /*
     status = clReleaseKernel(kernel);
@@ -1050,32 +1052,7 @@ int  releaseCLDevice() {
 
 	return 0;
 }
-
-
-
-int load_file_to_string(const char *filename, char **result) 
-{ 
-	unsigned int size = 0;
-	FILE *f = fopen(filename, "rb");
-	if (f == NULL) 
-	{ 
-		*result = NULL;
-		return -1;
-	} 
-	fseek(f, 0, SEEK_END);
-	size = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	*result = (char *)malloc(size+1);
-	if (size != fread(*result, sizeof(char), size, f)) 
-	{ 
-		free(*result);
-		return -2;
-	} 
-	fclose(f);
-	(*result)[size] = 0;
-	return size;
-}
-
+// debug printing
 void print_debug(char *debug) {
     FILE 	*Stats;
     Stats = fopen("zeta.debug", "ab+");
@@ -1084,5 +1061,4 @@ void print_debug(char *debug) {
         fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE");
     fclose(Stats);
 }
-
 

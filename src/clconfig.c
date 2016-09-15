@@ -22,19 +22,14 @@
 #include <stdio.h>      // for file io
 #include <string.h>     // for string comparing functions
 
-#include "zeta.h"
-
+#include "zeta.h"       // for global vars
 
 extern signed int benchmarkNPS();
 extern void read_config();
-extern u64 max_mem_mb;
 extern int load_file_to_string(const char *filename, char **result);
 extern const char filename[];
-extern int initializeCLDevice();
-extern int initializeCL();
-extern int opencl_device_id;
 
-int GuessConfig( int extreme) {
+int cl_guess_config(bool extreme) {
 
     cl_int status = 0;
     size_t paramSize;
@@ -464,7 +459,7 @@ int GuessConfig( int extreme) {
                     continue;
                 }
 
-                if (extreme == 1) {
+                if (extreme) {
 
                     printf("\n\n");
                     printf("#> ### Running NPS-Benchmark for best config, this can last some minutes... \n\n");

@@ -21,7 +21,7 @@
 
 #include <stdio.h>      // for file IO
 
-#include "bitboard.h"
+#include "bitboard.h"   // bit functions
 #include "timer.h"
 #include "types.h"
 #include "zobrist.h"
@@ -108,15 +108,14 @@ void print_bitboard(Bitboard board);
 void print_board(Bitboard *board);
 void print_stats();
 void read_config();
-// extern functions
-extern s32 load_file_to_string(const char *filename, char **result);
+s32 load_file_to_string(const char *filename, char **result);
 // cl functions
-extern s32 initializeCLDevice();
-extern s32 initializeCL();
-extern s32 runCLKernels(bool stm, s32 depth);
-extern s32 clGetMemory();
-extern s32 releaseCLDevice();
-extern s32 GuessConfig(s32 extreme);
+extern s32 cl_init_device();
+extern s32 cl_init_objects();
+extern s32 cl_run_kernel(bool stm, s32 depth);
+extern s32 cl_get_and_release_memory();
+extern s32 cl_release_device();
+extern s32 cl_guess_config(bool extreme);
 // precomputed attack tables for move generation and square in check
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
@@ -410,7 +409,7 @@ void free_resources() {
     free(NODES);
     free(GLOBAL_HASHHISTORY);
 
-    releaseCLDevice();
+    cl_release_device();
 
     NODES = NULL;
 
@@ -774,33 +773,33 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
 
     // call GPU functions
 /*
-    status = initializeCLDevice();
+    status = cl_init_device();
     // something went wrong...
     if (status != 0) {
         free_resources();
         exit(0);
     }
 */
-    status = initializeCL();
+    status = cl_init_objects();
     // something went wrong...
     if (status != 0) {
         free_resources();
         exit(0);
     }
-    status = runCLKernels(stm, depth);
+    status = cl_run_kernel(stm, depth);
     // something went wrong...
     if (status != 0) {
         free_resources();
         exit(0);
     }
-    status = clGetMemory();
+    status = cl_get_and_release_memory();
     // something went wrong...
     if (status != 0) {
         free_resources();
         exit(0);
     }
 /*
-    status = releaseCLDevice();
+    status = cl_release_device();
     // something went wrong...
     if (status != 0) {
         free_resources();
@@ -914,14 +913,14 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 
     // call GPU functions
 /*
-    status = initializeCLDevice();
+    status = cl_init_device();
     if (status != 0)
         return -1;
 */
-    status = initializeCL();
+    status = cl_init_objects();
     if (status != 0)
         return -1;
-    status = runCLKernels(stm, depth);
+    status = cl_run_kernel(stm, depth);
     if (status != 0)
         return -1;
 
@@ -930,11 +929,11 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
     Elapsed = end-start;
     Elapsed/=1000;
 
-    status = clGetMemory();
+    status = cl_get_and_release_memory();
     if (status != 0)
         return -1;
 /*
-    status = releaseCLDevice();
+    status = cl_release_device();
     if (status != 0)
         return -1;
 */
@@ -999,7 +998,7 @@ s32 benchmarkNPS(s32 benchsec)
     read_config("config.tmp");
     inits();
 
-    status = initializeCLDevice();
+    status = cl_init_device();
     // something went wrong...
     if (status != 0) {
         free_resources();
@@ -1131,7 +1130,7 @@ int main(void) {
             PLY =0;
             read_config(configfile);
             inits();
-            status = initializeCLDevice();
+            status = cl_init_device();
             // something went wrong...
             if (status != 0) {
                 free_resources();
@@ -1164,7 +1163,7 @@ int main(void) {
             PLY =0;
             read_config(configfile);
             inits();
-            status = initializeCLDevice();
+            status = cl_init_device();
             // something went wrong...
             if (status != 0) {
                 free_resources();
@@ -1196,7 +1195,7 @@ int main(void) {
             PLY =0;
             read_config(configfile);
             inits();
-            status = initializeCLDevice();
+            status = cl_init_device();
             // something went wrong...
             if (status != 0) {
                 free_resources();
@@ -1235,7 +1234,7 @@ int main(void) {
                 free_resources();
             read_config(configfile);
             inits();
-            status = initializeCLDevice();
+            status = cl_init_device();
             // something went wrong...
             if (status != 0) {
                 free_resources();
@@ -1428,11 +1427,11 @@ int main(void) {
             continue;
         }
 		if (!strcmp(command, "guessconfig")) {
-            GuessConfig(0);
+            cl_guess_config(false);
             continue;
 		}
 		if (!strcmp(command, "guessconfigx")) {
-            GuessConfig(1);
+            cl_guess_config(true);
             continue;
 		}
     }
@@ -1808,5 +1807,26 @@ void read_config(char configfile[]) {
 
     fclose(fcfg);
 }
-
+int load_file_to_string(const char *filename, char **result) 
+{ 
+	unsigned int size = 0;
+	FILE *f = fopen(filename, "rb");
+	if (f == NULL) 
+	{ 
+		*result = NULL;
+		return -1;
+	} 
+	fseek(f, 0, SEEK_END);
+	size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	*result = (char *)malloc(size+1);
+	if (size != fread(*result, sizeof(char), size, f)) 
+	{ 
+		free(*result);
+		return -2;
+	} 
+	fclose(f);
+	(*result)[size] = 0;
+	return size;
+}
 
