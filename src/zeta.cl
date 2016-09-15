@@ -512,6 +512,7 @@ __constant ulong4 wraps4[2] =
             0x00ffffffffffffff  // >>8
           )
 };
+// precomputed attack tables for move generation and square in check
 __constant Bitboard AttackTablesPawnPushes[2*64] = 
 {
   // white pawn pushes

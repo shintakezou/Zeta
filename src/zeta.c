@@ -117,7 +117,7 @@ extern s32 runCLKernels(bool stm, s32 depth);
 extern s32 clGetMemory();
 extern s32 releaseCLDevice();
 extern s32 GuessConfig(s32 extreme);
-
+// precomputed attack tables for move generation and square in check
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
   /* white pawn pushes */
