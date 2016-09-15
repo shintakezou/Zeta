@@ -115,7 +115,7 @@ extern bool cl_init_objects();
 extern bool cl_run_kernel(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
-extern s32 cl_guess_config(bool extreme);
+extern bool cl_guess_config(bool extreme);
 // precomputed attack tables for move generation and square in check
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
