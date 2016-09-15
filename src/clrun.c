@@ -460,7 +460,7 @@ int initializeCL() {
  *        Bind host variables to kernel arguments 
  *		  Run the CL kernel
  */
-int  runCLKernels(int som, int depth) {
+int  runCLKernels(bool stm, int depth) {
 
     int i = 0;
 
@@ -664,14 +664,15 @@ int  runCLKernels(int som, int depth) {
 	}
     i++;
 
+    temp = (S32)stm;
     status = clSetKernelArg(
                     kernel, 
                     i, 
                     sizeof(cl_int), 
-                    (void *)&som);
+                    (void *)&temp);
     if(status != CL_SUCCESS) 
 	{ 
-		print_debug((char *)"Error: Setting kernel argument. (som)\n");
+		print_debug((char *)"Error: Setting kernel argument. (stm)\n");
 		return 1;
 	}
     i++;

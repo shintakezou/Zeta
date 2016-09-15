@@ -39,7 +39,7 @@ U64 MEMORYFULL = 0;
 
 int PLY = 0;
 int PLYPLAYED = 0;
-int SOM = WHITE;
+bool STM = WHITE;
 
 // config
 int threadsX            =  0;
@@ -102,7 +102,7 @@ Move Lastmove = 0;
 Cr  CR = 0;
 
 // functions
-Move move_parser(char *usermove, Bitboard *board, int som);
+Move move_parser(char *usermove, Bitboard *board, bool stm);
 void setboard(char *fen);
 void setboard_epd(char *fen);
 void move2alg(Move move, char * movec);
@@ -117,7 +117,7 @@ extern int load_file_to_string(const char *filename, char **result);
 // cl functions
 extern int initializeCLDevice();
 extern int initializeCL();
-extern int runCLKernels(int som, int depth);
+extern int runCLKernels(bool stm, int depth);
 extern int clGetMemory();
 extern int releaseCLDevice();
 extern int GuessConfig(int extreme);
@@ -474,7 +474,7 @@ Piece getPiece (Bitboard *board, Square sq) {
 /* ###         Hash          ### */
 /* ############################# */
 
-Hash computeHash(Bitboard *board, int som) {
+Hash computeHash(Bitboard *board, bool stm) {
 
     Piece piece;
     int side;
@@ -501,7 +501,7 @@ Hash computeHash(Bitboard *board, int som) {
 
         }
     }
-    if (!som)
+    if (!stm)
       hash^=0x1;
 
     return hash;    
@@ -560,23 +560,23 @@ Move updateCR(Move move, Cr cr) {
 
     Square from   =  (move & 0x3F);
     Piece piece   =  (((move>>18) & 0xF)>>1);
-    int som = ((move>>18) & 0xF)&1;
+    bool stm = ((move>>18) & 0xF)&1;
 
     // castle rights update
     if (cr > 0) {
 
         // update castle rights, TODO: make nice
         // clear white queenside
-        if ( (piece == ROOK && (som == WHITE) && from == 0) || ( piece == KING && (som == WHITE) && from == 4))
+        if ( (piece == ROOK && (stm == WHITE) && from == 0) || ( piece == KING && (stm == WHITE) && from == 4))
             cr&= 0xE;
         // clear white kingside
-        if ( (piece == ROOK && (som == WHITE) && from == 7) || ( piece == KING && (som == WHITE) && from == 4))
+        if ( (piece == ROOK && (stm == WHITE) && from == 7) || ( piece == KING && (stm == WHITE) && from == 4))
             cr&= 0xD;
         // clear black queenside
-        if ( (piece == ROOK && (som == BLACK) && from == 56) || ( piece == KING && (som == BLACK) && from == 60))
+        if ( (piece == ROOK && (stm == BLACK) && from == 56) || ( piece == KING && (stm == BLACK) && from == 60))
             cr&= 0xB;
         // clear black kingside
-        if ( (piece == ROOK && (som == BLACK) && from == 63) || ( piece == KING && (som == BLACK) && from == 60))
+        if ( (piece == ROOK && (stm == BLACK) && from == 63) || ( piece == KING && (stm == BLACK) && from == 60))
             cr&= 0x7;
 
     }    
@@ -605,7 +605,7 @@ void domove(Bitboard *board, Move move) {
         board[3] &= CLRMASKBB(from+3);
 
         // set to rook
-        board[0] |= (Bitboard)(pfrom&1)<<(to-1); // set som
+        board[0] |= (Bitboard)(pfrom&1)<<(to-1); // set color
         board[1] |= (Bitboard)((ROOK)&1)<<(to-1);
         board[2] |= (Bitboard)((ROOK>>1)&1)<<(to-1);
         board[3] |= (Bitboard)((ROOK>>2)&1)<<(to-1);
@@ -620,7 +620,7 @@ void domove(Bitboard *board, Move move) {
         board[3] &= CLRMASKBB(from-4);
 
         // set to rook
-        board[0] |= (Bitboard)(pfrom&1)<<(to+1); // set som
+        board[0] |= (Bitboard)(pfrom&1)<<(to+1); // set color
         board[1] |= (Bitboard)((ROOK)&1)<<(to+1);
         board[2] |= (Bitboard)((ROOK>>1)&1)<<(to+1);
         board[3] |= (Bitboard)((ROOK>>2)&1)<<(to+1);
@@ -678,7 +678,7 @@ void undomove(Bitboard *board, Move move) {
         board[3] &= CLRMASKBB(to-1);
 
         // set from rook
-        board[0] |= (Bitboard)(pfrom&1)<<(from+3); // set som
+        board[0] |= (Bitboard)(pfrom&1)<<(from+3); // set color
         board[1] |= (Bitboard)((ROOK)&1)<<(from+3);
         board[2] |= (Bitboard)((ROOK>>1)&1)<<(from+3);
         board[3] |= (Bitboard)((ROOK>>2)&1)<<(from+3);
@@ -693,7 +693,7 @@ void undomove(Bitboard *board, Move move) {
         board[3] &= CLRMASKBB(to+1);
 
         // set from rook
-        board[0] |= (Bitboard)(pfrom&1)<<(from-4); // set som
+        board[0] |= (Bitboard)(pfrom&1)<<(from-4); // set color
         board[1] |= (Bitboard)((ROOK)&1)<<(from-4);
         board[2] |= (Bitboard)((ROOK>>1)&1)<<(from-4);
         board[3] |= (Bitboard)((ROOK>>2)&1)<<(from-4);
@@ -732,7 +732,7 @@ void undomove(Bitboard *board, Move move) {
 /* ############################# */
 /* ###      root search      ### */
 /* ############################# */
-Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
+Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
 
     int status = 0;
     int i,j= 0;
@@ -792,7 +792,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         free_resources();
         exit(0);
     }
-    status = runCLKernels(som, depth);
+    status = runCLKernels(stm, depth);
     // something went wrong...
     if (status != 0) {
         free_resources();
@@ -873,7 +873,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
     return bestmove;
 }
 // run an benchmark for current set up
-S32 benchmark(Bitboard *board, int som, int depth, Move lastmove)
+S32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
 {
     int status = 0;
     int i,j= 0;
@@ -926,7 +926,7 @@ S32 benchmark(Bitboard *board, int som, int depth, Move lastmove)
     status = initializeCL();
     if (status != 0)
         return -1;
-    status = runCLKernels(som, depth);
+    status = runCLKernels(stm, depth);
     if (status != 0)
         return -1;
 
@@ -1021,7 +1021,7 @@ S32 benchmarkNPS(int benchsec)
         if (Elapsed *2 >= benchsec)
             break;
         PLY = 0;
-        bench = benchmark(BOARD, SOM, max_leaf_depth, Lastmove);                
+        bench = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
         if (bench != 0 )
             break;
         if (MEMORYFULL == 1) {
@@ -1153,7 +1153,7 @@ int main(void) {
                 if (Elapsed *2 >= benchsec)
                     break;
                 PLY = 0;
-                status = benchmark(BOARD, SOM, max_leaf_depth, Lastmove);                
+                status = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
@@ -1186,7 +1186,7 @@ int main(void) {
                 if (Elapsed *2 >= benchsec)
                     break;
                 PLY = 0;
-                status = benchmark(BOARD, SOM, max_leaf_depth, Lastmove);                
+                status = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
@@ -1218,7 +1218,7 @@ int main(void) {
                 if (Elapsed *2 >= benchsec)
                     break;
                 PLY = 0;
-                status = benchmark(BOARD, SOM, max_leaf_depth, Lastmove);                
+                status = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
@@ -1374,7 +1374,7 @@ int main(void) {
 
             PLYPLAYED = (int)(PLY/2);
 
-            move = rootsearch(BOARD, SOM, max_leaf_depth, Lastmove);            
+            move = rootsearch(BOARD, STM, max_leaf_depth, Lastmove);            
             PLY++;
 
             CR = (Lastmove>>36)&0xF;
@@ -1390,14 +1390,14 @@ int main(void) {
             printf("move ");
             print_movealg(move);
             printf("\n");
-            SOM = SwitchSide(SOM);
+            STM = !STM;
 
             continue;
 		}
         if (!strcmp(command, "usermove")){
 
             sscanf(line, "usermove %s", c_usermove);
-            usermove = move_parser(c_usermove, BOARD, SOM);
+            usermove = move_parser(c_usermove, BOARD, STM);
 
             PLY++;
             CR = (Lastmove>>36)&0xF;
@@ -1410,10 +1410,10 @@ int main(void) {
 //            if (xboard_mode == false)
                 print_board(BOARD);
 
-            SOM = SwitchSide(SOM);
+            STM = !STM;
             if ( force_mode == false && go == true) {
                 go = true;
-                move = rootsearch(BOARD, SOM, max_leaf_depth, Lastmove);
+                move = rootsearch(BOARD, STM, max_leaf_depth, Lastmove);
                 PLY++;
                 CR = (Lastmove>>36)&0xF;
                 Lastmove = move;
@@ -1428,7 +1428,7 @@ int main(void) {
                 printf("move ");
                 print_movealg(move);
                 printf("\n");
-                SOM = SwitchSide(SOM);
+                STM = !STM;
             }
             continue;
         }
@@ -1486,7 +1486,7 @@ void move2alg(Move move, char * movec) {
 }
 
 
-Move move_parser(char *usermove, Bitboard *board, int som) {
+Move move_parser(char *usermove, Bitboard *board, bool stm) {
 
     int file;
     int rank;
@@ -1509,8 +1509,8 @@ Move move_parser(char *usermove, Bitboard *board, int som) {
     pcpt = getPiece(board, cpt);
 
     // en passant
-    cpt = ( (pfrom>>1) == PAWN && (som == WHITE) && (from>>3) == 4 && to-from != 8 && (pcpt>>1) == PNONE ) ? to-8 : cpt;
-    cpt = ( (pfrom>>1) == PAWN && (som == BLACK) && (from>>3) == 3 && from-to != 8 && (pcpt>>1) == PNONE ) ? to+8 : cpt;
+    cpt = ( (pfrom>>1) == PAWN && (stm == WHITE) && (from>>3) == 4 && to-from != 8 && (pcpt>>1) == PNONE ) ? to-8 : cpt;
+    cpt = ( (pfrom>>1) == PAWN && (stm == BLACK) && (from>>3) == 3 && from-to != 8 && (pcpt>>1) == PNONE ) ? to+8 : cpt;
 
     pcpt = getPiece(board, cpt);
     
@@ -1521,13 +1521,13 @@ Move move_parser(char *usermove, Bitboard *board, int som) {
     // pawn promo piece
     promopiece = usermove[4];
     if (promopiece == 'q' || promopiece == 'Q' )
-        pto = QUEEN<<1 | som;
+        pto = QUEEN<<1 | (Piece)(stm&0x1);
     else if (promopiece == 'n' || promopiece == 'N' )
-        pto = KNIGHT<<1 | som;
+        pto = KNIGHT<<1 | (Piece)(stm&0x1);
     else if (promopiece == 'b' || promopiece == 'B' )
-        pto = BISHOP<<1 | som;
+        pto = BISHOP<<1 | (Piece)(stm&0x1);
     else if (promopiece == 'r' || promopiece == 'R' )
-        pto = ROOK<<1 | som;
+        pto = ROOK<<1 | (Piece)(stm&0x1);
 
     move = makemove(from, to, cpt, pfrom, pto , pcpt, pdsq);
 
@@ -1591,10 +1591,10 @@ void setboard(char *fen) {
 
     // site on move
     if (csom[0] == 'w' || csom[0] == 'W') {
-        SOM = WHITE;
+        STM = WHITE;
     }
     if (csom[0] == 'b' || csom[0] == 'B') {
-        SOM = BLACK;
+        STM = BLACK;
     }
 
     // Castle Rights
@@ -1629,7 +1629,7 @@ void setboard(char *fen) {
     Lastmove |= ((Move)cr)<<36;
 
     // set hash
-    BOARD[4] = computeHash(BOARD, SOM);
+    BOARD[4] = computeHash(BOARD, STM);
     HashHistory[PLY] = BOARD[4];
 
 }
@@ -1691,10 +1691,10 @@ void setboard_epd(char *fen) {
 
     // site on move
     if (csom[0] == 'w' || csom[0] == 'W') {
-        SOM = WHITE;
+        STM = WHITE;
     }
     if (csom[0] == 'b' || csom[0] == 'B') {
-        SOM = BLACK;
+        STM = BLACK;
     }
 
     // Castle Rights
@@ -1729,7 +1729,7 @@ void setboard_epd(char *fen) {
     Lastmove |= ((Move)cr)<<36;
 
     // set hash
-    BOARD[4] = computeHash(BOARD, SOM);
+    BOARD[4] = computeHash(BOARD, STM);
     HashHistory[PLY] = BOARD[4];
 
 }

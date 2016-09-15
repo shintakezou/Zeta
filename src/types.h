@@ -22,18 +22,19 @@
 #ifndef TYPES_H_INCLUDED
 #define TYPES_H_INCLUDED
 
-/* C99 headers */
-#include <stdint.h>
-#include <stdbool.h>
-#include <inttypes.h>
+#include <inttypes.h>   // for nice u64 printf 
+ 
+#include "CL/cl.h"    // for OpenCL data types etc.
 
-#include "CL/cl.h"
-
-
+// OpenCL data types to own
 typedef cl_ulong U64;
 typedef cl_uint U32;
 typedef cl_int S32;
 typedef cl_uchar U8;
+typedef cl_bool bool;
+// boolean val
+#define true  1
+#define false 0
 
 typedef U64 Move;
 typedef U64 Bitboard;
@@ -43,7 +44,6 @@ typedef U64 Hash;
 typedef S32 Score;
 typedef U8 Square;
 typedef U8 Piece;
-
 
 typedef struct {
     Move move;
@@ -55,26 +55,24 @@ typedef struct {
     S32 parent;
 }  NodeBlock;
 
-
 #define VERSION "098e"
 
 // engine defaults
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
-
+// colors
 #define WHITE 0
 #define BLACK 1
-
-#define true          1
-#define false         0
-
-
-#define MAX(a,b)            ((a)>(b)?(a):(b))
-#define MIN(a,b)            ((a)<(b)?(a):(b))
-
-#define SwitchSide(som)     ((som == WHITE)? BLACK : WHITE)
-
+// scores
+#define INF             1000000
+#define MATESCORE        999000
+#define DRAWSCORE       0
+#define STALEMATESCORE  0
+// limit
+#define MAXGAMEPLY      1024    // max ply a game can reach
+#define MAXMOVES        256     // max amount of legal moves per position
+// piece encodings
 #define PNONE   0
 #define PAWN    1
 #define KNIGHT  2
@@ -82,27 +80,8 @@ typedef struct {
 #define BISHOP  4
 #define ROOK    5
 #define QUEEN   6
-
-// Node structure
-#define MOVE        0
-#define INFO        1
-#define SCORE       2
-#define VISITS      3
-#define CHILDREN    4
-#define PARENT      5
-#define CHILD       6
-#define LOCK        7
-//#define LOCKS       8      
-//#define EXPANDABLE  9
-//#define node_size   10
-
-#define ILL     64
-
-#define INF             1000000
-#define MATESCORE        999000
-#define DRAWSCORE       0
-#define STALEMATESCORE  0
-
+// defaults
+#define ILL     64          // illegal sqaure, for castle square hack
 // bitboard masks, computation prefered over lookup
 #define SETMASKBB(sq)       (1ULL<<(sq))
 #define CLRMASKBB(sq)       (~(1ULL<<(sq)))
@@ -113,7 +92,6 @@ typedef struct {
 #define HASHNONE            0x0000000000000000ULL
 #define CRNONE              0x0000000000000000ULL
 #define SCORENONE           0x0000000000000000ULL
-
 // square helpers
 #define MAKESQ(file,rank)   ((rank)<<3|(file))
 #define GETRANK(sq)         ((sq)>>3)
@@ -160,10 +138,8 @@ enum Ranks
 #define BBRANK4             0x00000000FF000000
 #define BBRANK2             0x000000000000FF00
 #define BBRANK1             0x00000000000000FF
-
 #define BBA1H8              0x8040201008040201
 #define BBA8H1              0x0102040810204080
-
 // square enumeration 
 enum Squares
 {
@@ -176,7 +152,6 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
-
 // is score a mate in n 
 #define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
 // is score default inf
