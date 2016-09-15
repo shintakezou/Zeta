@@ -110,11 +110,11 @@ void print_stats();
 void read_config();
 s32 load_file_to_string(const char *filename, char **result);
 // cl functions
-extern s32 cl_init_device();
-extern s32 cl_init_objects();
-extern s32 cl_run_kernel(bool stm, s32 depth);
-extern s32 cl_get_and_release_memory();
-extern s32 cl_release_device();
+extern bool cl_init_device();
+extern bool cl_init_objects();
+extern bool cl_run_kernel(bool stm, s32 depth);
+extern bool cl_get_and_release_memory();
+extern bool cl_release_device();
 extern s32 cl_guess_config(bool extreme);
 // precomputed attack tables for move generation and square in check
 const Bitboard AttackTablesPawnPushes[2*64] = 
@@ -402,17 +402,18 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
 /* ###        inits          ### */
 /* ############################# */
 
-void free_resources() {
-
+void free_resources()
+{
+  if(GLOBAL_INIT_BOARD)
     free(GLOBAL_INIT_BOARD);
+  if(COUNTERS)
     free(COUNTERS);
+  if(NODES)
     free(NODES);
+  if(GLOBAL_HASHHISTORY)
     free(GLOBAL_HASHHISTORY);
 
-    cl_release_device();
-
-    NODES = NULL;
-
+  cl_release_device();
 }
 
 void inits()
@@ -728,7 +729,7 @@ void undomove(Bitboard *board, Move move) {
 /* ############################# */
 Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
 
-    s32 status = 0;
+    bool state;
     s32 i,j= 0;
     Score score;
     Score tmpscore;
@@ -773,37 +774,42 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
 
     // call GPU functions
 /*
-    status = cl_init_device();
+    state = cl_init_device();
     // something went wrong...
-    if (status != 0) {
-        free_resources();
-        exit(0);
+    if (!state)
+    {
+      free_resources();
+      exit(EXIT_FAILURE);
     }
 */
-    status = cl_init_objects();
+    state = cl_init_objects();
     // something went wrong...
-    if (status != 0) {
-        free_resources();
-        exit(0);
+    if (!state)
+    {
+      free_resources();
+      exit(EXIT_FAILURE);
     }
-    status = cl_run_kernel(stm, depth);
+    state = cl_run_kernel(stm, depth);
     // something went wrong...
-    if (status != 0) {
-        free_resources();
-        exit(0);
+    if (!state)
+    {
+      free_resources();
+      exit(EXIT_FAILURE);
     }
-    status = cl_get_and_release_memory();
+    state = cl_get_and_release_memory();
     // something went wrong...
-    if (status != 0) {
-        free_resources();
-        exit(0);
+    if (!state)
+    {
+      free_resources();
+      exit(EXIT_FAILURE);
     }
 /*
-    status = cl_release_device();
+    state = cl_release_device();
     // something went wrong...
-    if (status != 0) {
-        free_resources();
-        exit(0);
+    if (!state)
+    {
+      free_resources();
+      exit(EXIT_FAILURE);
     }
 */
     // get best move from tree copied from cl device
@@ -869,7 +875,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
 // run an benchmark for current set up
 s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 {
-    s32 status = 0;
+    bool state;
     s32 i,j= 0;
     Score score = -INF;
     Score tmpscore = -INF;
@@ -913,28 +919,33 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 
     // call GPU functions
 /*
-    status = cl_init_device();
-    if (status != 0)
+    state = cl_init_device();
+    if (!state)
         return -1;
 */
-    status = cl_init_objects();
-    if (status != 0)
-        return -1;
-    status = cl_run_kernel(stm, depth);
-    if (status != 0)
-        return -1;
-
+    state = cl_init_objects();
+    // something went wrong...
+    if (!state)
+    {
+      return -1;
+    }
+    state = cl_run_kernel(stm, depth);
+    // something went wrong...
+    if (!state)
+    {
+      return -1;
+    }
     // timers
     end = get_time();
     Elapsed = end-start;
     Elapsed/=1000;
 
-    status = cl_get_and_release_memory();
-    if (status != 0)
+    state= cl_get_and_release_memory();
+    if (!state)
         return -1;
 /*
-    status = cl_release_device();
-    if (status != 0)
+    state = cl_release_device();
+    if (!state)
         return -1;
 */
     // get best move from tree copied from cl device
@@ -990,19 +1001,20 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 // get nodes per second for temp config and specified position
 s32 benchmarkNPS(s32 benchsec)
 {
+    bool state;
     s32 bench = 0;
-    s32 status = 0;
 
     PLY =0;
     // read temp config created by clconfig
     read_config("config.tmp");
     inits();
 
-    status = cl_init_device();
+    state = cl_init_device();
     // something went wrong...
-    if (status != 0) {
-        free_resources();
-        return -1;
+    if (!state)
+    {
+      free_resources();
+      return -1;
     }
 //    setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
 //    setboard((char *)"setboard r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
@@ -1038,6 +1050,7 @@ s32 benchmarkNPS(s32 benchsec)
 /* ############################# */
 int main(void) {
 
+  bool state;
   char line[256];
   char command[256];
   char c_usermove[256];
@@ -1130,11 +1143,12 @@ int main(void) {
             PLY =0;
             read_config(configfile);
             inits();
-            status = cl_init_device();
+            state = cl_init_device();
             // something went wrong...
-            if (status != 0) {
-                free_resources();
-                exit(0);
+            if (!state)
+            {
+              free_resources();
+              exit(EXIT_FAILURE);
             }
             setboard((char *)"setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
             printf("\n#>Benchmarking Position 1/3\n");
@@ -1163,11 +1177,12 @@ int main(void) {
             PLY =0;
             read_config(configfile);
             inits();
-            status = cl_init_device();
+            state = cl_init_device();
             // something went wrong...
-            if (status != 0) {
-                free_resources();
-                exit(0);
+            if (!state)
+            {
+              free_resources();
+              exit(EXIT_FAILURE);
             }
             setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
             printf("\n#>Benchmarking Position 2/3\n");
@@ -1195,11 +1210,12 @@ int main(void) {
             PLY =0;
             read_config(configfile);
             inits();
-            status = cl_init_device();
+            state = cl_init_device();
             // something went wrong...
-            if (status != 0) {
-                free_resources();
-                exit(0);
+            if (!state)
+            {
+              free_resources();
+              exit(EXIT_FAILURE);
             }
             setboard((char *)"setboard 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
             printf("\n#>Benchmarking Position 3/3\n");
@@ -1234,11 +1250,12 @@ int main(void) {
                 free_resources();
             read_config(configfile);
             inits();
-            status = cl_init_device();
+            state = cl_init_device();
             // something went wrong...
-            if (status != 0) {
-                free_resources();
-                exit(0);
+            if (!state)
+            {
+              free_resources();
+              exit(EXIT_FAILURE);
             }
             setboard((char *)"setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
             Bestmove = 0;
