@@ -17,8 +17,6 @@
 
 #include "zeta.h"
 
-extern U64 *Zobrist;
-
 cl_int status = 0;
 cl_uint deviceListSize;
 
@@ -434,20 +432,6 @@ int initializeCL() {
 		print_debug((char *)"Error: clCreateBuffer (GLOBAL_HASHHISTORY_Buffer)\n");
 		return 1;
 	}
-
-    ZobristBuffer = clCreateBuffer(
-					   context, 
-                       CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                       sizeof(cl_ulong) * 17,
-                       &Zobrist, 
-                       &status);
-    if(status != CL_SUCCESS) 
-	{ 
-		print_debug((char *)"Error: ZobristBuffer (BAttacksBuffer)\n");
-		return 1;
-	}
-
-
 
     /* get a kernel object handle for a kernel with the given name */
     kernel = clCreateKernel(program, "bestfirst_gpu", &status);
@@ -1028,13 +1012,6 @@ int  clGetMemory()
     if(status != CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_HASHHISTORY_Buffer)\n");
-		return 1; 
-	}
-
-	status = clReleaseMemObject(ZobristBuffer);
-    if(status != CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (ZobristBuffer)\n");
 		return 1; 
 	}
 

@@ -76,9 +76,6 @@ cl_mem	 GLOBAL_MOVECOUNT_Buffer;
 cl_mem	 GLOBAL_PLYREACHED_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 
-cl_mem	 ZobristBuffer;
-
-
 cl_context          context;
 cl_device_id        *devices;
 cl_command_queue    commandQueue;

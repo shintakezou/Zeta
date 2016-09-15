@@ -504,7 +504,7 @@ Hash computeHash(Bitboard *board, int som) {
         }
     }
     if (!som)
-      hash^=Zobrist[16];
+      hash^=0x1;
 
     return hash;    
 }
@@ -551,14 +551,13 @@ void updateHash(Bitboard *board, Move move)
     board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
   }
   // site to move
-  board[4]^=Zobrist[16];
+  board[4]^=0x1;
 }
 
 
 /* ############################# */
 /* ###     domove undomove   ### */
 /* ############################# */
-
 Move updateCR(Move move, Cr cr) {
 
     Square from   =  (move & 0x3F);
@@ -661,8 +660,6 @@ void domove(Bitboard *board, Move move, int som) {
 //    updateHash(board, move);
 
 }
-
-
 void undomove(Bitboard *board, Move move, int som) {
 
 
@@ -734,154 +731,17 @@ void undomove(Bitboard *board, Move move, int som) {
 
 }
 
-int prepareNodes() {
-
-    int index = 0;
-    int current = 0;
-    int child = 0;
-    S32 move = 0;
-    S32 lastmove = MoveHistory[PLY]&0x3FFFFFFF;
-    S32 bestmove = MoveHistory[PLY-1]&0x3FFFFFFF;
-
-    int i,n;
-
-    if (lastmove == 0 || bestmove == 0)
-        return -1;
-
-    // get bestmove index
-    for (i=0; i < NODES[0].children;i++ ) {
-
-        child = NODES[0].child + i;
-
-        move = NODES[child].move&0x3FFFFFFF;
-
-        if (move == 0)
-            return -1;
-
-        if (move == bestmove) {
-            index = child;
-            break;
-        }
-    }
-
-    // no luck
-    if (index == 0)
-        return -2;
-
-    // get lastmove index
-    for (i=0; i < NODES[index].children;i++ ) {
-
-        child = NODES[index].child + i;
-
-        move = NODES[child].move&0x3FFFFFFF;
-
-        if (move == 0)
-            return -1;
-
-        if (move == lastmove ) {
-            current = child;
-            break;
-        }
-    }
-    
-    // no luck
-    if (current == 0)
-        return -3;
-
-    if ( current >= max_nodes_to_expand)
-        return -4;
-
-
-     // handle repetition or illegal
-    if (NODES[current].children <= 0) {
-        n = 0;
-        NODES_TMP[0].move                =  NODES[current].move;
-        NODES_TMP[0].score               =  NODES[current].score;
-        NODES_TMP[0].visits              =  0;
-        NODES_TMP[0].children            = -1;
-        NODES_TMP[0].parent              = -1;
-        NODES_TMP[0].child               = -1;
-        NODES_TMP[0].lock                = -1;
-
-        return 1;
-    }
-    // we got the lastmove index, so start copy action!
-    else  {    
-        n = 0;
-        NODES_TMP[0].move                =  NODES[current].move;
-        NODES_TMP[0].score               =  NODES[current].score;
-        NODES_TMP[0].visits              =  NODES[current].visits;
-        NODES_TMP[0].children            = -1;
-        NODES_TMP[0].parent              = -1;
-        NODES_TMP[0].child               = -1;
-        NODES_TMP[0].lock                = -1;
-    }
-    n++;
-
-    n = walkNodesRecursive(0, current, n);
-
-    return n;
-}
-
-int walkNodesRecursive(int parent, int current, int n) {
-
-    int i, child, new;
-
-
-    if (parent >= max_nodes_to_expand || current >= max_nodes_to_expand || NODES[current].child + NODES[current].children >= max_nodes_to_expand )
-        return n;
-
-    if (NODES[current].children >= 0) {
-        NODES_TMP[parent].children     =  (NODES[current].lock > -1)? -1   : NODES[current].children;
-        NODES_TMP[parent].child        =  (NODES[current].lock > -1)? -1   : n;
-//        NODES_TMP[parent].child        =  (NODES[current].lock > -1)? -1   : (NODES_TMP[parent].children > 0)? n : -1; // handle repetition?
-        NODES_TMP[parent].visits       =  (NODES[current].lock > -1)?  1   : NODES[current].visits;
-    }
-
-
-    for (i=0; i < NODES_TMP[parent].children;i++ ) {
-        
-        child = NODES[current].child + i;
-
-        NODES_TMP[n].move                   =  NODES[child].move;
-        NODES_TMP[n].score                  =  NODES[child].score; // handle repetition
-        NODES_TMP[n].visits                 =  1;
-        NODES_TMP[n].children               = -1;
-        NODES_TMP[n].parent                 =  parent;
-        NODES_TMP[n].child                  = -1;
-        NODES_TMP[n].lock                   = -1;
-
-        n++;
-    }
-
-
-    for (i=0; i < NODES_TMP[parent].children;i++ ) {
-        
-        child = NODES[current].child + i;
-        new  = NODES_TMP[parent].child + i;
-
-        n = walkNodesRecursive(new, child, n);
-    }
-
-
-    return n;
-}
-
-
-
 /* ############################# */
 /* ###      root search      ### */
 /* ############################# */
-
 Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
 
     int status = 0;
     int i,j= 0;
-    Score score = -INF-1;
-    Score tmpscore = -INF;
+    Score score;
+    Score tmpscore;
     int visits = 0;
     int tmpvisits = 0;
-//    Move PV[1024];
 
     Move bestmove = 0;
     double start, end;
@@ -897,42 +757,26 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
 
     start = get_time(); 
 
-    // prepare nodes from previous run
-    NODECOPIES = 0;
-    if (PLYPLAYED > 1 && reuse_node_tree == 1)
-        NODECOPIES = prepareNodes();
+    // prepare root node
+    BOARD_STACK_TOP = 1;
+    NODES[0].move                =  lastmove;
+    NODES[0].score               = -INF;
+    NODES[0].visits              =  0;
+    NODES[0].children            = -1;
+    NODES[0].parent              = -1;
+    NODES[0].child               = -1;
+    NODES[0].lock                =  0; // assign root node to process 0   
 
-    if (NODECOPIES <= 1) {
-        BOARD_STACK_TOP = 1;
-    }
-    else
-        BOARD_STACK_TOP = NODECOPIES;
-
-
-    if (NODECOPIES <= 1) {
-        NODES[0].move                =  lastmove;
-        NODES[0].score               = -INF;
-        NODES[0].visits              =  0;
-        NODES[0].children            = -1;
-        NODES[0].parent              = -1;
-        NODES[0].child               = -1;
-        NODES[0].lock                =  0; // assign root node to process 0   
-    }
-
-    if (NODECOPIES > 1 && reuse_node_tree == 1)
-        memcpy(NODES, NODES_TMP, max_nodes_to_expand * sizeof(NodeBlock));
-
-    // init vars
+    // init board
     memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
-
+    // reset counters
     if (COUNTERS)
       free(COUNTERS);
     COUNTERS = (U64*)calloc(totalThreads*10, sizeof(U64));
-
-
-
-    for(i=0;i<totalThreads;i++) {
-        memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+    // prepare hash history
+    for(i=0;i<totalThreads;i++)
+    {
+      memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
     }
 
     // call GPU functions
@@ -970,25 +814,21 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         exit(0);
     }
 */
-
-    // get best move from Tree
-    for(i=0; i < NODES[0].children; i++) {
-
+    // get best move from tree copied from cl device
+    score = -INF-1;
+    for(i=0; i < NODES[0].children; i++)
+    {
         j = NODES[0].child + i;
-
         tmpscore = -NODES[j].score;
         tmpvisits = NODES[j].visits;
-
 /*
         FILE 	*Stats;
         Stats = fopen("zeta.debug", "ab+");
         fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
         fclose(Stats);
 */
-
         if (ISINF(tmpscore)) // skip illegal
             continue;
-
         if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
         {
             score = tmpscore;
@@ -997,148 +837,52 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
             bestmove = NODES[j].move&0x000000003FFFFFFF;
         }
     }
-
     bestscore = score;
-
+    // single reply
     if (NODES[0].children == 1) {
-        bestscore = 0;
+        bestscore = NODES[NODES[0].child].score;
         bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
     }
-
     Bestmove = bestmove;
-
     // collect counters
     for (i=0; i < totalThreads; i++) {
         NODECOUNT+=     COUNTERS[i*10+0];
         TNODECOUNT+=    COUNTERS[i*10+1];
         ABNODECOUNT+=   COUNTERS[i*10+2];
     }
-
 //    bestscore = (S32)COUNTERS[totalThreads*4+0];
     MOVECOUNT = COUNTERS[3];
     plyreached = COUNTERS[5];
     MEMORYFULL = COUNTERS[6];
     bestmoveply = COUNTERS[7];
-
-    
-/*
-    // debug print into xboard.debug
-    for (i=0; i < 128; i++) {
-        printf("#score: %i , %i  ", i , (Score)COUNTERS[totalThreads*4+i]);
-        print_movealg((Move)COUNTERS[totalThreads*5+i]);
-    }
-*/
-
-
-    // Get PV
-/*
-    int tempo = -INF;
-    int tempomat = 0;
-    int tempomate = 0;
-    int pvi = 0;
-
-    while( NODES[tempomate].child > 0 && NODES[tempomate].child < max_nodes_to_expand)
-    {
-
-        tempo = -INF;
-        for (i=NODES[tempomate].child; i < NODES[tempomate].child + NODES[tempomate].children; i++) {
-
-
-            if ( NODES[i].score == INF || NODES[i].score == -INF)
-                continue;
-
-            if ( -NODES[i].score > tempo) {
-                tempo = -NODES[i].score;
-                tempomat = i;
-            }
-        }
-        if (tempomate == tempomat)
-            break;
-        tempomate = tempomat;
-
-        if ( tempomate >= max_nodes_to_expand) 
-            break;
-
-        PV[pvi] = NODES[tempomate].move;
-        pvi++;
-        bestmoveply = pvi;
-    }
-*/
-
-/*
-    // print debug node tree
-    tempo = -INF;
-    tempomat = 0;
-    tempomate = 0;
-
-    printf("#\n\n");
-
-    tempomate = 0;
-    printf("# score: %i, children: %i, visits: %i \n\n " , NODES[tempomate].score, NODES[tempomate].children, NODES[tempomate].visits);
-    while( NODES[tempomate].child > 0 ) {
-
-        printf("#");
-        print_movealg(NODES[tempomate].move);
-        printf("#\n\n");
-
-        tempo = -INF;
-        // debug print into xboard.debug
-        for (i=NODES[tempomate].child; i < NODES[tempomate].child + NODES[tempomate].children; i++) {
-            printf("#iter: %i , score: %i, children: %i, visits: %i ", i , NODES[i].score, NODES[i].children, NODES[i].visits);
-            printf("move ");
-            print_movealg(NODES[i].move);
-            printf("\n");
-
-            if ( NODES[i].score == INF || NODES[i].score == -INF)
-                continue;
-
-            if ( -NODES[i].score > tempo) {
-                tempo = -NODES[i].score;
-                tempomat = i;
-            }
-        }
-        if (tempomate == tempomat)
-            break;
-        tempomate = tempomat;
-    }
-*/
+    // timers
     end = get_time();
     Elapsed = end-start;
     Elapsed/=1000;
-
     // compute next nps value
     nps_current =  (int)(ABNODECOUNT/(Elapsed));
     nodes_per_second+= (ABNODECOUNT > (U64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
-
-
     // print xboard output
     if (post_mode == true || xboard_mode == false) {
         if ( xboard_mode == false )
             printf("depth score time nodes bfdepth pv \n");
         printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (int)(Elapsed*100), ABNODECOUNT, plyreached);          
         print_movealg(bestmove);
-/*
-        for (i=0;i<pvi;i++) {
-            printf(" ");
-            print_movealg(PV[i]);
-        }
-*/
         printf("\n");
     }
-
     print_stats();
-
     fflush(stdout);        
-
     return bestmove;
 }
-
-signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
-
+// run an benchmark for current set up
+S32 benchmark(Bitboard *board, int som, int depth, Move lastmove)
+{
     int status = 0;
     int i,j= 0;
     Score score = -INF;
     Score tmpscore = -INF;
+    int tmpvisits = 0;
+    int visits = 0;
 
     Move bestmove = 0;
     double start, end;
@@ -1153,41 +897,26 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
 
     start = get_time();
 
-    // prepare nodes from previous run
-    NODECOPIES = 0;
-    if (PLYPLAYED > 1 && reuse_node_tree == 1)
-        NODECOPIES = prepareNodes();
+    // prepare root node
+    BOARD_STACK_TOP = 1;
+    NODES[0].move                =  lastmove;
+    NODES[0].score               = -INF;
+    NODES[0].visits              =  0;
+    NODES[0].children            = -1;
+    NODES[0].parent              = -1;
+    NODES[0].child               = -1;
+    NODES[0].lock                =  0; // assign root node to process 0   
 
-    if (NODECOPIES <= 1) {
-        BOARD_STACK_TOP = 1;
-    }
-    else
-        BOARD_STACK_TOP = NODECOPIES;
-
-
-    if (NODECOPIES <= 1) {
-        NODES[0].move                =  0;
-        NODES[0].score               = -INF;
-        NODES[0].visits              =  0;
-        NODES[0].children            = -1;
-        NODES[0].parent              = -1;
-        NODES[0].child               = -1;
-        NODES[0].lock                =  0; // assign root node to process 0   
-    }
-
-    if (NODECOPIES > 1 && reuse_node_tree == 1)
-        memcpy(NODES, NODES_TMP, max_nodes_to_expand*sizeof(NodeBlock));
-
-    // init vars
+    // init board
     memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
-
-
+    // reset counters
     if (COUNTERS)
       free(COUNTERS);
     COUNTERS = (U64*)calloc(totalThreads*10, sizeof(U64));
-
-    for(i=0;i<totalThreads;i++) {
-        memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+    // prepare hash history
+    for(i=0;i<totalThreads;i++)
+    {
+      memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
     }
 
     // call GPU functions
@@ -1203,6 +932,7 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     if (status != 0)
         return -1;
 
+    // timers
     end = get_time();
     Elapsed = end-start;
     Elapsed/=1000;
@@ -1215,65 +945,64 @@ signed int benchmark(Bitboard *board, int som, int depth, Move lastmove) {
     if (status != 0)
         return -1;
 */
-    score = -INF;
-    // get best move from Tree
-    for(i=0; i < NODES[0].children; i++) {
-
+    // get best move from tree copied from cl device
+    score = -INF-1;
+    for(i=0; i < NODES[0].children; i++)
+    {
         j = NODES[0].child + i;
-
         tmpscore = -NODES[j].score;
-
-        if (abs(tmpscore) == INF) // skip illegal
+        tmpvisits = NODES[j].visits;
+/*
+        FILE 	*Stats;
+        Stats = fopen("zeta.debug", "ab+");
+        fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
+        fclose(Stats);
+*/
+        if (ISINF(tmpscore)) // skip illegal
             continue;
-
-        if (tmpscore > score ) {
+        if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
+        {
             score = tmpscore;
+            visits = tmpvisits;
             // collect bestmove
             bestmove = NODES[j].move&0x000000003FFFFFFF;
         }
     }
-
+    bestscore = score;
+    // single reply
     if (NODES[0].children == 1) {
-        bestscore = 0;
+        bestscore = NODES[NODES[0].child].score;
         bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
     }
-    else
-        bestscore = score;
-
     Bestmove = bestmove;
-
     // collect counters
     for (i=0; i < totalThreads; i++) {
         NODECOUNT+=     COUNTERS[i*10+0];
         TNODECOUNT+=    COUNTERS[i*10+1];
         ABNODECOUNT+=   COUNTERS[i*10+2];
     }
-
-    MOVECOUNT =     COUNTERS[3];
-    bestscore = (S32)COUNTERS[4];
+//    bestscore = (S32)COUNTERS[totalThreads*4+0];
+    MOVECOUNT = COUNTERS[3];
     plyreached = COUNTERS[5];
     MEMORYFULL = COUNTERS[6];
-
-
+    bestmoveply = COUNTERS[7];
     // print cli output
     printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore);          
     printf(" move ");
     print_movealg(bestmove);
     printf("\n");
-
     print_stats();
-
     fflush(stdout);        
-
     return 0;
 }
-
-signed int benchmarkNPS(int benchsec) {
-    
+// get nodes per second for temp config and specified position
+S32 benchmarkNPS(int benchsec)
+{
     signed int bench = 0;
     int status = 0;
 
     PLY =0;
+    // read temp config created by clconfig
     read_config("config.tmp");
     inits();
 
@@ -1283,16 +1012,13 @@ signed int benchmarkNPS(int benchsec) {
         free_resources();
         return -1;
     }
-
-    // print xboard output
 //    setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
 //    setboard((char *)"setboard r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
     setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
 
-
     print_board(BOARD);
     Elapsed = 0;
-    max_nodes = 8192;
+    max_nodes = 8192; // search 8k nodes
     while (Elapsed <= benchsec) {
         if (Elapsed *2 >= benchsec)
             break;
@@ -1304,15 +1030,12 @@ signed int benchmarkNPS(int benchsec) {
 		    printf("#> Lack of Device Memory\n\n");
             break;
         }
-        max_nodes*=2;
+        max_nodes*=2; // search double the nodes for next iteration
         setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
     }
-
     free_resources();
-
     if (Elapsed <= 0 || ABNODECOUNT <= 0)
         return -1;
-
     return (ABNODECOUNT/(Elapsed));
 }
 
