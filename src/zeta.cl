@@ -1604,7 +1604,7 @@ __kernel void bestfirst_gpu(
       // on root, set score of current node block and backup score
       if (sd < 0)
       {
-//        board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+        board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 //        board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
         current = board_stack[(index%max_nodes_per_slot)].child;
         mode = BACKUPSCORE;
