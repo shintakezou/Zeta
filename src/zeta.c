@@ -119,7 +119,7 @@ extern int load_file_to_string(const char *filename, char **result);
 // cl functions
 extern int initializeCLDevice();
 extern int initializeCL();
-extern int runCLKernels(int som, int depth, Move lastmove);
+extern int runCLKernels(int som, int depth);
 extern int clGetMemory();
 extern int releaseCLDevice();
 extern int GuessConfig(int extreme);
@@ -588,7 +588,7 @@ Move updateCR(Move move, Cr cr) {
     return move;
 }
 
-void domove(Bitboard *board, Move move, int som) {
+void domove(Bitboard *board, Move move) {
 
     Square from = getfrom(move);
     Square to   = getto(move);
@@ -660,7 +660,7 @@ void domove(Bitboard *board, Move move, int som) {
 //    updateHash(board, move);
 
 }
-void undomove(Bitboard *board, Move move, int som) {
+void undomove(Bitboard *board, Move move) {
 
 
     Square from = getfrom(move);
@@ -794,7 +794,7 @@ Move rootsearch(Bitboard *board, int som, int depth, Move lastmove) {
         free_resources();
         exit(0);
     }
-    status = runCLKernels(som, depth, lastmove);
+    status = runCLKernels(som, depth);
     // something went wrong...
     if (status != 0) {
         free_resources();
@@ -928,7 +928,7 @@ S32 benchmark(Bitboard *board, int som, int depth, Move lastmove)
     status = initializeCL();
     if (status != 0)
         return -1;
-    status = runCLKernels(som, depth, lastmove);
+    status = runCLKernels(som, depth);
     if (status != 0)
         return -1;
 
@@ -1381,7 +1381,7 @@ int main(void) {
 
             CR = (Lastmove>>36)&0xF;
             Lastmove = move;
-            domove(BOARD, Lastmove, SOM);
+            domove(BOARD, Lastmove);
             Lastmove = updateCR(Lastmove, CR);
             HashHistory[PLY] = BOARD[4];
             MoveHistory[PLY] = Lastmove;
@@ -1404,7 +1404,7 @@ int main(void) {
             PLY++;
             CR = (Lastmove>>36)&0xF;
             Lastmove = usermove;
-            domove(BOARD, Lastmove, SOM);
+            domove(BOARD, Lastmove);
             Lastmove = updateCR(Lastmove, CR);
             HashHistory[PLY] = BOARD[4];
             MoveHistory[PLY] = Lastmove;
@@ -1419,7 +1419,7 @@ int main(void) {
                 PLY++;
                 CR = (Lastmove>>36)&0xF;
                 Lastmove = move;
-                domove(BOARD, Lastmove, SOM);
+                domove(BOARD, Lastmove);
                 Lastmove = updateCR(Lastmove, CR);
                 HashHistory[PLY] = BOARD[4];
                 MoveHistory[PLY] = Lastmove;

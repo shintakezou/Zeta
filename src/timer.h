@@ -22,13 +22,13 @@
 #ifndef TIMER_H_INCLUDED
 #define TIMER_H_INCLUDED
 
-#include <string.h>     /* for string compare */ 
-#include <time.h>       /* for time measurent */
-#include <sys/time.h>   /* for gettimeofday */
+#include <string.h>     // for string compare
+#include <time.h>       // for time measurent
+#include <sys/time.h>   // for gettimeofday
 
 double get_time(void);
 void get_date_string(char *string);
 void fprintdate(FILE *file);
 
-#endif /* TIMER_H_INCLUDED */
+#endif // TIMER_H_INCLUDED
 

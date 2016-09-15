@@ -19,10 +19,10 @@
   GNU General Public License for more details.
 */
 
-#include <stdio.h>      /* for malloc free */
-#include <string.h>     /* for string compare */ 
-#include <time.h>       /* for time measurent */
-#include <sys/time.h>   /* for gettimeofday */
+#include <stdio.h>      // for malloc free
+#include <string.h>     // for string compare 
+#include <time.h>       // for time measurement
+#include <sys/time.h>   // for gettimeofday
 
 // get time in milli seconds
 double get_time(void) 
