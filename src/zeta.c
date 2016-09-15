@@ -37,34 +37,34 @@ u64 ABNODECOUNT = 0;
 s32 NODECOPIES = 0;
 u64 MEMORYFULL = 0;
 
-s32  PLY = 0;
-s32  PLYPLAYED = 0;
+s32 PLY = 0;
+s32 PLYPLAYED = 0;
 bool STM = WHITE;
 
 // config
-s32  threadsX            =  0;
-s32  threadsY            =  0;
-s32  threadsZ            =  0;
-s32  totalThreads        =  0;
-s32  nodes_per_second    =  0;
+s32 threadsX            =  0;
+s32 threadsY            =  0;
+s32 threadsZ            =  0;
+s32 totalThreads        =  0;
+s32 nodes_per_second    =  0;
 u64 max_nodes           =  0;
-s32  nps_current         =  0;
-s32  max_nodes_to_expand =  0;
-s32  memory_slots        =  1;
-s32  max_leaf_depth      =  0;
-s32  max_depth           = 99;
-s32  opencl_device_id    =  0;
-s32  opencl_platform_id  =  0;
+s32 nps_current         =  0;
+s32 max_nodes_to_expand =  0;
+s32 memory_slots        =  1;
+s32 max_leaf_depth      =  0;
+s32 max_depth           = 99;
+s32 opencl_device_id    =  0;
+s32 opencl_platform_id  =  0;
 
-s32  search_depth    = 0;
+s32 search_depth    = 0;
 u64 max_mem_mb      = 512;
-s32  max_cores       = 1;
-s32  force_mode      = false;
-s32  random_mode     = false;
-s32  xboard_mode     = false;
-s32  xboard_debug    = false;
-s32  post_mode       = false;
-s32  time_management = false;
+s32 max_cores       = 1;
+s32 force_mode      = false;
+s32 random_mode     = false;
+s32 xboard_mode     = false;
+s32 xboard_debug    = false;
+s32 post_mode       = false;
+s32 time_management = false;
 
 Move *MoveHistory;
 Hash *HashHistory;
@@ -72,18 +72,18 @@ Hash *HashHistory;
 // time management
 static double max_time_per_move = 0;
 static double time_per_move     = 0;
-static s32  max_moves            = 0;
-static s32  time_seconds         = 0;
-static s32  time_minutes         = 0;
+static s32 max_moves            = 0;
+static s32 time_seconds         = 0;
+static s32 time_minutes         = 0;
 static double time_left_opponent = 0;  
 static double time_left_computer = 0;  
 static char time_string[128];
-static s32  max_nps_per_move     = 0;
+static s32 max_nps_per_move     = 0;
 
 double Elapsed;
 Score bestscore = 0;
-s32  plyreached = 0;
-s32  bestmoveply = 0;
+s32 plyreached = 0;
+s32 bestmoveply = 0;
 
 // our quad bitboard
 Bitboard BOARD[5];
@@ -102,23 +102,21 @@ Cr  CR = 0;
 // functions
 Move move_parser(char *usermove, Bitboard *board, bool stm);
 void setboard(char *fen);
-void setboard_epd(char *fen);
 void move2alg(Move move, char * movec);
 void print_movealg(Move move);
 void print_bitboard(Bitboard board);
 void print_board(Bitboard *board);
 void print_stats();
 void read_config();
-s32  walkNodesRecursive(s32  parent, s32  current, s32  n);
-
-extern s32  load_file_to_string(const char *filename, char **result);
+// extern functions
+extern s32 load_file_to_string(const char *filename, char **result);
 // cl functions
-extern s32  initializeCLDevice();
-extern s32  initializeCL();
-extern s32  runCLKernels(bool stm, s32  depth);
-extern s32  clGetMemory();
-extern s32  releaseCLDevice();
-extern s32 GuessConfig(s32  extreme);
+extern s32 initializeCLDevice();
+extern s32 initializeCL();
+extern s32 runCLKernels(bool stm, s32 depth);
+extern s32 clGetMemory();
+extern s32 releaseCLDevice();
+extern s32 GuessConfig(s32 extreme);
 
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
@@ -474,7 +472,7 @@ Piece getPiece (Bitboard *board, Square sq) {
 Hash computeHash(Bitboard *board, bool stm) {
 
     Piece piece;
-    s32  side;
+    s32 side;
     Square pos;
     Bitboard bbBoth[2];
     Bitboard bbWork = 0;
@@ -729,14 +727,14 @@ void undomove(Bitboard *board, Move move) {
 /* ############################# */
 /* ###      root search      ### */
 /* ############################# */
-Move rootsearch(Bitboard *board, bool stm, s32  depth, Move lastmove) {
+Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
 
-    s32  status = 0;
-    s32  i,j= 0;
+    s32 status = 0;
+    s32 i,j= 0;
     Score score;
     Score tmpscore;
-    s32  visits = 0;
-    s32  tmpvisits = 0;
+    s32 visits = 0;
+    s32 tmpvisits = 0;
 
     Move bestmove = 0;
     double start, end;
@@ -1041,15 +1039,15 @@ s32 benchmarkNPS(s32 benchsec)
 /* ############################# */
 int main(void) {
 
-    char line[256];
-    char command[256];
-    char c_usermove[256];
-    s32 go = false;
-    Move move;
-    Move usermove;
-    s32 status = 0;
-    s32 benchsec = 0;
-    char configfile[256] = "config.ini";
+  char line[256];
+  char command[256];
+  char c_usermove[256];
+  s32 go = false;
+  Move move;
+  Move usermove;
+  s32 status = 0;
+  s32 benchsec = 0;
+  char configfile[256] = "config.ini";
     
   /* print engine info to console */
   fprintf(stdout,"Zeta %s\n",VERSION);
@@ -1630,107 +1628,6 @@ void setboard(char *fen) {
     HashHistory[PLY] = BOARD[4];
 
 }
-
-void setboard_epd(char *fen) {
-
-    s32 i, j, side;
-    s32 index;
-    s32 file = 0;
-    s32 rank = 7;
-    s32 pos  = 0;
-    char temp;
-    char position[255];
-    char csom[1];
-    char castle[5];
-    char castlechar;
-    char ep[3];
-    s32 bla;
-    s32 blubb;
-    Cr cr = 0;
-    char string[] = {" PNKBRQ pnkbrq/12345678"};
-
-	sscanf(fen, "%s %c %s %s %i %i", position, csom, castle, ep, &bla, &blubb);
-
-
-    BOARD[0] = 0;
-    BOARD[1] = 0;
-    BOARD[2] = 0;
-    BOARD[3] = 0;
-    BOARD[4] = 0;
-
-    i =0;
-    while (!(rank==0 && file==8)) {
-        temp = position[i];
-        i++;        
-        for (j=0;j<24;j++) {
-    		if (temp == string[j]) {
-                if (j == 14) {
-                    rank--;
-                    file=0;
-                }
-                else if (j >=15) {
-                    file+=j-14;
-                }
-                else {
-                    pos = (rank*8) + file;
-                    side = (j>6) ? 1 :0;
-                    index = side? j-7 : j;
-                    BOARD[0] |= (side == BLACK)? ((Bitboard)1<<pos) : 0;
-                    BOARD[1] |= ( (Bitboard)(index&1)<<pos);
-                    BOARD[2] |= ( ( (Bitboard)(index>>1)&1)<<pos);
-                    BOARD[3] |= ( ( (Bitboard)(index>>2)&1)<<pos);
-                    file++;
-                }
-                break;                
-            }
-        }
-    }
-
-    // site on move
-    if (csom[0] == 'w' || csom[0] == 'W') {
-        STM = WHITE;
-    }
-    if (csom[0] == 'b' || csom[0] == 'B') {
-        STM = BLACK;
-    }
-
-    // Castle Rights
-    cr = 0;
-    i = 0;
-    castlechar = castle[0];
-    if (castlechar != '-') {
-
-        while (castlechar != '\0') {
-    
-            // white queenside
-            if (castlechar == 'Q')
-                cr |= 1;
-            // white kingside
-            if (castlechar == 'K')
-                cr |= 1<<1;
-            // black queenside
-            if (castlechar == 'q')
-                cr |= 1<<2;
-            // black kingside
-            if (castlechar == 'k')
-                cr |= 1<<3;
-
-            i++;            
-            castlechar = castle[i];
-        }
-    }
-    CR = cr;
-
-    // TODO: set en passant flag
-    Lastmove  = 0;
-    Lastmove |= ((Move)cr)<<36;
-
-    // set hash
-    BOARD[4] = computeHash(BOARD, STM);
-    HashHistory[PLY] = BOARD[4];
-
-}
-
 
 /* ############################# */
 /* ###       print tools     ### */
