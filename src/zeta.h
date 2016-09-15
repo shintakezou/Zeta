@@ -24,40 +24,34 @@
 
 #include "types.h"
 
-int load_file_to_string(const char *filename, char **result);
+s32  load_file_to_string(const char *filename, char **result);
 void print_debug(char *debug);
 
 extern char *source;
 extern size_t sourceSize;
 
-extern int threadsW;
-extern int threadsX;
-extern int threadsY;
-extern int threadsZ;
-extern int totalThreads;
-extern int max_depth;
-extern int opencl_device_id;
-extern int opencl_platform_id;
-extern int max_nodes_to_expand;
-extern int memory_slots;
+// from ini config file
+extern s32 threadsX;
+extern s32 threadsY;
+extern s32 threadsZ;
+extern s32 totalThreads;
+extern s32 max_depth;
+extern s32 opencl_device_id;
+extern s32 opencl_platform_id;
+extern s32 max_nodes_to_expand;
+extern s32 memory_slots;
 extern u64 max_nodes;
-extern int max_depth;
-extern int max_leaf_depth;
-extern int PLY;
+extern s32 max_depth;
+extern s32 max_leaf_depth;
+// globals
+extern s32 PLY;
 extern s32 BOARD_STACK_TOP;
-extern int reuse_node_tree;
-
-extern u64 *rand_array;
 extern Bitboard *GLOBAL_INIT_BOARD;
 extern Move *GLOBAL_INIT_LASTMOVE;
 extern u64 *COUNTERS;
-extern signed int *NODES;
+extern NodeBlock *NODES;
 extern Move *GLOBAL_HASHHISTORY;
-
-extern Bitboard RAttacks[0x19000];
-extern Bitboard BAttacks[0x1480];
-
-
+// OpenCL memory buffer objects
 cl_mem   GLOBAL_INIT_BOARD_Buffer;
 cl_mem   GLOBAL_BOARD_STACK_1_Buffer;
 cl_mem   GLOBAL_BOARD_STACK_2_Buffer;
@@ -75,24 +69,22 @@ cl_mem	 GLOBAL_FINISHED_Buffer;
 cl_mem	 GLOBAL_MOVECOUNT_Buffer;
 cl_mem	 GLOBAL_PLYREACHED_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
-
+// OpenCL runtime objects
 cl_context          context;
 cl_device_id        *devices;
 cl_command_queue    commandQueue;
 cl_program          program;
 cl_kernel           kernel;
-
+// for files
 const char *content;
 const size_t *contentSize;
-
 extern char *source;
 extern size_t sourceSize;
-
+// for OpenCL config
 cl_uint numPlatforms;
 cl_platform_id platform;
 cl_uint deviceListSize;
 cl_context_properties cps[3];
-
 
 #endif // ZETA_H_INCLUDED
 

@@ -53,7 +53,6 @@ int max_nodes_to_expand =  0;
 int memory_slots        =  1;
 int max_leaf_depth      =  0;
 int max_depth           = 99;
-int reuse_node_tree     =  0;
 int opencl_device_id    =  0;
 int opencl_platform_id  =  0;
 
@@ -92,7 +91,6 @@ Bitboard BOARD[5];
 // for exchange with OpenCL Device
 Bitboard *GLOBAL_INIT_BOARD;
 NodeBlock *NODES = NULL;
-NodeBlock *NODES_TMP = NULL;
 u64 *COUNTERS;
 Hash *GLOBAL_HASHHISTORY;
 s32 BOARD_STACK_TOP;
@@ -412,7 +410,6 @@ void free_resources() {
     free(GLOBAL_INIT_BOARD);
     free(COUNTERS);
     free(NODES);
-    free(NODES_TMP);
     free(GLOBAL_HASHHISTORY);
 
     releaseCLDevice();
@@ -1861,7 +1858,6 @@ void read_config(char configfile[]) {
         sscanf(line, "memory_slots: %i;", &memory_slots);
         sscanf(line, "max_depth: %i;", &max_depth);
         sscanf(line, "max_leaf_depth: %i;", &max_leaf_depth);
-        sscanf(line, "reuse_node_tree: %i;", &reuse_node_tree);
         sscanf(line, "opencl_platform_id: %i;", &opencl_platform_id);
         sscanf(line, "opencl_device_id: %i;", &opencl_device_id);
 
@@ -1894,15 +1890,6 @@ void read_config(char configfile[]) {
         printf("memory alloc failed\n");
         free_resources();
         exit(0);
-    }
-
-    if (reuse_node_tree == 1) {
-        NODES_TMP = (NodeBlock*)malloc(max_nodes_to_expand * sizeof (NodeBlock));
-        if (NODES_TMP == NULL) {
-            printf("memory alloc failed\n");
-            free_resources();
-            exit(0);
-        }
     }
 
     COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));

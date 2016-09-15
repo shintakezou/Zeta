@@ -851,39 +851,37 @@ int  clGetMemory()
 
 
 
-//    if (reuse_node_tree == 1) {
-        // Enqueue readBuffer
-        status = clEnqueueReadBuffer(
-                    commandQueue,
-                    GLOBAL_BOARD_STACK_1_Buffer,
-                    CL_TRUE,
-                    0,
-                    sizeof(NodeBlock) * MAXMOVES+1,
-                    NODES,
-                    0,
-                    NULL,
-                    &events[1]);
-        
-        if(status != CL_SUCCESS) 
-	    { 
-            print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    // Enqueue readBuffer
+    status = clEnqueueReadBuffer(
+                commandQueue,
+                GLOBAL_BOARD_STACK_1_Buffer,
+                CL_TRUE,
+                0,
+                sizeof(NodeBlock) * MAXMOVES+1,
+                NODES,
+                0,
+                NULL,
+                &events[1]);
+    
+    if(status != CL_SUCCESS) 
+  { 
+        print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_BOARD_STACK_1_Buffer)\n");
 
-		    return 1;
-        }
-        // Wait for the read buffer to finish execution
-        status = clWaitForEvents(1, &events[1]);
-        if(status != CL_SUCCESS) 
-	    { 
-		    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_BOARD_STACK_1_Buffer)\n");
-		    return 1;
-	    }
-        status = clReleaseEvent(events[1]);
-        if(status != CL_SUCCESS) 
-	    { 
-		    print_debug((char *)"Error: Release event object.(GLOBAL_BOARD_STACK_1_Buffer)\n");
-		    return 1;
-	    }
-//    }
+    return 1;
+    }
+    // Wait for the read buffer to finish execution
+    status = clWaitForEvents(1, &events[1]);
+    if(status != CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    return 1;
+  }
+    status = clReleaseEvent(events[1]);
+    if(status != CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Release event object.(GLOBAL_BOARD_STACK_1_Buffer)\n");
+    return 1;
+  }
 
     /* release resources */
 
