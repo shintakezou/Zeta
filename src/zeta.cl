@@ -163,7 +163,7 @@ enum Squares
 #define SINGLEEXT            1          // 0 or 1
 #define PROMOEXT             1         // 0 or 1
 #define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
-#define SCOREWEIGHT          0.30    // factor for board score in select formula
+#define SCOREWEIGHT          0.75    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
 #define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
 #define MAXBFPLY             128  // max ply of bestfirst search tree
@@ -1203,8 +1203,15 @@ Score eval(__private Bitboard *board)
 
   return score;
 }
-
 // bestfirst minimax search on gpu
+/*
+  steps:
+  1. SELECT and lock node from stored tree in memory
+  2. UPDATESCORE in node tree, excluding selected one
+  3. EXPAND node in tree with generated child moves
+  4. MOVEUP/MOVEDOWN, perform shallow alphabeta search for node evaluation
+  5. BACKUPSCORE from alphabeta search to root in stored node tree
+*/
 __kernel void bestfirst_gpu(  
                             __global Bitboard *init_board,
                             __global NodeBlock *board_stack_1,
