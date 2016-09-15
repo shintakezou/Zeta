@@ -3,7 +3,7 @@
 CC=gcc
 #CC=/usr/bin/i686-w64-mingw32-gcc
 #CC=/usr/bin/x86_64-w64-mingw32-gcc
-CFLAGS=-Wall -Wextra -std=c99 -Wno-unused-parameter
+CFLAGS=-Wall -Wextra -std=c99
 
 TARGETS=zeta
 
