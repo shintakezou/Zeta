@@ -24,9 +24,9 @@
 
 #include "zeta.h"       // for global vars
 
-extern signed int benchmarkNPS();
+extern s32 benchmarkNPS();
 extern void read_config();
-extern int load_file_to_string(const char *filename, char **result);
+extern s32 load_file_to_string(const char *filename, char **result);
 extern const char filename[];
 
 // guess minimal and optimal setup for given cl device
@@ -370,7 +370,7 @@ bool cl_guess_config(bool extreme)
           continue;
         }
 
-        warpVal = (int *)malloc(1 * paramSize);
+        warpVal = (s32 *)malloc(1 * paramSize);
         status = clGetKernelWorkGroupInfo ( kernel,
                                             devices[j],
                                             CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,

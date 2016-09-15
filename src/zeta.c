@@ -413,6 +413,8 @@ void free_resources()
   if(GLOBAL_HASHHISTORY)
     free(GLOBAL_HASHHISTORY);
 
+  NODES = NULL;
+
   cl_release_device();
 }
 

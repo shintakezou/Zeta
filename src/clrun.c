@@ -813,7 +813,8 @@ bool cl_get_and_release_memory()
     print_debug((char *)"Error: In clReleaseKernel \n");
     return false; 
   }
-/*
+/* keep build program across game play
+
   status = clReleaseProgram(program);
   if(status!=CL_SUCCESS)
   {
@@ -945,7 +946,7 @@ bool cl_get_and_release_memory()
 // release OpenCL device, once by exit
 bool cl_release_device() {
 
-  if (program)
+  if (program!=NULL)
   {
     status = clReleaseProgram(program);
     if(status!=CL_SUCCESS)
@@ -955,7 +956,7 @@ bool cl_release_device() {
     }
   }
 
-  if (context)
+  if (context!=NULL)
   {
     status = clReleaseContext(context);
     if(status!=CL_SUCCESS)
