@@ -815,7 +815,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
     }
 */
     // get best move from tree copied from cl device
-    score = -INF-1;
+    score = -2147483647;
     for(i=0; i < NODES[0].children; i++)
     {
         j = NODES[0].child + i;
@@ -879,8 +879,8 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 {
     bool state;
     s32 i,j= 0;
-    Score score = -INF;
-    Score tmpscore = -INF;
+    Score score = -2147483647;
+    Score tmpscore;
     s32 tmpvisits = 0;
     s32 visits = 0;
 
@@ -951,7 +951,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
         return -1;
 */
     // get best move from tree copied from cl device
-    score = -INF-1;
+    score = -2147483647;
     for(i=0; i < NODES[0].children; i++)
     {
         j = NODES[0].child + i;
