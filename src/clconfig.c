@@ -19,10 +19,8 @@
   GNU General Public License for more details.
 */
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
+#include <stdio.h>      // for file io
+#include <string.h>     // for string comparing functions
 
 #include "zeta.h"
 

@@ -19,8 +19,8 @@
   GNU General Public License for more details.
 */
 
-#include <stdio.h>      // for malloc free
-#include <string.h>     // for string compare 
+#include <stdio.h>      // for file IO
+#include <string.h>     // for string comparing functions
 #include <time.h>       // for time measurement
 #include <sys/time.h>   // for gettimeofday
 

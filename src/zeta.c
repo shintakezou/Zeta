@@ -19,9 +19,7 @@
   GNU General Public License for more details.
 */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <stdio.h>      // for file IO
 
 #include "bitboard.h"
 #include "timer.h"
