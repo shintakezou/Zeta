@@ -24,35 +24,35 @@
 /* population count, Donald Knuth SWAR style */
 /* as described on CWP */
 /* http://chessprogramming.wikispaces.com/Population+Count#SWAR-Popcount */
-U64 popcount(U64 x) 
+s32 popcount(u64 x) 
 {
   x =  x                        - ((x >> 1)  & 0x5555555555555555);
   x = (x & 0x3333333333333333)  + ((x >> 2)  & 0x3333333333333333);
   x = (x                        +  (x >> 4)) & 0x0f0f0f0f0f0f0f0f;
   x = (x * 0x0101010101010101) >> 56;
-  return x;
+  return (s32)x;
 }
 /*  pre condition: x != 0; */
-U64 first1(U64 x)
+s32 first1(u64 x)
 {
   return popcount((x&-x)-1);
 }
 /*  pre condition: x != 0; */
-U64 popfirst1(U64 *a)
+s32 popfirst1(u64 *a)
 {
-  U64 b = *a;
+  u64 b = *a;
   *a &= (*a-1);  /* clear lsb  */
   return popcount((b&-b)-1); /* return pop count of isolated lsb */
 }
 /* Sqaures in between, pure calculation */
 /* http://chessprogramming.wikispaces.com/Square+Attacked+By#Legality */
-U64 sqinbetween(Square sq1, Square sq2)
+u64 sqinbetween(Square sq1, Square sq2)
 {
-  const U64 m1   = 0xFFFFFFFFFFFFFFFF;
-  const U64 a2a7 = 0x0001010101010100;
-  const U64 b2g7 = 0x0040201008040200;
-  const U64 h1b7 = 0x0002040810204080;
-  U64 btwn, line, rank, file;
+  const u64 m1   = 0xFFFFFFFFFFFFFFFF;
+  const u64 a2a7 = 0x0001010101010100;
+  const u64 b2g7 = 0x0040201008040200;
+  const u64 h1b7 = 0x0002040810204080;
+  u64 btwn, line, rank, file;
 
   btwn  = (m1 << sq1) ^ (m1 << sq2);
   file  =   (sq2 & 7) - (sq1   & 7);

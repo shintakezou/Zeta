@@ -664,7 +664,7 @@ int  runCLKernels(bool stm, int depth) {
 	}
     i++;
 
-    temp = (S32)stm;
+    temp = (s32)stm;
     status = clSetKernelArg(
                     kernel, 
                     i, 
@@ -823,7 +823,7 @@ int  clGetMemory()
                 COUNTERS_Buffer,
                 CL_TRUE,
                 0,
-                10*totalThreads * sizeof(U64),
+                10*totalThreads * sizeof(u64),
                 COUNTERS,
                 0,
                 NULL,

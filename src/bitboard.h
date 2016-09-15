@@ -24,10 +24,10 @@
 
 #include "types.h"      /* custom types, board defs, data structures, macros */
 
-U64 popcount(U64 x);
-U64 first1(U64 x);     /* precondition x!=0 */
-U64 popfirst1(U64 *a);  /* precondition x!=0 */
-U64 sqinbetween(Square sq1, Square sq2);
+s32 popcount(u64 x);
+s32 first1(u64 x);     /* precondition x!=0 */
+s32 popfirst1(u64 *a);  /* precondition x!=0 */
+u64 sqinbetween(Square sq1, Square sq2);
 
 #endif /* BITBOARD_H_INCLUDED */
 

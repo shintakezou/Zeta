@@ -30,12 +30,12 @@ const char filename[]  = "zeta.cl";
 char *source;
 size_t sourceSize;
 
-U64 MOVECOUNT = 0;
-U64 NODECOUNT = 0;
-U64 TNODECOUNT = 0;
-U64 ABNODECOUNT = 0;
-S32 NODECOPIES = 0;
-U64 MEMORYFULL = 0;
+u64 MOVECOUNT = 0;
+u64 NODECOUNT = 0;
+u64 TNODECOUNT = 0;
+u64 ABNODECOUNT = 0;
+s32 NODECOPIES = 0;
+u64 MEMORYFULL = 0;
 
 int PLY = 0;
 int PLYPLAYED = 0;
@@ -47,7 +47,7 @@ int threadsY            =  0;
 int threadsZ            =  0;
 int totalThreads        =  0;
 int nodes_per_second    =  0;
-U64 max_nodes           =  0;
+u64 max_nodes           =  0;
 int nps_current         =  0;
 int max_nodes_to_expand =  0;
 int memory_slots        =  1;
@@ -58,7 +58,7 @@ int opencl_device_id    =  0;
 int opencl_platform_id  =  0;
 
 int search_depth    = 0;
-U64 max_mem_mb      = 512;
+u64 max_mem_mb      = 512;
 int max_cores       = 1;
 int force_mode      = false;
 int random_mode     = false;
@@ -93,9 +93,9 @@ Bitboard BOARD[5];
 Bitboard *GLOBAL_INIT_BOARD;
 NodeBlock *NODES = NULL;
 NodeBlock *NODES_TMP = NULL;
-U64 *COUNTERS;
+u64 *COUNTERS;
 Hash *GLOBAL_HASHHISTORY;
-S32 BOARD_STACK_TOP;
+s32 BOARD_STACK_TOP;
 
 Move Bestmove = 0;
 Move Lastmove = 0;
@@ -770,7 +770,7 @@ Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
     // reset counters
     if (COUNTERS)
       free(COUNTERS);
-    COUNTERS = (U64*)calloc(totalThreads*10, sizeof(U64));
+    COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
     // prepare hash history
     for(i=0;i<totalThreads;i++)
     {
@@ -848,7 +848,7 @@ Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
         TNODECOUNT+=    COUNTERS[i*10+1];
         ABNODECOUNT+=   COUNTERS[i*10+2];
     }
-//    bestscore = (S32)COUNTERS[totalThreads*4+0];
+//    bestscore = (s32)COUNTERS[totalThreads*4+0];
     MOVECOUNT = COUNTERS[3];
     plyreached = COUNTERS[5];
     MEMORYFULL = COUNTERS[6];
@@ -859,7 +859,7 @@ Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
     Elapsed/=1000;
     // compute next nps value
     nps_current =  (int)(ABNODECOUNT/(Elapsed));
-    nodes_per_second+= (ABNODECOUNT > (U64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
+    nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
     // print xboard output
     if (post_mode == true || xboard_mode == false) {
         if ( xboard_mode == false )
@@ -873,7 +873,7 @@ Move rootsearch(Bitboard *board, bool stm, int depth, Move lastmove) {
     return bestmove;
 }
 // run an benchmark for current set up
-S32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
+s32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
 {
     int status = 0;
     int i,j= 0;
@@ -910,7 +910,7 @@ S32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
     // reset counters
     if (COUNTERS)
       free(COUNTERS);
-    COUNTERS = (U64*)calloc(totalThreads*10, sizeof(U64));
+    COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
     // prepare hash history
     for(i=0;i<totalThreads;i++)
     {
@@ -979,7 +979,7 @@ S32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
         TNODECOUNT+=    COUNTERS[i*10+1];
         ABNODECOUNT+=   COUNTERS[i*10+2];
     }
-//    bestscore = (S32)COUNTERS[totalThreads*4+0];
+//    bestscore = (s32)COUNTERS[totalThreads*4+0];
     MOVECOUNT = COUNTERS[3];
     plyreached = COUNTERS[5];
     MEMORYFULL = COUNTERS[6];
@@ -994,7 +994,7 @@ S32 benchmark(Bitboard *board, bool stm, int depth, Move lastmove)
     return 0;
 }
 // get nodes per second for temp config and specified position
-S32 benchmarkNPS(int benchsec)
+s32 benchmarkNPS(int benchsec)
 {
     signed int bench = 0;
     int status = 0;
@@ -1905,7 +1905,7 @@ void read_config(char configfile[]) {
         }
     }
 
-    COUNTERS = (U64*)calloc(10*totalThreads, sizeof(U64));
+    COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
 
     if (COUNTERS == NULL) {
         printf("memory alloc failed\n");

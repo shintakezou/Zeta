@@ -27,7 +27,7 @@
 
 extern signed int benchmarkNPS();
 extern void read_config();
-extern U64 max_mem_mb;
+extern u64 max_mem_mb;
 extern int load_file_to_string(const char *filename, char **result);
 extern const char filename[];
 extern int initializeCLDevice();

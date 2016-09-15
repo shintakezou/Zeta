@@ -27,32 +27,32 @@
 #include "CL/cl.h"    // for OpenCL data types etc.
 
 // OpenCL data types to own
-typedef cl_ulong U64;
-typedef cl_uint U32;
-typedef cl_int S32;
+typedef cl_ulong u64;
+typedef cl_uint u32;
+typedef cl_int s32;
 typedef cl_uchar U8;
 typedef cl_bool bool;
 // boolean val
 #define true  1
 #define false 0
 
-typedef U64 Move;
-typedef U64 Bitboard;
-typedef U32 Cr;
-typedef U64 Hash;
+typedef u64 Move;
+typedef u64 Bitboard;
+typedef u32 Cr;
+typedef u64 Hash;
 
-typedef S32 Score;
+typedef s32 Score;
 typedef U8 Square;
 typedef U8 Piece;
 
 typedef struct {
     Move move;
     Score score;
-    S32 lock;
-    S32 visits;
-    S32 child;
-    S32 children;
-    S32 parent;
+    s32 lock;
+    s32 visits;
+    s32 child;
+    s32 children;
+    s32 parent;
 }  NodeBlock;
 
 #define VERSION "098e"

@@ -40,17 +40,17 @@ extern int opencl_device_id;
 extern int opencl_platform_id;
 extern int max_nodes_to_expand;
 extern int memory_slots;
-extern U64 max_nodes;
+extern u64 max_nodes;
 extern int max_depth;
 extern int max_leaf_depth;
 extern int PLY;
-extern S32 BOARD_STACK_TOP;
+extern s32 BOARD_STACK_TOP;
 extern int reuse_node_tree;
 
-extern U64 *rand_array;
+extern u64 *rand_array;
 extern Bitboard *GLOBAL_INIT_BOARD;
 extern Move *GLOBAL_INIT_LASTMOVE;
-extern U64 *COUNTERS;
+extern u64 *COUNTERS;
 extern signed int *NODES;
 extern Move *GLOBAL_HASHHISTORY;
 
