@@ -582,7 +582,6 @@ bool cl_guess_config(bool extreme)
         printf("opencl_platform_id: %i; // which present OpenCL platform to use\n",i);
         printf("opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
 
-        printf("#\n");
         printf("##### Above output was saved in file %s \n", confignamefile);
         printf("#\n");
       }
