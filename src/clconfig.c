@@ -499,6 +499,9 @@ bool cl_guess_config(bool extreme)
           // get threadsY, multi for warpsize
           while (npstmp>=nps)
           {
+            if (npstmp>=nps)
+              warpmulti*=2;
+
             nps = npstmp;
 
             Cfg = fopen("config.tmp", "w");
@@ -528,16 +531,12 @@ bool cl_guess_config(bool extreme)
               npstmp = nps;
               break;
             }
-
             // 10% speedup margin
             if (npstmp<=nps*1.10)
             {
               npstmp = nps;
               break;
             }
-
-            if (npstmp>=nps)
-              warpmulti*=2;
           }
 
           remove("config.tmp");
