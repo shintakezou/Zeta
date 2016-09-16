@@ -826,7 +826,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
         tmpvisits = NODES[j].visits;
 /*
         FILE 	*Stats;
-        Stats = fopen("zeta.debug", "ab+");
+        Stats = fopen("zeta.debug", "a");
         fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
         fclose(Stats);
 */
@@ -959,7 +959,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
         tmpvisits = NODES[j].visits;
 /*
         FILE 	*Stats;
-        Stats = fopen("zeta.debug", "ab+");
+        Stats = fopen("zeta.debug", "a");
         fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
         fclose(Stats);
 */
@@ -1739,7 +1739,7 @@ void print_board(Bitboard *board) {
 
 void print_stats() {
     FILE 	*Stats;
-    Stats = fopen("zeta.debug", "ab+");
+    Stats = fopen("zeta.debug", "a");
     fprintf(Stats, "iterations: %" PRIu64 " ,Expaned Nodes: %" PRIu64 " , MemoryFull: %" PRIu64 ", AB-Nodes: %" PRIu64 " , Movecount: %" PRIu64 " , Node Copies: %i, bestmove: %" PRIu64 ", depth: %i, Score: %i, ScoreDepth: %i,  sec: %f \n", NODECOUNT, TNODECOUNT, MEMORYFULL, ABNODECOUNT, MOVECOUNT, NODECOPIES, Bestmove, plyreached, bestscore/10, bestmoveply, Elapsed);
     fclose(Stats);
 }
@@ -1753,6 +1753,8 @@ void read_config(char configfile[]) {
 
     if (fcfg == NULL) {
         printf("%s file missing\n", configfile);
+        printf("try help command for options\n");
+        printf("or guessconfig command to create a config.ini file\n");
         exit(0);
     }
 
@@ -1777,7 +1779,7 @@ void read_config(char configfile[]) {
 
 /*
     FILE 	*Stats;
-    Stats = fopen("zeta.debug", "ab+");
+    Stats = fopen("zeta.debug", "a");
     fprintf(Stats, "max_nodes_to_expand: %i ", max_nodes_to_expand);
     fclose(Stats);
 */
@@ -1825,7 +1827,7 @@ void read_config(char configfile[]) {
 int load_file_to_string(const char *filename, char **result) 
 { 
 	unsigned int size = 0;
-	FILE *f = fopen(filename, "rb");
+	FILE *f = fopen(filename, "r");
 	if (f == NULL) 
 	{ 
 		*result = NULL;

@@ -143,7 +143,7 @@ bool cl_init_device()
       // second call to get the log
       status = clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
       //build_log[log_size] = '\0';
-      temp = fopen("zeta.debug", "ab+");
+      temp = fopen("zeta.debug", "a");
       fprintf(temp, "buildlog: %s \n", build_log);
       fclose(temp);
       if(status!=CL_SUCCESS) 
@@ -971,7 +971,7 @@ bool cl_release_device() {
 // debug printing
 void print_debug(char *debug) {
     FILE 	*Stats;
-    Stats = fopen("zeta.debug", "ab+");
+    Stats = fopen("zeta.debug", "a");
     fprintf(Stats, "%s, status:%i", debug, status);
     if (status == CL_DEVICE_NOT_AVAILABLE)
         fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE");
