@@ -1781,8 +1781,6 @@ void read_config(char configfile[]) {
 
     max_nodes_to_expand = max_memory*1024*1024/sizeof(NodeBlock);
 
-printf("\n\nmax_nodes_to_expand:%d\n\n",max_nodes_to_expand);
-
 /*
     FILE 	*Stats;
     Stats = fopen("zeta.debug", "ab+");
