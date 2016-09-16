@@ -45,7 +45,6 @@ bool cl_guess_config(bool extreme)
   s32 warpmulti = 1;
   s32 nps = 0;
   s32 npstmp = 0;
-  s32 npsreal = 0;
   s32 devicecounter = 0;
   s32 benchsec = 10;
     
@@ -409,33 +408,48 @@ bool cl_guess_config(bool extreme)
 
         Cfg = fopen("config.tmp", "w");
         fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
-        fprintf(Cfg, "threadsX: %i; // number of SIMD units or CPU cores\n", deviceunits);
-        fprintf(Cfg, "threadsY: %i; // multiplier for threadsZ \n", warpmulti);
-        fprintf(Cfg, "threadsZ: %i; // mumber of threads per SIMD Unit or core\n\n", warpsize);
-        fprintf(Cfg, "nodes_per_second: %i; // nps of device, for time control\n", npsreal);
-        fprintf(Cfg, "max_nodes: 0; // search n nodes, 0 is inf \n");
-        fprintf(Cfg, "max_memory: %i; // device node tree size per slot in MB\n", (s32)devicememalloc/1024/1024);
+        fprintf(Cfg, "threadsX: %i;\n", deviceunits);
+        fprintf(Cfg, "threadsY: %i;\n", warpmulti);
+        fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
+        fprintf(Cfg, "nodes_per_second: %i;\n", nps);
+        fprintf(Cfg, "max_nodes: 0;\n");
+        fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-        fprintf(Cfg, "max_ab_depth: 0; // perform depth n alphabeta search in evaluation\n");
-        fprintf(Cfg, "max_depth: 32; / max internal alphabeta depth\n");
-        fprintf(Cfg, "opencl_platform_id: %i; // which present OpenCL platform to use\n",i);
-        fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
+        fprintf(Cfg, "max_ab_depth: 0;\n");
+        fprintf(Cfg, "max_depth: 32;\n");
+        fprintf(Cfg, "opencl_platform_id: %i;\n",i);
+        fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
+        fprintf(Cfg,"\n");
+        fprintf(Cfg,"config options explained:\n");
+        fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
+        fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
+        fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+        fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
+        fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
+        fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
+        fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+        fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
+        fprintf(Cfg,"max_depth => max alphabeta search depth\n");
+        fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
+        fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
         fclose(Cfg);
 
         printf("#\n");
         printf("#> ### Running NPS-Benchmark for minimal config on device, this can last %i seconds... \n", benchsec);
         printf("#\n");
-        npsreal = benchmarkNPS(benchsec);
+        npstmp = benchmarkNPS(benchsec);
         remove("config.tmp");
         
         // something went wrong
-        if (npsreal <= 0)
+        if (npstmp<=0)
         {
           printf("#\n");
           printf("#> ### Benchmark FAILED, see zeta.debug file for more info... \n");
           printf("#\n");
           continue;
         }
+
+        nps = npstmp;
 
         // iterate through threadsY, get best multi for warp resp. wavefront size
         if (extreme)
@@ -444,79 +458,36 @@ bool cl_guess_config(bool extreme)
           printf("#\n");
           printf("#> ### Running NPS-Benchmark for best config, this can last some minutes... \n");
           printf("#\n");
-
-          nps = npsreal;
-          npstmp =  npsreal;
-
 /*
           // get threadsZ, warpsize, deprecated...
-          while (npstmp >= nps)
+          while (true)
           {
-            nps = npstmp;
-
             Cfg = fopen("config.tmp", "w");
             fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
-            fprintf(Cfg, "threadsX: %i; // number of SIMD units or CPU cores\n", deviceunits);
-            fprintf(Cfg, "threadsY: %i; // multiplier for threadsZ \n", warpmulti);
-            fprintf(Cfg, "threadsZ: %i; // mumber of threads per SIMD Unit or core\n\n", warpsize);
-            fprintf(Cfg, "nodes_per_second: %i; // nps of device, for time control\n", npsreal);
-            fprintf(Cfg, "max_nodes: 0; // search n nodes, 0 is inf \n");
-            fprintf(Cfg, "max_memory: %i; // device node tree size per slot in MB\n", (s32)devicememalloc/1024/1024);
+            fprintf(Cfg, "threadsX: %i;\n", deviceunits);
+            fprintf(Cfg, "threadsY: %i;\n", warpmulti);
+            fprintf(Cfg, "threadsZ: %i;\n\n", warpsize*2);
+            fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
+            fprintf(Cfg, "max_nodes: 0;\n");
+            fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-            fprintf(Cfg, "max_ab_depth: 0; // perform depth n alphabeta search in evaluation\n");
-            fprintf(Cfg, "max_depth: 32; / max internal alphabeta depth\n");
-            fprintf(Cfg, "opencl_platform_id: %i; // which present OpenCL platform to use\n",i);
-            fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
-            fclose(Cfg);
-
-            printf("#> ### Running NPS-Benchmark for threadsZ on device, this can last %i seconds... \n\n", benchsec);
-            npstmp = benchmarkNPS(benchsec);
-            remove("config.tmp");
-
-            // something went wrong
-            if (npstmp <= 0)
-            {
-              npstmp = nps;
-              break;
-            }
-
-            // 10% speedup margin
-            if (npstmp <= nps*1.10)
-            {
-              npstmp = nps;
-              break;
-            }
-
-            if (npstmp >= nps )
-              warpsize*=2;
-          }
-
-          printf("\n\n");
-          npstmp = nps;
-*/
-
-
-          // get threadsY, multi for warpsize
-          while (npstmp>=nps)
-          {
-            if (npstmp>=nps)
-              warpmulti*=2;
-
-            nps = npstmp;
-
-            Cfg = fopen("config.tmp", "w");
-            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
-            fprintf(Cfg, "threadsX: %i; // number of SIMD units or CPU cores\n", deviceunits);
-            fprintf(Cfg, "threadsY: %i; // multiplier for threadsZ \n", warpmulti);
-            fprintf(Cfg, "threadsZ: %i; // mumber of threads per SIMD Unit or core\n\n", warpsize);
-            fprintf(Cfg, "nodes_per_second: %i; // nps of device, for time control\n", npsreal);
-            fprintf(Cfg, "max_nodes: 0; // search n nodes, 0 is inf \n");
-            fprintf(Cfg, "max_memory: %i; // device node tree size per slot in MB\n", (s32)devicememalloc/1024/1024);
-            fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-            fprintf(Cfg, "max_ab_depth: 0; // perform depth n alphabeta search in evaluation\n");
-            fprintf(Cfg, "max_depth: 32; / max internal alphabeta depth\n");
-            fprintf(Cfg, "opencl_platform_id: %i; // which present OpenCL platform to use\n",i);
-            fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
+            fprintf(Cfg, "max_ab_depth: 0;\n");
+            fprintf(Cfg, "max_depth: 32;\n");
+            fprintf(Cfg, "opencl_platform_id: %i;\n",i);
+            fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
+            fprintf(Cfg,"\n");
+            fprintf(Cfg,"config options explained:\n");
+            fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
+            fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
+            fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+            fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
+            fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
+            fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
+            fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+            fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
+            fprintf(Cfg,"max_depth => max alphabeta search depth\n");
+            fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
+            fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
             fclose(Cfg);
 
             printf("#\n");
@@ -527,23 +498,70 @@ bool cl_guess_config(bool extreme)
 
             // something went wrong
             if (npstmp<=0)
-            {
-              npstmp = nps;
               break;
-            }
             // 10% speedup margin
             if (npstmp<=nps*1.10)
-            {
-              npstmp = nps;
               break;
+            // increase threadsZ
+            if (npstmp>=nps)
+              warpsize*=2;
+              nps = npstmp;
+            }
+          }
+*/
+          // get threadsY, multi for warpsize
+          while (true)
+          {
+            Cfg = fopen("config.tmp", "w");
+            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+            fprintf(Cfg, "threadsX: %i;\n", deviceunits);
+            fprintf(Cfg, "threadsY: %i;\n", warpmulti*2);
+            fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
+            fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
+            fprintf(Cfg, "max_nodes: 0;\n");
+            fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+            fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
+            fprintf(Cfg, "max_ab_depth: 0;\n");
+            fprintf(Cfg, "max_depth: 32;\n");
+            fprintf(Cfg, "opencl_platform_id: %i;\n",i);
+            fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
+            fprintf(Cfg,"\n");
+            fprintf(Cfg,"config options explained:\n");
+            fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
+            fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
+            fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+            fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
+            fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
+            fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
+            fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+            fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
+            fprintf(Cfg,"max_depth => max alphabeta search depth\n");
+            fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
+            fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
+            fclose(Cfg);
+
+            printf("#\n");
+            printf("#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
+            printf("#\n");
+            npstmp = benchmarkNPS(benchsec);
+            remove("config.tmp");
+
+            // something went wrong
+            if (npstmp<=0)
+              break;
+            // 10% speedup margin
+            if (npstmp<=nps*1.10)
+              break;
+            // increase threadsY
+            if (npstmp>=nps)
+            {
+              warpmulti*=2;
+              nps = npstmp;
             }
           }
 
           remove("config.tmp");
         }
-
-        if (nps >= npsreal)
-            npsreal = nps;
 
         devicecounter++;
 
@@ -555,33 +573,62 @@ bool cl_guess_config(bool extreme)
 
         Cfg = fopen(confignamefile, "w");
         fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
-        fprintf(Cfg, "threadsX: %i; // number of SIMD units or CPU cores\n", deviceunits);
-        fprintf(Cfg, "threadsY: %i; // multiplier for threadsZ \n", warpmulti);
-        fprintf(Cfg, "threadsZ: %i; // mumber of threads per SIMD Unit or core\n\n", warpsize);
-        fprintf(Cfg, "nodes_per_second: %i; // nps of device, for time control\n", npsreal);
-        fprintf(Cfg, "max_nodes: 0; // search n nodes, 0 is inf \n");
-        fprintf(Cfg, "max_memory: %i; // device node tree size per slot in MB\n", (s32)devicememalloc/1024/1024);
+        fprintf(Cfg, "threadsX: %i;\n", deviceunits);
+        fprintf(Cfg, "threadsY: %i;\n", warpmulti);
+        fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
+        fprintf(Cfg, "nodes_per_second: %i;\n", nps);
+        fprintf(Cfg, "max_nodes: 0;\n");
+        fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-        fprintf(Cfg, "max_ab_depth: 0; // perform depth n alphabeta search in evaluation\n");
-        fprintf(Cfg, "max_depth: 32; / max internal alphabeta depth\n");
-        fprintf(Cfg, "opencl_platform_id: %i; // which present OpenCL platform to use\n",i);
-        fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
+        fprintf(Cfg, "max_ab_depth: 0;\n");
+        fprintf(Cfg, "max_depth: 32;\n");
+        fprintf(Cfg, "opencl_platform_id: %i;\n",i);
+        fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
+        fprintf(Cfg,"\n");
+        fprintf(Cfg,"config options explained:\n");
+        fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
+        fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
+        fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+        fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
+        fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
+        fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
+        fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+        fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
+        fprintf(Cfg,"max_depth => max alphabeta search depth\n");
+        fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
+        fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
         fclose(Cfg);
 
         printf("#\n");
         printf("#\n");
         printf("// Zeta OpenCL Chess config file for %s \n\n", paramValue);
-        printf("threadsX: %i; // number of SIMD units or CPU cores\n", deviceunits);
-        printf("threadsY: %i; // multiplier for threadsZ \n", warpmulti);
-        printf("threadsZ: %i; // number of threads per SIMD unit or core\n\n", warpsize);
-        printf("nodes_per_second: %i; // nps of device, for time control\n", npsreal);
-        printf("max_nodes: 0; // search n nodes, 0 is inf \n");
-        printf("max_memory: %i; // device node tree size per slot in MB\n", (s32)devicememalloc/1024/1024);
-        printf("memory_slots: %i; // max 3 \n", memory_slots);
-        printf("max_ab_depth: 0; // perform depth n alphabeta search in evaluation\n");
-        printf("max_depth: 32; // max internal alphabeta depth\n");
-        printf("opencl_platform_id: %i; // which present OpenCL platform to use\n",i);
-        printf("opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
+        printf("threadsX: %i;\n", deviceunits);
+        printf("threadsY: %i;\n", warpmulti);
+        printf("threadsZ: %i;\n", warpsize);
+        printf("nodes_per_second: %i;\n", nps);
+        printf("max_nodes: 0;\n");
+        printf("max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+        printf("memory_slots: %i;\n", memory_slots);
+        printf("max_ab_depth: 0;\n");
+        printf("max_depth: 32;\n");
+        printf("opencl_platform_id: %i;\n",i);
+        printf("opencl_device_id: %i;\n\n",j);
+
+/*
+        printf("\n");
+        printf("config options explained:\n");
+        printf("threadsX => number of SIMD units or CPU cores\n");
+        printf("threadsY => multiplier for threadsZ\n");
+        printf("threadsZ => mumber of threads per SIMD Unit or core\n");
+        printf("nodes_per_second => nps of device, for time control\n");
+        printf("max_nodes => search n nodes, 0 is inf\n");
+        printf("max_memory => allocate n MB of memory on device for the node tree\n");
+        printf("memory_slots => allocate n times max_memory on device, max is 3\n");
+        printf("max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
+        printf("max_depth => max alphabeta search depth\n");
+        printf("opencl_platform_id => which OpenCL platform to use\n");
+        printf("opencl_device_id => which OpenCL device to use %i;\n\n",j);
+*/
 
         printf("##### Above output was saved in file %s \n", confignamefile);
         printf("#\n");
