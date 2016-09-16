@@ -8,7 +8,7 @@ CFLAGS=-Wall -Wextra -std=c99
 TARGETS=zeta
 
 zeta: 
-	$(CC) $(CFLAGS) -o zeta bitboard.c clconfig.c clrun.c timer.c zeta.c -I. -L. -lm -lOpenCL 
+	$(CC) $(CFLAGS) -o zeta bitboard.c clconfig.c clrun.c timer.c zeta.c -I. -L. -lOpenCL 
 
 clean:
 	rm -f ${TARGETS}
