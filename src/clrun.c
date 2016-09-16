@@ -641,7 +641,7 @@ bool cl_run_kernel(bool stm, int depth)
                           (void *)&depth);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (max_leaf_depth)\n");
+    print_debug((char *)"Error: Setting kernel argument. (max_ab_depth)\n");
     return false;
   }
   i++;

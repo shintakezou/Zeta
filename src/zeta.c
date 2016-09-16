@@ -52,7 +52,7 @@ s32 nps_current         =  0;
 s32 max_memory          =  0;
 s32 max_nodes_to_expand =  0;
 s32 memory_slots        =  1;
-s32 max_leaf_depth      =  0;
+s32 max_ab_depth        =  0;
 s32 max_depth           = 99;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
@@ -1024,7 +1024,7 @@ s32 benchmarkNPS(s32 benchsec)
         if (Elapsed *2 >= benchsec)
             break;
         PLY = 0;
-        bench = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
+        bench = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
         if (bench != 0 )
             break;
         if (MEMORYFULL == 1) {
@@ -1158,7 +1158,7 @@ int main(void) {
                 if (Elapsed *2 >= benchsec)
                     break;
                 PLY = 0;
-                status = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
+                status = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
@@ -1192,7 +1192,7 @@ int main(void) {
                 if (Elapsed *2 >= benchsec)
                     break;
                 PLY = 0;
-                status = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
+                status = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
@@ -1225,7 +1225,7 @@ int main(void) {
                 if (Elapsed *2 >= benchsec)
                     break;
                 PLY = 0;
-                status = benchmark(BOARD, STM, max_leaf_depth, Lastmove);                
+                status = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
@@ -1382,7 +1382,7 @@ int main(void) {
 
             PLYPLAYED = (int)(PLY/2);
 
-            move = rootsearch(BOARD, STM, max_leaf_depth, Lastmove);            
+            move = rootsearch(BOARD, STM, max_ab_depth, Lastmove);            
             PLY++;
 
             CR = (Lastmove>>36)&0xF;
@@ -1421,7 +1421,7 @@ int main(void) {
             STM = !STM;
             if ( force_mode == false && go == true) {
                 go = true;
-                move = rootsearch(BOARD, STM, max_leaf_depth, Lastmove);
+                move = rootsearch(BOARD, STM, max_ab_depth, Lastmove);
                 PLY++;
                 CR = (Lastmove>>36)&0xF;
                 Lastmove = move;
@@ -1769,7 +1769,7 @@ void read_config(char configfile[]) {
         sscanf(line, "max_memory: %d;", &max_memory);
         sscanf(line, "memory_slots: %i;", &memory_slots);
         sscanf(line, "max_depth: %i;", &max_depth);
-        sscanf(line, "max_leaf_depth: %i;", &max_leaf_depth);
+        sscanf(line, "max_ab_depth: %i;", &max_ab_depth);
         sscanf(line, "opencl_platform_id: %i;", &opencl_platform_id);
         sscanf(line, "opencl_device_id: %i;", &opencl_device_id);
 
