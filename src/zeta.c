@@ -840,7 +840,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
             bestmove = NODES[j].move&0x000000003FFFFFFF;
         }
     }
-    bestscore = score;
+    bestscore = ISINF(score)?DRAWSCORE:score;
     Bestmove = bestmove;
     // collect counters
     for (i=0; i < totalThreads; i++) {
@@ -973,7 +973,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
             bestmove = NODES[j].move&0x000000003FFFFFFF;
         }
     }
-    bestscore = score;
+    bestscore = ISINF(score)?DRAWSCORE:score;
     Bestmove = bestmove;
     // collect counters
     for (i=0; i < totalThreads; i++) {
@@ -987,7 +987,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
     MEMORYFULL = COUNTERS[6];
     bestmoveply = COUNTERS[7];
     // print cli output
-    printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore);          
+    printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore/10);
     printf(" move ");
     print_movealg(bestmove);
     printf("\n");
