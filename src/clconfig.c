@@ -431,7 +431,9 @@ bool cl_guess_config(bool extreme)
         // something went wrong
         if (npsreal <= 0)
         {
-          printf("#> ### Benchmark failed, see zeta.debug file for more info... \n");
+          printf("#\n");
+          printf("#> ### Benchmark FAILED, see zeta.debug file for more info... \n");
+          printf("#\n");
           continue;
         }
 
