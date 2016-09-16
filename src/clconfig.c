@@ -422,7 +422,9 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
         fclose(Cfg);
 
+        printf("#\n");
         printf("#> ### Running NPS-Benchmark for minimal config on device, this can last %i seconds... \n", benchsec);
+        printf("#\n");
         npsreal = benchmarkNPS(benchsec);
         remove("config.tmp");
         
@@ -437,13 +439,12 @@ bool cl_guess_config(bool extreme)
         if (extreme)
         {
 
-          printf("\n\n");
-          printf("#> ### Running NPS-Benchmark for best config, this can last some minutes... \n\n");
+          printf("#\n");
+          printf("#> ### Running NPS-Benchmark for best config, this can last some minutes... \n");
+          printf("#\n");
 
           nps = npsreal;
           npstmp =  npsreal;
-
-          printf("\n\n");
 
 /*
           // get threadsZ, warpsize, deprecated...
@@ -466,7 +467,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
             fclose(Cfg);
 
-            printf("#> ### Running NPS-Benchmark for threadsZ on device, this can last %i seconds... \n", benchsec);
+            printf("#> ### Running NPS-Benchmark for threadsZ on device, this can last %i seconds... \n\n", benchsec);
             npstmp = benchmarkNPS(benchsec);
             remove("config.tmp");
 
@@ -513,7 +514,9 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
             fclose(Cfg);
 
+            printf("#\n");
             printf("#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
+            printf("#\n");
             npstmp = benchmarkNPS(benchsec);
             remove("config.tmp");
 
@@ -536,8 +539,6 @@ bool cl_guess_config(bool extreme)
           }
 
           remove("config.tmp");
-          printf("\n\n");
-
         }
 
         if (nps >= npsreal)
@@ -566,13 +567,13 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
         fclose(Cfg);
 
-        printf("\n\n");                
-
+        printf("#\n");
+        printf("#\n");
         printf("// Zeta OpenCL Chess config file for %s \n\n", paramValue);
         printf("threadsX: %i; // number of SIMD units or CPU cores\n", deviceunits);
         printf("threadsY: %i; // multiplier for threadsZ \n", warpmulti);
         printf("threadsZ: %i; // number of threads per SIMD unit or core\n\n", warpsize);
-        printf("nodes_per_second: %i; \n // nps of device, for time control", npsreal);
+        printf("nodes_per_second: %i; // nps of device, for time control\n", npsreal);
         printf("max_nodes: 0; // search n nodes, 0 is inf \n");
         printf("max_memory: %i; // device node tree size per slot in MB\n", (s32)devicememalloc/1024/1024);
         printf("memory_slots: %i; // max 3 \n", memory_slots);
@@ -581,8 +582,9 @@ bool cl_guess_config(bool extreme)
         printf("opencl_platform_id: %i; // which present OpenCL platform to use\n",i);
         printf("opencl_device_id: %i; // which present OpenCL device to use\n\n",j);
 
-        printf("\n\n");
-        printf("##### Above output was saved in file %s \n\n", confignamefile);
+        printf("#\n");
+        printf("##### Above output was saved in file %s \n", confignamefile);
+        printf("#\n");
       }
     }
   }
