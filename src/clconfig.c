@@ -412,8 +412,8 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsY: %i; // Multiplier for threadsZ \n", warpmulti);
         fprintf(Cfg, "threadsZ: %i; // Number of threads per SIMD Unit or Core\n\n", warpsize);
         fprintf(Cfg, "nodes_per_second: 1; \n");
-        fprintf(Cfg, "max_memory: %i; \n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "max_nodes: 0; \n");
+        fprintf(Cfg, "max_memory: %i; // device node tree size in MB per slot\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
         fprintf(Cfg, "max_leaf_depth: 0; \n");
         fprintf(Cfg, "max_depth: 32; \n");
@@ -455,8 +455,8 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsY: %i; // Multiplier for threadsZ \n", warpmulti);
             fprintf(Cfg, "threadsZ: %i; // Number of threads per SIMD Unit or Core\n\n", warpsize*2);
             fprintf(Cfg, "nodes_per_second: 1; \n");
-            fprintf(Cfg, "max_memory: %i; \n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "max_nodes: 0; \n");
+            fprintf(Cfg, "max_memory: %i; // device node tree size in MB per slot\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
             fprintf(Cfg, "max_leaf_depth: 0; \n");
             fprintf(Cfg, "max_depth: 32; \n");
@@ -501,8 +501,8 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsY: %i; // Multiplier for threadsZ \n", warpmulti*2);
             fprintf(Cfg, "threadsZ: %i; // Number of threads per SIMD Unit or Core\n\n", warpsize);
             fprintf(Cfg, "nodes_per_second: 1; \n");
-            fprintf(Cfg, "max_memory: %i; \n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "max_nodes: 0; \n");
+            fprintf(Cfg, "max_memory: %i; // device node tree size in MB per slot\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
             fprintf(Cfg, "max_leaf_depth: 0; \n");
             fprintf(Cfg, "max_depth: 32; \n");
@@ -554,8 +554,8 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsY: %i; // Multiplier for threadsZ \n", warpmulti);
         fprintf(Cfg, "threadsZ: %i; // Number of threads per SIMD Unit or Core\n\n", warpsize);
         fprintf(Cfg, "nodes_per_second: %i; \n", npsreal);
-        fprintf(Cfg, "max_memory: %i; \n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "max_nodes: 0; \n");
+        fprintf(Cfg, "max_memory: %i; // device node tree size in MB per slot\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
         fprintf(Cfg, "max_leaf_depth: 0; \n");
         fprintf(Cfg, "max_depth: 32; \n");
@@ -570,8 +570,8 @@ bool cl_guess_config(bool extreme)
         printf("threadsY: %i; // Multiplier for threadsZ \n", warpmulti);
         printf("threadsZ: %i; // Number of threads per SIMD Unit or Core\n\n", warpsize);
         printf("nodes_per_second: %i; \n", npsreal);
-        printf("max_memory: %i; \n", (s32)devicememalloc/1024/1024);
         printf("max_nodes: 0; \n");
+        printf("max_memory: %i; // device node tree size in MB per slot\n", (s32)devicememalloc/1024/1024);
         printf("memory_slots: %i; // max 3 \n", memory_slots);
         printf("max_leaf_depth: 0; \n");
         printf("max_depth: 32; \n");
