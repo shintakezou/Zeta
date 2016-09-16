@@ -49,6 +49,7 @@ s32 totalThreads        =  0;
 s32 nodes_per_second    =  0;
 u64 max_nodes           =  0;
 s32 nps_current         =  0;
+s32 max_memory          =  0;
 s32 max_nodes_to_expand =  0;
 s32 memory_slots        =  1;
 s32 max_leaf_depth      =  0;
@@ -57,7 +58,7 @@ s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 
 s32 search_depth    = 0;
-u64 max_mem_mb      = 512;
+u64 max_mem_mb      = MAXDEVICEMB;
 s32 max_cores       = 1;
 s32 force_mode      = false;
 s32 random_mode     = false;
@@ -1769,7 +1770,7 @@ void read_config(char configfile[]) {
         sscanf(line, "threadsZ: %i;", &threadsZ);
         sscanf(line, "nodes_per_second: %i;", &nodes_per_second);
         sscanf(line, "max_nodes: %" PRIu64 ";", &max_nodes);
-        sscanf(line, "max_nodes_to_expand: %i;", &max_nodes_to_expand);
+        sscanf(line, "max_memory: %d;", &max_memory);
         sscanf(line, "memory_slots: %i;", &memory_slots);
         sscanf(line, "max_depth: %i;", &max_depth);
         sscanf(line, "max_leaf_depth: %i;", &max_leaf_depth);
@@ -1778,6 +1779,9 @@ void read_config(char configfile[]) {
 
     }
 
+    max_nodes_to_expand = max_memory*1024*1024/sizeof(NodeBlock);
+
+printf("\n\nmax_nodes_to_expand:%d\n\n",max_nodes_to_expand);
 
 /*
     FILE 	*Stats;
