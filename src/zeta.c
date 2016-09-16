@@ -815,8 +815,10 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
       exit(EXIT_FAILURE);
     }
 */
+    // single reply
+    score = -NODES[NODES[0].child].score;
+    bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
     // get best move from tree copied from cl device
-    score = -2147483647;
     for(i=0; i < NODES[0].children; i++)
     {
         j = NODES[0].child + i;
@@ -839,11 +841,6 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
         }
     }
     bestscore = score;
-    // single reply
-    if (NODES[0].children == 1) {
-        bestscore = NODES[NODES[0].child].score;
-        bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
-    }
     Bestmove = bestmove;
     // collect counters
     for (i=0; i < totalThreads; i++) {
@@ -951,8 +948,10 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
     if (!state)
         return -1;
 */
+    // single reply
+    score = -NODES[NODES[0].child].score;
+    bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
     // get best move from tree copied from cl device
-    score = -2147483647;
     for(i=0; i < NODES[0].children; i++)
     {
         j = NODES[0].child + i;
@@ -975,11 +974,6 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
         }
     }
     bestscore = score;
-    // single reply
-    if (NODES[0].children == 1) {
-        bestscore = NODES[NODES[0].child].score;
-        bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
-    }
     Bestmove = bestmove;
     // collect counters
     for (i=0; i < totalThreads; i++) {
