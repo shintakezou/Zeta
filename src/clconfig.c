@@ -431,7 +431,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
         fprintf(Cfg,"max_depth => max alphabeta search depth\n");
         fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
+        fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
         fclose(Cfg);
 
         printf("#\n");
@@ -487,7 +487,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
             fprintf(Cfg,"max_depth => max alphabeta search depth\n");
             fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-            fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
+            fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
 
             printf("#\n");
@@ -537,7 +537,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
             fprintf(Cfg,"max_depth => max alphabeta search depth\n");
             fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-            fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
+            fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
 
             printf("#\n");
@@ -596,7 +596,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
         fprintf(Cfg,"max_depth => max alphabeta search depth\n");
         fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id => which OpenCL device to use %i;\n\n",j);
+        fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
         fclose(Cfg);
 
         printf("#\n");
@@ -627,7 +627,7 @@ bool cl_guess_config(bool extreme)
         printf("max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
         printf("max_depth => max alphabeta search depth\n");
         printf("opencl_platform_id => which OpenCL platform to use\n");
-        printf("opencl_device_id => which OpenCL device to use %i;\n\n",j);
+        printf("opencl_device_id => which OpenCL device to use\n\n");
 */
 
         printf("##### Above output was saved in file %s \n", confignamefile);
