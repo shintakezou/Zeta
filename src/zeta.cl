@@ -154,6 +154,7 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
+#define MAXEVASIONS          3               // max check evasions from qsearch
 #define SMOOTHUCT            1.00           // factor for uct params in select formula
 #define SKIPMATE             1             // 0 or 1
 #define SKIPDRAW             1            // 0 or 1
@@ -1455,6 +1456,7 @@ __kernel void bestfirst_gpu(
     // enter quiescence search?
     qs = (sd<=depth)?false:true;
     qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
+    qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
 //    qs = (rootkic?false:qs;
     // generate moves
     gen_moves(board, &n, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
@@ -1516,8 +1518,8 @@ __kernel void bestfirst_gpu(
       COUNTERS[pid*10+1]++;
       // create child nodes
       current = atom_add(board_stack_top,n);
-      // expand only if we got enough memory
-      if (n>0&&current+n>=max_nodes_to_expand)
+      // check bounds
+      if (n>0&&(current+n>=max_nodes_to_expand||ply>=MAXBFPLY))
         n = -1;
       board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
       // each child from node
