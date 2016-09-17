@@ -1345,7 +1345,10 @@ __kernel void bestfirst_gpu(
             continue;
         // on root node deliver work via visit counter
         if (ROOTSEARCH&&index==0)
-            tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
+        {
+          tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
+          tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+        }
         // most threads go to breadth, some go to depth
         else if (BROADWELL&&(pid%DEPTHWELL>0))
         {
@@ -1693,21 +1696,21 @@ __kernel void bestfirst_gpu(
           // skip not fully explored nodes
           if (ISINF(tmpscore))
           {
-              score = -INF;
-              break;
+            score = -INF;
+            break;
           }
           if (tmpscore > score)
             score = tmpscore;
         }
         if (!ISINF(score))
         {
-            tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
-            // store ply of last score for xboard output
-            if (parent==0&&score>tmpscore)
-                COUNTERS[7] = (u64)ply+1;
+          tmpscore = atom_xchg(&board_stack[(parent%max_nodes_per_slot)].score, score);
+          // store ply of last score for xboard output
+          if (parent==0&&score>tmpscore)
+              COUNTERS[7] = (u64)ply+1;
         }
         else
-            break;
+          break;
         parent = board_stack[(parent%max_nodes_per_slot)].parent;
       }
       // release lock
