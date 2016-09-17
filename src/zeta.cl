@@ -154,14 +154,14 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
-#define MAXEVASIONS          3               // max check evasions from qsearch
+#define MAXEVASIONS          4               // max check evasions from qsearch
 #define SMOOTHUCT            1.00           // factor for uct params in select formula
 #define SKIPMATE             1             // 0 or 1
 #define SKIPDRAW             1            // 0 or 1
 #define INCHECKEXT           1           // 0 or 1
 #define SINGLEEXT            1          // 0 or 1
 #define PROMOEXT             1         // 0 or 1
-#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.33    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
 #define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
@@ -1457,7 +1457,7 @@ __kernel void bestfirst_gpu(
     qs = (sd<=depth)?false:true;
     qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
     qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
-//    qs = (rootkic?false:qs;
+//    qs = (rootkic)?false:qs;
     // generate moves
     gen_moves(board, &n, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
     // ################################
@@ -1471,7 +1471,7 @@ __kernel void bestfirst_gpu(
     // negamaxed scores
     score = (som)?-score:score;
     // checkmate
-    score = (!qs&&rootkic&&n==0&&sd<=search_depth)?-INF+ply+ply_init:score;
+    score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
     // stalemate
     score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
     // draw by 3 fold repetition
