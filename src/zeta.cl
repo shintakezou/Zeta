@@ -277,22 +277,22 @@ __constant Score EvalTable[7*64] =
 // population count, Donald Knuth SWAR style
 // as described on CWP
 // http://chessprogramming.wikispaces.com/Population+Count#SWAR-Popcount
-s32 popcount(u64 x) 
+u8 popcount(u64 x) 
 {
   x =  x                        - ((x >> 1)  & 0x5555555555555555);
   x = (x & 0x3333333333333333)  + ((x >> 2)  & 0x3333333333333333);
   x = (x                        +  (x >> 4)) & 0x0f0f0f0f0f0f0f0f;
   x = (x * 0x0101010101010101) >> 56;
-  return (s32)x;
+  return (u8)x;
 }
 #endif
 //  pre condition: x != 0;
-s32 first1(u64 x)
+u8 first1(u64 x)
 {
   return popcount((x&-x)-1);
 }
 //  pre condition: x != 0;
-s32 popfirst1(u64 *a)
+u8 popfirst1(u64 *a)
 {
   u64 b = *a;
   *a &= (*a-1);  // clear lsb 
