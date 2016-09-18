@@ -277,7 +277,7 @@ __constant Score EvalTable[7*64] =
 // population count, Donald Knuth SWAR style
 // as described on CWP
 // http://chessprogramming.wikispaces.com/Population+Count#SWAR-Popcount
-u8 popcount(u64 x) 
+u8 count1s(u64 x) 
 {
   x =  x                        - ((x >> 1)  & 0x5555555555555555);
   x = (x & 0x3333333333333333)  + ((x >> 2)  & 0x3333333333333333);
@@ -285,18 +285,24 @@ u8 popcount(u64 x)
   x = (x * 0x0101010101010101) >> 56;
   return (u8)x;
 }
+#else
+// wrapper for casting
+u8 count1s(u64 x) 
+{
+  return (u8)popcount(x);
+}
 #endif
 //  pre condition: x != 0;
 u8 first1(u64 x)
 {
-  return popcount((x&-x)-1);
+  return count1s((x&-x)-1);
 }
 //  pre condition: x != 0;
 u8 popfirst1(u64 *a)
 {
   u64 b = *a;
   *a &= (*a-1);  // clear lsb 
-  return popcount((b&-b)-1); // return pop count of isolated lsb
+  return count1s((b&-b)-1); // return pop count of isolated lsb
 }
 /* bit twiddling hacks
   bb_work=bb_temp&-bb_temp;  // get lsb 
@@ -1168,7 +1174,7 @@ Score eval(__private Bitboard *board)
       score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
   }
   // duble bishop
-  score+= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
+  score+= (count1s(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
 
   // black
   bbMe  = board[0];
@@ -1198,7 +1204,7 @@ Score eval(__private Bitboard *board)
       score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
   }
   // duble bishop
-  score-= (popcount(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
+  score-= (count1s(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
 
   return score;
 }
