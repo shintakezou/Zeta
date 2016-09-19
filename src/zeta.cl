@@ -811,7 +811,6 @@ void gen_moves(
                           const s32 pid, 
                           const s32 max_depth,
                 __global  Move *global_pid_moves, 
-                __global  u64 *COUNTERS, 
                           bool rootkic
 )
 {
@@ -917,7 +916,6 @@ void gen_moves(
         global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
         // movecounters
         n[0]++;
-        COUNTERS[3]++;
 /*
         // sort moves, obsolete by move picker
         i = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
@@ -973,8 +971,6 @@ void gen_moves(
           global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
           // Movecounters
           n[0]++;
-
-          COUNTERS[3]++;
       }
   }
 
@@ -1004,7 +1000,6 @@ void gen_moves(
           global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
           // Movecounters
           n[0]++;
-          COUNTERS[3]++;
 
       }
   }
@@ -1063,7 +1058,6 @@ void gen_moves(
               global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
               // Movecounters
               n[0]++;
-              COUNTERS[3]++;
           }
 
           // undomove
@@ -1186,14 +1180,13 @@ __kernel void bestfirst_gpu(
                             __global u64 *COUNTERS,
                             __global s32 *board_stack_top,
                             __global s32 *total_nodes_visited,
+                            __global s32 *global_finished,
                             __global s32 *global_pid_movecounter,
                             __global s32 *global_pid_todoindex,
                             __global s32 *global_pid_ab_score,
                             __global s32 *global_pid_depths,
                             __global Move *global_pid_moves,
                             __global Move *global_pid_movehistory,
-                            __global s32 *global_finished,
-                            __global s32 *global_movecount,
                             __global Hash *global_hashhistory,
                                const s32 som_init,
                                const s32 ply_init,
@@ -1250,7 +1243,6 @@ __kernel void bestfirst_gpu(
   while(    *board_stack_top<max_nodes_to_expand
          && *global_finished<max_nodes*8
          && *total_nodes_visited<max_nodes
-         && COUNTERS[3] < max_nodes*12
       )
   {
     // iterations counter
@@ -1376,7 +1368,7 @@ __kernel void bestfirst_gpu(
       atom_inc(global_finished);
       continue;
     }
-    // termination coubter 
+    // termination counter 
     atom_add(global_finished, 8);
     // ################################
     // ####       updatescore      ####
@@ -1434,7 +1426,7 @@ __kernel void bestfirst_gpu(
     qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
 //    qs = (rootkic)?false:qs;
     // generate moves
-    gen_moves(board, &n, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, COUNTERS, rootkic);
+    gen_moves(board, &n, som, qs, lastmove, sd, pid, max_depth, global_pid_moves, rootkic);
     // ################################
     // ####        evaluation       ###
     // ################################

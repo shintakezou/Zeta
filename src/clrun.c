@@ -291,6 +291,20 @@ bool cl_init_objects() {
     return false;
   }
 
+  temp = 0;
+  GLOBAL_FINISHED_Buffer = clCreateBuffer(
+                            			     context, 
+                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                       sizeof(cl_int) * 1,
+                                       &temp, 
+                                       &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_FINISHED_Buffer)\n");
+    return false;
+  }
+
+
   GLOBAL_PID_MOVECOUNTER_Buffer = clCreateBuffer(
 	                          		     context, 
                                      CL_MEM_READ_WRITE,
@@ -361,32 +375,6 @@ bool cl_init_objects() {
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_MOVE_HISTORY_Buffer)\n");
-    return false;
-  }
-
-  temp = 0;
-  GLOBAL_FINISHED_Buffer = clCreateBuffer(
-                            			     context, 
-                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(cl_int) * 1,
-                                       &temp, 
-                                       &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_FINISHED_Buffer)\n");
-    return false;
-  }
-
-  temp = 0;
-  GLOBAL_MOVECOUNT_Buffer = clCreateBuffer(
-                            			     context, 
-                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(cl_int) * 1,
-                                       &temp, 
-                                       &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_MOVECOUNT_Buffer)\n");
     return false;
   }
 
@@ -504,6 +492,18 @@ bool cl_run_kernel(bool stm, int depth)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
+                          (void *)&GLOBAL_FINISHED_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_FINISHED_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
                           (void *)&GLOBAL_PID_MOVECOUNTER_Buffer);
   if(status!=CL_SUCCESS) 
   { 
@@ -569,30 +569,6 @@ bool cl_run_kernel(bool stm, int depth)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVE_HISTORY_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_FINISHED_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_FINISHED_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_MOVECOUNT_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_MOVECOUNT_Buffer)\n");
     return false;
   }
   i++;
@@ -878,10 +854,17 @@ bool cl_get_and_release_memory()
 		return false; 
 	}
 
+	status = clReleaseMemObject(GLOBAL_FINISHED_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_FINISHED_Buffer)\n");
+		return false; 
+	}
+
 	status = clReleaseMemObject(GLOBAL_PID_MOVECOUNTER_Buffer);
   if(status!=CL_SUCCESS)
 	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_MOVECOUNTER_Buffer)\n");
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PID_MOVECOUNTER_Buffer)\n");
 		return false; 
 	}
 
@@ -917,20 +900,6 @@ bool cl_get_and_release_memory()
   if(status!=CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PID_MOVE_HISTORY_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_FINISHED_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_FINISHED_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_MOVECOUNT_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_MOVECOUNT_Buffer)\n");
 		return false; 
 	}
 

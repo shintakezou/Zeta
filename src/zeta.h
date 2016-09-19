@@ -60,15 +60,13 @@ cl_mem   GLOBAL_BOARD_STACK_3_Buffer;
 cl_mem	 COUNTERS_Buffer;
 cl_mem	 GLOBAL_BOARD_STAK_TOP_Buffer;
 cl_mem	 GLOBAL_TOTAL_NODES_Buffer;
+cl_mem	 GLOBAL_FINISHED_Buffer;
 cl_mem	 GLOBAL_PID_MOVECOUNTER_Buffer;
 cl_mem	 GLOBAL_PID_TODOINDEX_Buffer;
 cl_mem	 GLOBAL_PID_AB_SCORES_Buffer;
 cl_mem	 GLOBAL_PID_DEPTHS_Buffer;
 cl_mem	 GLOBAL_PID_MOVES_Buffer;
 cl_mem	 GLOBAL_PID_MOVE_HISTORY_Buffer;
-cl_mem	 GLOBAL_FINISHED_Buffer;
-cl_mem	 GLOBAL_MOVECOUNT_Buffer;
-cl_mem	 GLOBAL_PLYREACHED_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 // OpenCL runtime objects
 cl_context          context;
