@@ -103,6 +103,8 @@ typedef struct {
 #define FLOP(sq)            ((sq)^56)
 #define FLIPFLOP(sq)        (((sq)^56)^7)
 // piece helpers 
+#define GETCOLOR(p)        ((p)&0x1)
+#define GETPTYPE(p)        (((p)>>1)&0x7)      /* 3 bit piece type encoding */
 #define GETPIECE(board,sq)  ( \
                                ((board[0]>>(sq))&0x1)\
                            |  (((board[1]>>(sq))&0x1)<<1) \

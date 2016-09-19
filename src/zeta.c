@@ -472,35 +472,47 @@ Piece getPiece (Bitboard *board, Square sq) {
 /* ###         Hash          ### */
 /* ############################# */
 
-Hash computeHash(Bitboard *board, bool stm) {
 
-    Piece piece;
-    s32 side;
-    Square pos;
-    Bitboard bbBoth[2];
-    Bitboard bbWork = 0;
-    Hash hash = 0;
-    Hash zobrist;
+Hash computeHash(Bitboard *board, bool stm)
+{
+  Piece piece;
+  s32 side;
+  Square pos;
+  Bitboard bbBoth[2];
+  Bitboard bbWork = 0;
+  Hash hash = 0;
+  Hash zobrist;
 
-    bbBoth[0]   = ( board[0] ^ (board[1] | board[2] | board[3]));
-    bbBoth[1]   =   board[0];
+  bbBoth[0]   = ( board[0] ^ (board[1] | board[2] | board[3]));
+  bbBoth[1]   =   board[0];
 
-    // for each side
-    for(side=0; side<2;side++) {
-        bbWork = bbBoth[side];
-
-        // each piece
-        while (bbWork) {
-            // pop 1st bit
-            pos = popfirst1(&bbWork);
-            piece = GETPIECETYPE(board, pos);
-            zobrist = Zobrist[piece-1];
-            hash ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
-
-        }
+  // for each side
+  for(side=0; side<2;side++)
+  {
+    bbWork = bbBoth[side];
+    // each piece
+    while (bbWork)
+    {
+      pos = popfirst1(&bbWork);
+      piece = GETPIECE(board, pos);
+      zobrist = Zobrist[GETCOLOR(piece)*6+GETPTYPE(piece)-1];
+      hash ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
     }
-    if (!stm)
-      hash^=0x1;
+  }
+  // TODO: add castle rights
+  // TODO: add en passant
+  // file en passant 
+/*
+  if (GETSQEP(board[QBBLAST]))
+  {
+    sq = GETFILE(GETSQEP(board[QBBLAST]));
+    zobrist = Zobrist[16];
+    hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
+  }
+*/
+  // site to move
+  if (!stm)
+    hash ^= 0x1ULL;
 
     return hash;    
 }
@@ -514,40 +526,35 @@ void updateHash(Bitboard *board, Move move)
   Hash zobrist;
 
   // from
-  zobrist = Zobrist[(((move>>18)&0xF)>>1)-1];
+  zobrist = Zobrist[(((move>>18)&0xF)&0x1)*6+(((move>>18)&0xF)>>1)-1];
   pos = (Square)(move&0x3F);
   board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
-
   // to
-  zobrist = Zobrist[(((move>>22)&0xF)>>1)-1];
+  zobrist = Zobrist[(((move>>22)&0xF)&0x1)*6+(((move>>22)&0xF)>>1)-1];
   pos = (Square)((move>>6)&0x3F);
   board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
-
   // capture
   if ( ((move>>26)&0xF)!=PNONE)
   {
-    zobrist = Zobrist[(((move>>26)&0xF)>>1)-1];
+    zobrist = Zobrist[(((move>>26)&0xF)&0x1)*6+(((move>>26)&0xF)>>1)-1];
     pos = (Square)((move>>12)&0x3F);
     board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
   }
-
   // castle from
+  zobrist = Zobrist[(((move>>18)&0xF)&0x1)*6+ROOK-1];
   if (castlefrom<ILL&&castlepciece!=PNONE )
   {
-    zobrist = Zobrist[ROOK-1];
     pos = castlefrom;
     board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
   }
-
   // castle to
-  if (castleto < ILL && castlepciece != PNONE )
+  if (castleto<ILL&&castlepciece!= PNONE)
   {
-    zobrist = Zobrist[ROOK-1];
     pos = castleto;
     board[4] ^= ((zobrist<<pos)|(zobrist>>(64-pos)));; // rotate left 64
   }
   // site to move
-  board[4]^=0x1;
+  board[4]^=0x1ULL;
 }
 
 

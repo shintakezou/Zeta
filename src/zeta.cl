@@ -169,12 +169,13 @@ enum Squares
 // functions
 Score EvalMove(Move move);
 // rotate left based zobrist hashing
-__constant Hash Zobrist[16]=
+__constant Hash Zobrist[17]=
 {
   0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,
   0x75834465489C0C89, 0x3290AC3A203001BF, 0x0FBBAD1F61042279, 0xE83A908FF2FB60CA,
   0x0D7E765D58755C10, 0x1A083822CEAFE02D, 0x9605D5F0E25EC3B0, 0xD021FF5CD13A2ED5,
-  0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC
+  0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC,
+  0x05D1A1AE85B49AA1
 };
 /* 
   piece square tables based on proposal by Tomasz Michniewski
@@ -418,11 +419,14 @@ Hash computeHash(__private Bitboard *board, bool stm)
     while (bbWork)
     {
       pos = (u64)popfirst1(&bbWork);
-      piece = GETPIECETYPE(board, pos);
-      zobrist = Zobrist[piece-1];
+      piece = GETPIECE(board, pos);
+      zobrist = Zobrist[GETCOLOR(piece)*6+GETPTYPE(piece)-1];
       hash ^= rotate(zobrist,pos);
     }
   }
+  // TODO: add castle rights
+  // TODO: add en passant
+  // site to move
   if (!stm)
     hash^=0x1;
 
@@ -435,36 +439,30 @@ void updateHash(__private Bitboard *board, Move move)
   u64 pos;
 
   // from
-  zobrist = Zobrist[(((move>>18)&0xF)>>1)-1];
+  zobrist = Zobrist[(((move>>18)&0xF)&0x1)*6+(((move>>18)&0xF)>>1)-1];
   pos = (u64)(move&0x3F);
   board[4] ^= rotate((ulong)zobrist,pos);
-
   // to
-  zobrist = Zobrist[(((move>>22)&0xF)>>1)-1];
+  zobrist = Zobrist[(((move>>22)&0xF)&0x1)*6+(((move>>22)&0xF)>>1)-1];
   pos = (u64)((move>>6)&0x3F);
   board[4] ^= rotate(zobrist,pos);
-
   // capture
   if ( (((move>>26) & 0xF)>>1) != PNONE)
   {
-    zobrist = Zobrist[(((move>>26)&0xF)>>1)-1];
+    zobrist = Zobrist[(((move>>26)&0xF)&0x1)*6+(((move>>26)&0xF)>>1)-1];
     pos = (u64)((move>>12)&0x3F);
     board[4] ^= rotate(zobrist,pos);
   }
-
   // castle from
+  zobrist = Zobrist[(((move>>18)&0xF)&0x1)*6+ROOK-1];
   if (((move>>40)&0x7F)<ILL&&(((move>>54)&0xF)>>1)==ROOK)
   {
-    zobrist = Zobrist[ROOK-1];
     pos =  (u64)((move>>40)&0x3F);
     board[4] ^= rotate(zobrist,pos);
   }
-        board[4] ^= Zobrist[(((move>>54) & 0xF)&1)*7*64+(((move>>54) & 0xF)>>1)*64+((move>>40) & 0x3F)];
-
   // castle to
   if (((move>>47)&0x7F)<ILL&&(((move>>54)&0xF)>>1)==ROOK)
   {
-    zobrist = Zobrist[ROOK-1];
     pos =  (u64)((move>>47)&0x3F);
     board[4] ^= rotate(zobrist,pos);
   }
