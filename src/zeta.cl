@@ -19,6 +19,7 @@
   GNU General Public License for more details.
 */
 
+// mandatory
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics       : enable
 #pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics   : enable
 // otpional
@@ -39,15 +40,16 @@ typedef u64     Bitboard;
 typedef u64     Hash;
 
 // node tree entry
-typedef struct {
-    Move move;
-    Score score;
-    s32 lock;
-    s32 visits;
-    s32 child;
-    s32 children;
-    s32 parent;
-}  NodeBlock;
+typedef struct
+{
+  Move move;
+  Score score;
+  s32 lock;
+  s32 visits;
+  s32 child;
+  s32 children;
+  s32 parent;
+} NodeBlock;
 
 // colors
 #define WHITE 0
@@ -98,7 +100,6 @@ typedef struct {
 #define GETRRANK(sq,color)  ((color)?(((sq)>>3)^7):((sq)>>3))
 #define FLIP(sq)            ((sq)^7)
 #define FLOP(sq)            ((sq)^56)
-#define FLIPFLOP(sq)        (((sq)^56)^7)
 // piece helpers
 #define GETPIECE(board,sq)  ( \
                                ((board[0]>>(sq))&0x1)\
@@ -470,7 +471,6 @@ void updateHash(__private Bitboard *board, Move move)
   board[4]^=0x1;
 
 }
-
 // update castle rights, TODO: make nice
 Move updateCR(Move move, Cr cr)
 {
@@ -493,7 +493,6 @@ Move updateCR(Move move, Cr cr)
 
   return move;
 }
-
 // move generator costants
 __constant ulong4 shift4 = (ulong4)( 9, 1, 7, 8);
 
@@ -744,6 +743,12 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
          ks_attacks_rs7(bbBlockers, sq) |
          ks_attacks_rs9(bbBlockers, sq);
 }
+Square getkingpos(__private Bitboard *board, bool side)
+{
+  Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
+  bbTemp &= board[1]&board[2]&~board[3]; // get king
+  return first1(bbTemp);
+}
 // is square attacked by an enemy piece, via superpiece approach
 bool squareunderattack(__private Bitboard *board, bool stm, Square sq) 
 {
@@ -836,16 +841,14 @@ void gen_moves(
   ulong4 bbPro4;
   ulong4 bbGen4; 
 
-
   bbWork = bbMe;
 
   while(bbWork)
   {
+    pos     = popfirst1(&bbWork);
+    piece   = GETPIECE(board,pos);
 
-    pos  = popfirst1(&bbWork);
-    piece = GETPIECE(board,pos);
-
-    bbTempO  = SETMASKBB(pos);
+    bbTempO = SETMASKBB(pos);
     // get koggestone wraps
     bbWrap4 = wraps4[0];
     // generator and propagator (piece and empty squares)
@@ -886,8 +889,6 @@ void gen_moves(
 
     while(bbMoves)
     {
-
-      // pop 1st bit
       to = popfirst1(&bbMoves);
 
       // en passant to
@@ -906,14 +907,7 @@ void gen_moves(
       // domove
       domove(board, move);
 
-      //get king position
-      bbTemp  = board[0] ^ (board[1] | board[2] | board[3]);
-      bbTemp  = (som&BLACK)? board[0]   : bbTemp ;
-      bbTemp  = bbTemp & board[1] & board[2] & ~board[3]; // get king
-      kingpos = first1(bbTemp);
-
-      // king in check?
-      kic = squareunderattack(board, !som, kingpos);
+      kic = squareunderattack(board, !som, getkingpos(board, som));
 
       if (!kic)
       {
@@ -924,9 +918,8 @@ void gen_moves(
         // movecounters
         n[0]++;
         COUNTERS[3]++;
-
 /*
-        // sort moves
+        // sort moves, obsolete by move picker
         i = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
         for(j=n[0]-1;j>0;j--)
         {
@@ -948,7 +941,7 @@ void gen_moves(
   // ################################
   // ####       Castle moves      ###
   // ################################
-
+  // TODO: reimplement
   // get Rooks
   bbOpp  = (bbMe & board[1] & ~board[2] & board[3] );
   //get king position
@@ -1020,6 +1013,7 @@ void gen_moves(
   // ################################
   // ####     En passant moves    ###
   // ################################
+  // TODO: reimplement
   cpt = (lastmove>>30)&0x3F;
 
   if (cpt) {
@@ -1076,12 +1070,6 @@ void gen_moves(
           undomove(board, move);
       }
   }
-}
-Square getkingpos(__private Bitboard *board, bool side)
-{
-  Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
-  bbTemp &= board[1]&board[2]&~board[3]; // get king
-  return first1(bbTemp);
 }
 Score evalpiece(Piece piece, Square sq)
 {
@@ -1219,7 +1207,7 @@ __kernel void bestfirst_gpu(
   __global NodeBlock *board_stack;
   __global NodeBlock *board_stack_tmp;
 
-  __private Bitboard board[5];
+  __private Bitboard board[5]; // Quadbitboard + hash
 
   const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
 
@@ -1256,7 +1244,9 @@ __kernel void bestfirst_gpu(
     mode     = EXPAND;
   }
 
-  // main loop
+  // ################################
+  // ####       main loop        ####
+  // ################################
   while(    *board_stack_top<max_nodes_to_expand
          && *global_finished<max_nodes*8
          && *total_nodes_visited<max_nodes
@@ -1268,7 +1258,9 @@ __kernel void bestfirst_gpu(
     // single reply and mate hack
     if (board_stack_1[0].children==1||board_stack_1[0].children==0||ISMATE(board_stack_1[0].score))
       break;
-    // inititialize select phase
+    // ################################
+    // ####          init          ####
+    // ################################
     if (mode==INIT)
     {
       index = 0;
@@ -1286,6 +1278,9 @@ __kernel void bestfirst_gpu(
       lastmove = board_stack_1[0].move;
       mode     = SELECT;
     }
+    // ################################
+    // ####         select         ####
+    // ################################
     if (mode==SELECT)
     {
       float tmpscorea = 0;
@@ -1369,7 +1364,7 @@ __kernel void bestfirst_gpu(
         if (ply>COUNTERS[5])
           COUNTERS[5] = ply;
         domove(board, move);
-        global_hashhistory[pid*1024+ply+ply_init] = board[4];
+        global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[4];
         som = !som;    
         updateHash(board, move);
 //        board[4] = computeHash(board, som);
@@ -1383,6 +1378,9 @@ __kernel void bestfirst_gpu(
     }
     // termination coubter 
     atom_add(global_finished, 8);
+    // ################################
+    // ####       updatescore      ####
+    // ################################
     // update score tree without selected node
     if (mode==UPDATESCORE)
     {
@@ -1424,9 +1422,9 @@ __kernel void bestfirst_gpu(
         parent = board_stack[(parent%max_nodes_per_slot)].parent;
       }
     }
-    // #########################################
-    // ####         nove generator          ####
-    // #########################################
+    // ################################
+    // ####     nove generator     ####
+    // ################################
     n = 0;
     // king in check?
     rootkic = squareunderattack(board, !som, getkingpos(board, som));
@@ -1454,16 +1452,16 @@ __kernel void bestfirst_gpu(
     // draw by 3 fold repetition
     for (s32 i=ply+ply_init-2;i>0&&mode==EXPAND&&index>0;i-=2)
     {
-      if (board[4]==global_hashhistory[pid*1024+i])
+      if (board[4]==global_hashhistory[pid*MAXGAMEPLY+i])
       {
         n       = 0;
         score   = DRAWSCORE;
         break;
       }
     }
-    // ################################
-    // ####     alphabeta stuff     ###
-    // ################################
+    // #################################
+    // ####     alphabeta stuff      ###
+    // #################################
     // out of range
     if (sd>=max_depth)
       n = 0;
@@ -1488,7 +1486,9 @@ __kernel void bestfirst_gpu(
     {
       atom_max(&global_pid_ab_score[pid*max_depth*2+(sd)*2+ALPHA], score);
 		}
-    // expand node
+    // ################################
+    // ####         expand         ####
+    // ################################
     if (mode==EXPAND)
     {
       s32 parent  = 0;
@@ -1535,6 +1535,9 @@ __kernel void bestfirst_gpu(
         mode = INIT;
       }
     }
+    // ################################
+    // ####        evalleaf        ####
+    // ################################
     // init values for alphabeta search
     if (mode==EVALLEAF)
     {
@@ -1553,6 +1556,9 @@ __kernel void bestfirst_gpu(
       global_pid_depths[pid*max_depth+sd] = depth;
       mode = MOVEUP;
     }
+    // ################################
+    // ####        movedown        ####
+    // ################################
     // move down in alphabeta search
     if (mode==MOVEDOWN)
     {
@@ -1594,6 +1600,9 @@ __kernel void bestfirst_gpu(
         mode = BACKUPSCORE;
 			}
     }
+    // ################################
+    // ####         moveup         ####
+    // ################################
     // move up in alphabeta search
     if (mode==MOVEUP)
     {
@@ -1642,7 +1651,7 @@ __kernel void bestfirst_gpu(
       global_pid_todoindex[pid*max_depth+sd]++;
       sd++;
       ply++;
-      global_hashhistory[pid*1024+ply+ply_init] = board[4];
+      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[4];
       // set values for next depth
       global_pid_movecounter[pid*max_depth+sd] = 0;
       global_pid_todoindex[pid*max_depth+sd] = 0;
@@ -1652,6 +1661,9 @@ __kernel void bestfirst_gpu(
       global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = (sd==0)?+INF:-global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
       continue;
     }
+    // ################################
+    // ####      backupscore       ####
+    // ################################
     // backup score from alphabeta search in bestfirst node tree
     if (mode==BACKUPSCORE)
     {
@@ -1700,8 +1712,7 @@ __kernel void bestfirst_gpu(
       board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
       board_stack[(index%max_nodes_per_slot)].lock = -1;
     }
-  } 
-  // memory full?
-  COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0;
+  } // end main loop
+  COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0; // memory full flag
 }
 

@@ -45,15 +45,16 @@ typedef s32 Score;
 typedef U8 Square;
 typedef U8 Piece;
 
-typedef struct {
-    Move move;
-    Score score;
-    s32 lock;
-    s32 visits;
-    s32 child;
-    s32 children;
-    s32 parent;
-}  NodeBlock;
+typedef struct
+{
+  Move move;
+  Score score;
+  s32 lock;
+  s32 visits;
+  s32 child;
+  s32 children;
+  s32 parent;
+} NodeBlock;
 
 #define VERSION "098e"
 
@@ -101,7 +102,6 @@ typedef struct {
 #define GETRRANK(sq,color)  ((color)?(((sq)>>3)^7):((sq)>>3))
 #define FLIP(sq)            ((sq)^7)
 #define FLOP(sq)            ((sq)^56)
-#define FLIPFLOP(sq)        (((sq)^56)^7)
 // piece helpers 
 #define GETCOLOR(p)        ((p)&0x1)
 #define GETPTYPE(p)        (((p)>>1)&0x7)      /* 3 bit piece type encoding */
