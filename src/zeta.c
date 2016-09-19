@@ -1858,7 +1858,7 @@ int main(int argc, char* argv[])
         if (timemode==1&&MovesLeft==2)
           TimeLeft+= TimeBase;
         /* get max nodes to search */
-        MaxNodes = MaxTime*nodes_per_second;
+        MaxNodes = MaxTime/1000*nodes_per_second;
       }
       continue;
     }
@@ -1906,7 +1906,7 @@ int main(int argc, char* argv[])
       /* set max time per move */
       MaxTime = TimeLeft/MovesLeft+TimeInc;
       /* get max nodes to search */
-      MaxNodes = MaxTime*nodes_per_second;
+      MaxNodes = MaxTime/1000*nodes_per_second;
 
       continue;
     }
@@ -1922,7 +1922,7 @@ int main(int argc, char* argv[])
       /* set max time per move */
       MaxTime   = TimeLeft/MovesLeft+TimeInc;
       /* get max nodes to search */
-      MaxNodes = MaxTime*nodes_per_second;
+      MaxNodes = MaxTime/1000*nodes_per_second;
 
       continue;
     }
@@ -1937,7 +1937,7 @@ int main(int argc, char* argv[])
       /* set max time per move */
       MaxTime = TimeLeft/MovesLeft+TimeInc;
       /* get max nodes to search */
-      MaxNodes = MaxTime*nodes_per_second;
+      MaxNodes = MaxTime/1000*nodes_per_second;
 
       continue;
     }
@@ -2032,7 +2032,7 @@ int main(int argc, char* argv[])
         if (timemode==1&&MovesLeft==2)
           TimeLeft+= TimeBase;
         /* get max nodes to search */
-        MaxNodes = MaxTime*nodes_per_second;
+        MaxNodes = MaxTime/1000*nodes_per_second;
       }
       continue;
     }
