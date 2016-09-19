@@ -1168,7 +1168,7 @@ static bool setboard(Bitboard *board, char *fen) {
     s32 pos  = 0;
     char temp;
     char position[255];
-    char csom[1];
+    char csom[2];
     char castle[5];
     char castlechar;
     char ep[3];
@@ -1177,7 +1177,7 @@ static bool setboard(Bitboard *board, char *fen) {
     Cr cr = 0;
     char string[] = {" PNKBRQ pnkbrq/12345678"};
 
-	sscanf(fen, "%s %c %s %s %i %i", position, csom, castle, ep, &bla, &blubb);
+	sscanf(fen, "%s %s %s %s %i %i", position, csom, castle, ep, &bla, &blubb);
 
 
     board[0] = 0;
@@ -1214,12 +1214,11 @@ static bool setboard(Bitboard *board, char *fen) {
         }
     }
 
-    // site on move
-    if (csom[0] == 'w' || csom[0] == 'W') {
-        STM = WHITE;
-    }
-    if (csom[0] == 'b' || csom[0] == 'B') {
-        STM = BLACK;
+    /* site to move */
+    STM = WHITE;
+    if (csom[0] == 'b' || csom[0] == 'B')
+    {
+      STM = BLACK;
     }
 
     // Castle Rights
