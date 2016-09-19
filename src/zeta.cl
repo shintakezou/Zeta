@@ -823,7 +823,7 @@ void gen_moves(
   Piece piececpt;
   Cr CR = (Cr)((lastmove>>36)&0xF);
   Move move = 0;
-  Move tmpmove = 0;
+//  Move tmpmove = 0;
   Bitboard bbBlockers     = board[1]|board[2]|board[3];
   Bitboard bbMe           = (som)?board[0]:(board[0]^bbBlockers);
   Bitboard bbOpp          = (!som)?board[0]:(board[0]^bbBlockers);
@@ -1108,6 +1108,12 @@ void gen_moves(
       }
   }
 }
+Square getkingpos(__private Bitboard *board, bool side)
+{
+  Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
+  bbTemp &= board[1]&board[2]&~board[3]; // get king
+  return first1(bbTemp);
+}
 Score evalpiece(Piece piece, Square sq)
 {
   Score score = 0;
@@ -1231,7 +1237,7 @@ __kernel void bestfirst_gpu(
                             __global Move *global_pid_movehistory,
                             __global s32 *global_finished,
                             __global s32 *global_movecount,
-                            __global Hash *global_HashHistory,
+                            __global Hash *global_hashhistory,
                                const s32 som_init,
                                const s32 ply_init,
                                const s32 search_depth,
@@ -1243,30 +1249,25 @@ __kernel void bestfirst_gpu(
 {
   __global NodeBlock *board_stack;
   __global NodeBlock *board_stack_tmp;
+
   __private Bitboard board[5];
+
   const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
-  const s32 totalThreads = get_global_size(0)*get_global_size(1)*get_global_size(2);
+
   bool som = (bool)som_init;
   bool rootkic = false;
   bool qs = false;
   Score score = 0;
-  Score tmpscore = 0;
   s32 mode = INIT;
   s32 index = 0;
   s32 current = 0;
-  s32 parent  = 0;
   s32 child   = 0;
   s32 depth = search_depth;
   s32 sd = 0;
   s32 ply = 0;
-  s32 i = 0;
-  s32 j = 0;
   s32 n = 0;
-  s32 k = 0;
   Move move = 0;
-  Move tmpmove = 0;
   Move lastmove = 0;
-  Bitboard bbTemp;
 
   // assign root node to pid 0 for expand mode
   if (pid==0&&*board_stack_top==1)
@@ -1320,6 +1321,7 @@ __kernel void bestfirst_gpu(
     {
       float tmpscorea = 0;
       float tmpscoreb = 0;
+      s32 k = -1;
 
       board_stack = (index >= max_nodes_per_slot)? board_stack_2 : board_stack_1;
       n = board_stack[(index%max_nodes_per_slot)].children;
@@ -1328,9 +1330,8 @@ __kernel void bestfirst_gpu(
         n=0;
       tmpscorea = -1000000000;
       current = 0;
-      k = -1;
       // selecta best move from stored node tree
-      for (i=0;i<n;i++)
+      for (s32 i=0;i<n;i++)
       {
         child = board_stack[(index%max_nodes_per_slot)].child + i;
         board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
@@ -1399,7 +1400,7 @@ __kernel void bestfirst_gpu(
         if (ply>COUNTERS[5])
           COUNTERS[5] = ply;
         domove(board, move);
-        global_HashHistory[pid*1024+ply+ply_init] = board[4];
+        global_hashhistory[pid*1024+ply+ply_init] = board[4];
         som = !som;    
         updateHash(board, move);
 //        board[4] = computeHash(board, som);
@@ -1416,6 +1417,10 @@ __kernel void bestfirst_gpu(
     // update score tree without selected node
     if (mode==UPDATESCORE)
     {
+      Score tmpscore = 0;
+      s32 parent  = 0;
+      s32 j;
+
       mode = EXPAND;
       board_stack = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
       parent = board_stack[(current%max_nodes_per_slot)].parent;
@@ -1426,7 +1431,7 @@ __kernel void bestfirst_gpu(
         board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
         j = board_stack[(parent%max_nodes_per_slot)].children;
         // each child from node
-        for(i=0;i<j;i++)
+        for(s32 i=0;i<j;i++)
         {
           child = board_stack[(parent%max_nodes_per_slot)].child + i;
           // skip selected node from scoring
@@ -1454,12 +1459,8 @@ __kernel void bestfirst_gpu(
     // ####         nove generator          ####
     // #########################################
     n = 0;
-    k = 0;
-    //get king position
-    bbTemp  = (som)?board[0]:board[0]^(board[1]|board[2]|board[3]);
-    bbTemp &= board[1]&board[2]&~board[3]; // get king
     // king in check?
-    rootkic = squareunderattack(board, !som, first1(bbTemp));
+    rootkic = squareunderattack(board, !som, getkingpos(board, som));
     // enter quiescence search?
     qs = (sd<=depth)?false:true;
     qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
@@ -1482,9 +1483,9 @@ __kernel void bestfirst_gpu(
     // stalemate
     score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
     // draw by 3 fold repetition
-    for (i=ply+ply_init-2;i>0&&mode==EXPAND&&index>0;i-=2)
+    for (s32 i=ply+ply_init-2;i>0&&mode==EXPAND&&index>0;i-=2)
     {
-      if (board[4]==global_HashHistory[pid*1024+i])
+      if (board[4]==global_hashhistory[pid*1024+i])
       {
         n       = 0;
         score   = DRAWSCORE;
@@ -1521,6 +1522,8 @@ __kernel void bestfirst_gpu(
     // expand node
     if (mode==EXPAND)
     {
+      s32 parent  = 0;
+
       // expand node counter
       COUNTERS[pid*10+1]++;
       // create child nodes
@@ -1530,7 +1533,7 @@ __kernel void bestfirst_gpu(
         n = -1;
       board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
       // each child from node
-      for(i=0;i<n;i++)
+      for(s32 i=0;i<n;i++)
       {
         move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+i];
         parent = (current+i);      
@@ -1625,6 +1628,10 @@ __kernel void bestfirst_gpu(
     // move up in alphabeta search
     if (mode==MOVEUP)
     {
+      Move tmpmove = 0;
+      Score tmpscore = 0;
+      s32 i = 0;
+
       // alphabeta search node counter
       COUNTERS[pid*10+2]++;
       atom_inc(total_nodes_visited);
@@ -1634,9 +1641,8 @@ __kernel void bestfirst_gpu(
       current = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
       score = -INF;
       tmpscore = 0;
-      i = 0;
       // iterate and eval moves
-      for(j=0;j<n;j++)
+      for(s32 j=0;j<n;j++)
       {
         tmpmove = global_pid_moves[j+current];
         if (tmpmove==MOVENONE)
@@ -1667,7 +1673,7 @@ __kernel void bestfirst_gpu(
       global_pid_todoindex[pid*max_depth+sd]++;
       sd++;
       ply++;
-      global_HashHistory[pid*1024+ply+ply_init] = board[4];
+      global_hashhistory[pid*1024+ply+ply_init] = board[4];
       // set values for next depth
       global_pid_movecounter[pid*max_depth+sd] = 0;
       global_pid_todoindex[pid*max_depth+sd] = 0;
@@ -1680,6 +1686,10 @@ __kernel void bestfirst_gpu(
     // backup score from alphabeta search in bestfirst node tree
     if (mode==BACKUPSCORE)
     {
+      Score tmpscore = 0;
+      s32 j;
+      s32 parent;
+
       mode = INIT;
       board_stack = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
       parent = board_stack[(current%max_nodes_per_slot)].parent;
@@ -1691,7 +1701,7 @@ __kernel void bestfirst_gpu(
         board_stack = (parent>=max_nodes_per_slot*2)?board_stack_3:(parent>=max_nodes_per_slot)?board_stack_2:board_stack_1;
         j = board_stack[(parent%max_nodes_per_slot)].children;
 
-        for(i=0;i<j;i++)
+        for(s32 i=0;i<j;i++)
         {
           child = board_stack[(parent%max_nodes_per_slot)].child + i;
           board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
