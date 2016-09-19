@@ -1093,8 +1093,7 @@ void move2can(Move move, char * movec) {
     movec[1] = rankc[GETRANK(from)];
     movec[2] = filec[GETFILE(to)];
     movec[3] = rankc[GETRANK(to)];
-    movec[4] = ' ';
-    movec[5] = '\0';
+    movec[4] = '\0';
 
     /* pawn promo */
     if ( (pfrom == PAWN && ( ( (to&56)/8 == 7) || ((to&56)/8 == 0) ) )) {
@@ -1106,6 +1105,7 @@ void move2can(Move move, char * movec) {
             movec[4] = 'b';
         if (pto == KNIGHT)
             movec[4] = 'n';
+        movec[5] = '\0';
     }
 
 }
