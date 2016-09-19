@@ -95,6 +95,24 @@ typedef struct
 #define HASHNONE            0x0000000000000000ULL
 #define CRNONE              0x0000000000000000ULL
 #define SCORENONE           0x0000000000000000ULL
+/* move helpers */
+#define MAKEPIECE(p,c)     ((((Piece)p)<<1)|(Piece)c)
+#define JUSTMOVE(move)     (move&0x3FFFFFFF)
+#define GETCOLOR(p)        ((p)&0x1)
+#define GETPTYPE(p)        (((p)>>1)&0x7)      /* 3 bit piece type encoding */
+#define GETSQFROM(mv)      ((mv)&0x3F)         /* 6 bit square */
+#define GETSQTO(mv)        (((mv)>>6)&0x3F)    /* 6 bit square */
+#define GETSQCPT(mv)       (((mv)>>12)&0x3F)   /* 6 bit square */
+#define GETPFROM(mv)       (((mv)>>18)&0xF)    /* 4 bit piece encoding */
+#define GETPTO(mv)         (((mv)>>22)&0xF)    /* 4 bit piece encoding */
+#define GETPCPT(mv)        (((mv)>>26)&0xF)    /* 4 bit piece encodinge */
+/* pack move into 64 bits */
+#define MAKEMOVE(sqfrom, sqto, sqcpt, pfrom, pto, pcpt, pdsq) \
+( \
+     (Move)sqfrom      | (Move)(sqto<<6)  | (Move)(sqcpt<<12) \
+  | (Move)(pfrom<<18)  | (Move)(pto<<22)  | (Move)(pcpt<<26) \
+  | (Move)(pdsq<<30) \
+)
 // square helpers
 #define MAKESQ(file,rank)   ((rank)<<3|(file))
 #define GETRANK(sq)         ((sq)>>3)

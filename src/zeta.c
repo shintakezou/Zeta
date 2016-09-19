@@ -345,8 +345,6 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
          ks_attacks_rs7(bbBlockers, sq) |
          ks_attacks_rs9(bbBlockers, sq);
 }
-
-
 /* is square attacked by an enemy piece, via superpiece approach */
 bool squareunderattack(Bitboard *board, bool stm, Square sq) 
 {
@@ -402,7 +400,15 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
 /* ############################# */
 /* ###        inits          ### */
 /* ############################# */
-
+void inits()
+{
+  if (MoveHistory)
+    free(MoveHistory);
+  MoveHistory = (Move*)calloc(MAXGAMEPLY, sizeof(Move));
+  if (HashHistory)
+    free(HashHistory);
+  HashHistory = (Hash*)calloc(MAXGAMEPLY, sizeof(Hash));
+}
 void free_resources()
 {
   if(GLOBAL_INIT_BOARD)
@@ -418,61 +424,9 @@ void free_resources()
 
   cl_release_device();
 }
-
-void inits()
-{
-  if (MoveHistory)
-    free(MoveHistory);
-  MoveHistory = (Move*)calloc(MAXGAMEPLY, sizeof(Move));
-  if (HashHistory)
-    free(HashHistory);
-  HashHistory = (Hash*)calloc(MAXGAMEPLY, sizeof(Hash));
-}
-
-
-/* ############################# */
-/* ###     move tools        ### */
-/* ############################# */
-
-static inline Move makemove(Square from, Square to, Square cpt, Piece pfrom, Piece pto, Piece pcpt, Square pdsq ) {
-    return (from | (Move)to<<6 |  (Move)cpt<<12 |  (Move)pfrom<<18 | (Move)pto<<22 | (Move)pcpt<<26  | (Move)pdsq<<30);  
-}
-static inline Move getmove(Move move) {
-    return (move & 0x3FFFFFFF);  
-}
-static inline Square getfrom(Move move) {
-    return (move & 0x3F);
-}
-static inline Square getto(Move move) {
-    return ((move>>6) & 0x3F);
-}
-static inline Square getcpt(Move move) {
-    return ((move>>12) & 0x3F);
-}
-static inline Piece getpfrom(Move move) {
-    return ((move>>18) & 0xF);
-}
-static inline Piece getpto(Move move) {
-    return ((move>>22) & 0xF);
-}
-static inline Piece getpcpt(Move move) {
-    return ((move>>26) & 0xF);
-}
-
-Piece getPiece (Bitboard *board, Square sq) {
-
-   return ((board[0] >> sq) & 1)
-      + 2*((board[1] >> sq) & 1)
-      + 4*((board[2] >> sq) & 1)
-      + 8*((board[3] >> sq) & 1);
-}
-
-
 /* ############################# */
 /* ###         Hash          ### */
 /* ############################# */
-
-
 Hash computeHash(Bitboard *board, bool stm)
 {
   Piece piece;
@@ -593,12 +547,12 @@ Move updateCR(Move move, Cr cr) {
 
 void domove(Bitboard *board, Move move) {
 
-    Square from = getfrom(move);
-    Square to   = getto(move);
-    Square cpt  = getcpt(move);
+    Square from = GETSQFROM(move);
+    Square to   = GETSQTO(move);
+    Square cpt  = GETSQCPT(move);
 
-    Bitboard pfrom   = getpfrom(move);
-    Bitboard pto   = getpto(move);
+    Bitboard pfrom   = GETPFROM(move);
+    Bitboard pto   = GETPTO(move);
 
     // Castle move kingside move rook
     if ( ( (pfrom>>1) == KING) && (to-from == 2) ) {
@@ -666,12 +620,12 @@ void domove(Bitboard *board, Move move) {
 void undomove(Bitboard *board, Move move) {
 
 
-    Square from = getfrom(move);
-    Square to   = getto(move);
-    Square cpt  = getcpt(move);
+    Square from = GETSQFROM(move);
+    Square to   = GETSQTO(move);
+    Square cpt  = GETSQCPT(move);
 
-    Bitboard pfrom = getpfrom(move);
-    Bitboard pcpt  = getpcpt(move);
+    Bitboard pfrom = GETPFROM(move);
+    Bitboard pcpt  = GETPCPT(move);
 
     // Castle move kingside move rook
     if ( ( (pfrom>>1) == KING) && (to-from == 2) ) {
@@ -1483,10 +1437,10 @@ void move2alg(Move move, char * movec) {
 
     char rankc[8] = "12345678";
     char filec[8] = "abcdefgh";
-    Square from = getfrom(move);
-    Square to   = getto(move);
-    Piece pfrom   = getpfrom(move);
-    Piece pto   = getpto(move);
+    Square from = GETSQFROM(move);
+    Square to   = GETSQTO(move);
+    Piece pfrom   = GETPFROM(move);
+    Piece pto   = GETPTO(move);
 
 
     movec[0] = filec[GETFILE(from)];
@@ -1528,16 +1482,16 @@ Move move_parser(char *usermove, Bitboard *board, bool stm) {
     rank = (int)usermove[3] -49;
     to = MAKESQ(file,rank);
 
-    pfrom = getPiece(board, from);
+    pfrom = GETPIECE(board, from);
     pto = pfrom;
     cpt = to;
-    pcpt = getPiece(board, cpt);
+    pcpt = GETPIECE(board, cpt);
 
     // en passant
     cpt = ( (pfrom>>1) == PAWN && (stm == WHITE) && (from>>3) == 4 && to-from != 8 && (pcpt>>1) == PNONE ) ? to-8 : cpt;
     cpt = ( (pfrom>>1) == PAWN && (stm == BLACK) && (from>>3) == 3 && from-to != 8 && (pcpt>>1) == PNONE ) ? to+8 : cpt;
 
-    pcpt = getPiece(board, cpt);
+    pcpt = GETPIECE(board, cpt);
     
     // pawn double square flag
     if ( (pfrom>>1) == PAWN && abs(to-from)==16 ) {
@@ -1554,7 +1508,7 @@ Move move_parser(char *usermove, Bitboard *board, bool stm) {
     else if (promopiece == 'r' || promopiece == 'R' )
         pto = ROOK<<1 | (Piece)(stm&0x1);
 
-    move = makemove(from, to, cpt, pfrom, pto , pcpt, pdsq);
+    move = MAKEMOVE(from, to, cpt, pfrom, pto , pcpt, pdsq);
 
     return move;
 }
@@ -1668,10 +1622,10 @@ void print_movealg(Move move) {
     char rankc[] = "12345678";
     char filec[] = "abcdefgh";
     char movec[6] = "";
-    Square from = getfrom(move);
-    Square to   = getto(move);
-    Piece pfrom   = getpfrom(move);
-    Piece pto   = getpto(move);
+    Square from = GETSQFROM(move);
+    Square to   = GETSQTO(move);
+    Piece pfrom   = GETPFROM(move);
+    Piece pto   = GETPTO(move);
 
 
     movec[0] = filec[GETFILE(from)];
@@ -1738,7 +1692,7 @@ void print_board(Bitboard *board) {
         for(j=0;j<8;j++) {
             pos = ((i-1)*8) + j;
 
-            piece = getPiece(board, pos);
+            piece = GETPIECE(board, pos);
 
             if (piece != PNONE && (piece&BLACK))
                 printf("%c", bpchars[piece>>1]);
