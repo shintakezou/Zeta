@@ -941,37 +941,6 @@ void gen_moves(
         }
 */
       }
-/*
-      if (!kic)
-      {
-
-        k[0]++; // check mate move counter
-
-        if (!qs||(qs&&(piececpt>>1)!=PNONE))
-        {
-          // update castle rights        
-          move = updateCR(move, CR);
-          // copy move to global
-          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
-
-          // Movecounters
-          n[0]++;
-          COUNTERS[3]++;
-
-          // sort move, obsolete by movepicker
-          i = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
-          for(j=n-1; j > 0; j--) {
-              if ( EvalMove(global_pid_moves[j+i]) > EvalMove(global_pid_moves[j-1+i])  ) {
-                  tmpmove = global_pid_moves[j+i];
-                  global_pid_moves[j+i] = global_pid_moves[j-1+i];
-                  global_pid_moves[j-1+i] = tmpmove;
-             }
-             else
-              break;
-          }
-        }
-      }
-*/
       // undomove
       undomove(board, move);
     }
