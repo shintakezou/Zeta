@@ -51,6 +51,21 @@ typedef struct
   s32 parent;
 } NodeBlock;
 
+/* quad bitboard array index definition */
+#define QBBBLACK  0     /* pieces white */
+#define QBBP1     1     /* piece type first bit */
+#define QBBP2     2     /* piece type second bit */
+#define QBBP3     3     /* piece type third bit */
+#define QBBHASH   4     /* 64 bit board Zobrist hash */
+#define QBBLAST   5     /* lastmove + ep target + halfmove clock + move score */
+/* move encoding 
+   0  -  5  square from
+   6  - 11  square to
+  12  - 17  square capture
+  18  - 21  piece from
+  22  - 25  piece to
+  26  - 29  piece capture
+*/
 // colors
 #define WHITE 0
 #define BLACK 1
@@ -69,6 +84,7 @@ typedef struct
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
 // limits
+#define MAXPLY          128     // max internal search ply
 #define MAXGAMEPLY      1024    // max ply a game can reach
 #define MAXMOVES        256     // max amount of legal moves per position
 // piece encodings
@@ -164,9 +180,9 @@ enum Squares
 #define PROMOEXT             1         // 0 or 1
 #define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.33    // factor for board score in select formula
-#define BROADWELL            1      // 0 or 1, will apply bestfirst select formula
+#define BROADWELL            1      // 0 or 1, will apply bf select formula
 #define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
-#define MAXBFPLY             128  // max ply of bestfirst search tree
+#define MAXBFPLY             128  // max ply of bf search tree
 // functions
 Score EvalMove(Move move);
 // rotate left based zobrist hashing
@@ -1200,7 +1216,7 @@ __kernel void bestfirst_gpu(
   __global NodeBlock *board_stack;
   __global NodeBlock *board_stack_tmp;
 
-  __private Bitboard board[5]; // Quadbitboard + hash
+  __private Bitboard board[6]; // Quadbitboard + hash + lastmove
 
   const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
 
@@ -1217,7 +1233,7 @@ __kernel void bestfirst_gpu(
   s32 ply = 0;
   s32 n = 0;
   Move move = 0;
-  Move lastmove = 0;
+  Move lastmove;
 
   // assign root node to pid 0 for expand mode
   if (pid==0&&*board_stack_top==1)
@@ -1229,7 +1245,7 @@ __kernel void bestfirst_gpu(
     board[1] = init_board[1];
     board[2] = init_board[2];
     board[3] = init_board[3];
-    board[4] = init_board[4]; // Hash
+    board[4] = init_board[4]; // hash
     som      = (bool)som_init;
     ply      = 0;
     sd       = 0;

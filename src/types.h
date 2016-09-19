@@ -28,6 +28,7 @@
 
 // OpenCL data types to own
 typedef cl_ulong u64;
+typedef cl_long s64;
 typedef cl_uint u32;
 typedef cl_int s32;
 typedef cl_uchar U8;
@@ -57,7 +58,21 @@ typedef struct
 } NodeBlock;
 
 #define VERSION "098e"
-
+/* quad bitboard array index definition */
+#define QBBBLACK  0     /* pieces white */
+#define QBBP1     1     /* piece type first bit */
+#define QBBP2     2     /* piece type second bit */
+#define QBBP3     3     /* piece type third bit */
+#define QBBHASH   4     /* 64 bit board Zobrist hash */
+#define QBBLAST   5     /* lastmove + ep target + halfmove clock + move score */
+/* move encoding 
+   0  -  5  square from
+   6  - 11  square to
+  12  - 17  square capture
+  18  - 21  piece from
+  22  - 25  piece to
+  26  - 29  piece capture
+*/
 // engine defaults
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position

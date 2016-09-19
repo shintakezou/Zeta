@@ -175,7 +175,7 @@ bool cl_init_objects() {
   GLOBAL_INIT_BOARD_Buffer = clCreateBuffer(
                           			      context, 
                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                      sizeof(cl_ulong) * 5,
+                                      sizeof(cl_ulong) * 6,
                                       GLOBAL_INIT_BOARD, 
                                       &status);
   if(status!=CL_SUCCESS) 
@@ -400,7 +400,7 @@ bool cl_init_objects() {
 	return true;
 }
 // run OpenCL kernel, every search
-bool cl_run_kernel(bool stm, int depth)
+bool cl_run_kernel(bool stm, s32 depth)
 {
   s32 i = 0;
   // set kernel arguments
@@ -652,10 +652,10 @@ bool cl_run_kernel(bool stm, int depth)
                           kernel, 
                           i, 
                           sizeof(cl_long), 
-                          (void *)&max_nodes);
+                          (void *)&MaxNodes);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (max_nodes)\n");
+    print_debug((char *)"Error: Setting kernel argument. (MaxNodes)\n");
     return false;
   }
   i++;

@@ -19,29 +19,32 @@
   GNU General Public License for more details.
 */
 
-#include <stdio.h>      // for file IO
+#include <stdio.h>      /* for print and scan */
+#include <stdlib.h>     /* for malloc free */
+#include <string.h>     /* for string compare */ 
+#include <getopt.h>     /* for getopt_long */
 
 #include "bitboard.h"   // bit functions
 #include "timer.h"
 #include "types.h"
 #include "zobrist.h"
 
+/* global variables */
+FILE *LogFile = NULL;         /* logfile for debug */
+char *Line;                   /* for fgetting the input on stdin */
+char *Command;                /* for pasring the xboard command */
+char *Fen;                    /* for storing the fen chess baord string */
 const char filename[]  = "zeta.cl";
 char *source;
 size_t sourceSize;
-
+/* counters */
 u64 MOVECOUNT = 0;
 u64 NODECOUNT = 0;
 u64 TNODECOUNT = 0;
 u64 ABNODECOUNT = 0;
 s32 NODECOPIES = 0;
 u64 MEMORYFULL = 0;
-
-s32 PLY = 0;
-s32 PLYPLAYED = 0;
-bool STM = WHITE;
-
-// config
+// config file
 s32 threadsX            =  0;
 s32 threadsY            =  0;
 s32 threadsZ            =  0;
@@ -56,21 +59,43 @@ s32 max_ab_depth        =  0;
 s32 max_depth           = 99;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
-
+// further config
+s32 max_nps_per_move= 0;
 s32 search_depth    = 0;
 u64 max_mem_mb      = MAXDEVICEMB;
 s32 max_cores       = 1;
-s32 force_mode      = false;
-s32 random_mode     = false;
-s32 xboard_mode     = false;
-s32 xboard_debug    = false;
-s32 post_mode       = false;
 s32 time_management = false;
-
+/* xboard flags */
+bool xboard_mode    = false;  /* chess GUI sets to true */
+bool xboard_force   = false;  /* if true aplly only moves, do not think */
+bool xboard_post    = false;  /* post search thinking output */
+bool xboard_san     = false;  /* use san move notation instead of can */
+bool xboard_time    = false;  /* use xboards time command for time management */
+bool xboard_debug   = false;  /* print debug information */
+s32 xboardmb        = 64;     /* mega bytes for hash table */
+/* timers */
+double start        = 0;
+double end          = 0;
+double elapsed      = 0;
+bool TIMEOUT        = false;  /* global value for time control*/
+/* time control in milli-seconds */
+s32 timemode    = 0;      /* 0 = single move, 1 = conventional clock, 2 = ics clock */
+s32 MovesLeft   = 1;      /* moves left unit nex time increase */
+s32 MaxMoves    = 1;      /* moves to play in time frame */
+double TimeInc  = 0;      /* time increase */
+double TimeBase = 5*1000; /* time base for conventional inc, 5s default */
+double TimeLeft = 5*1000; /* overall time on clock, 5s default */
+double MaxTime  = 5*1000; /* max time per move */
+s64 MaxNodes    = 1;
+/* game state */
+bool STM        = WHITE;  /* site to move */
+s32 SD          = 0; /* max search depth*/
+s32 GAMEPLY     = 0;      /* total ply, considering depth via fen string */
+s32 PLY         = 0;      /* engine specifix ply counter */
 Move *MoveHistory;
 Hash *HashHistory;
-
 // time management
+/*
 static double max_time_per_move = 0;
 static double time_per_move     = 0;
 static s32 max_moves            = 0;
@@ -80,40 +105,42 @@ static double time_left_opponent = 0;
 static double time_left_computer = 0;  
 static char time_string[128];
 static s32 max_nps_per_move     = 0;
-
+*/
 double Elapsed;
 Score bestscore = 0;
 s32 plyreached = 0;
 s32 bestmoveply = 0;
-
-// our quad bitboard
-Bitboard BOARD[5];  
-/*
-  0 => pieces black
-  1 => 1st bit piece tyoe
-  2 => 2nd bit piece tyoe
-  3 => 3rd bit piece tyoe
-  4 => board hash
+/* Quad Bitboard */
+/* based on http://chessprogramming.wikispaces.com/Quad-Bitboards */
+/* by Gerd Isenberg */
+Bitboard BOARD[6];
+/* quad bitboard array index definition
+  0   pieces white
+  1   piece type first bit
+  2   piece type second bit
+  3   piece type third bit
+  4   hash
+  5   lastmove
 */
-
 // for exchange with OpenCL Device
 Bitboard *GLOBAL_INIT_BOARD;
 NodeBlock *NODES = NULL;
 u64 *COUNTERS;
 Hash *GLOBAL_HASHHISTORY;
 s32 BOARD_STACK_TOP;
-
 Move Bestmove = 0;
 Move Lastmove = 0;
 Cr  CR = 0;
-
 // functions
-Move move_parser(char *usermove, Bitboard *board, bool stm);
-void setboard(char *fen);
-void move2alg(Move move, char * movec);
+static void print_help(void);
+static void print_version(void);
+static void selftest(void);
+Move can2move(char *usermove, Bitboard *board, bool stm);
+static bool setboard(Bitboard *board, char *fen);
+void move2can(Move move, char * movec);
 void print_movealg(Move move);
 void print_bitboard(Bitboard board);
-void print_board(Bitboard *board);
+void printboard(Bitboard *board);
 void print_stats();
 void read_config();
 s32 load_file_to_string(const char *filename, char **result);
@@ -352,6 +379,12 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
          ks_attacks_rs7(bbBlockers, sq) |
          ks_attacks_rs9(bbBlockers, sq);
 }
+Square getkingpos(Bitboard *board, bool side)
+{
+  Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
+  bbTemp &= board[1]&board[2]&~board[3]; // get king
+  return first1(bbTemp);
+}
 /* is square attacked by an enemy piece, via superpiece approach */
 bool squareunderattack(Bitboard *board, bool stm, Square sq) 
 {
@@ -406,14 +439,67 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
 /* ############################# */
 /* ###        inits          ### */
 /* ############################# */
-void inits()
+/* innitialize memory, files and tables */
+static bool engineinits(void)
+{
+  /* memory allocation */
+  Line         = (char *)calloc(1024       , sizeof (char));
+  Command      = (char *)calloc(1024       , sizeof (char));
+  Fen          = (char *)calloc(1024       , sizeof (char));
+  MoveHistory = (Move *)calloc(MAXGAMEPLY , sizeof (Move));
+  HashHistory = (Hash *)calloc(MAXGAMEPLY , sizeof (Hash));
+
+  if (!Line) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): char Line[%d]", 1024);
+    return false;
+  }
+  if (!Command) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): char Command[%d]", 1024);
+    return false;
+  }
+  if (!Fen) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): char Fen[%d]", 1024);
+    return false;
+  }
+  if (!MoveHistory) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): u64 MoveHistory[%d]",
+             MAXGAMEPLY);
+    return false;
+  }
+  if (!HashHistory) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): u64 HashHistory[%d]",
+            MAXGAMEPLY);
+    return false;
+  }
+
+  return true;
+}
+static bool gameinits(void)
 {
   if (MoveHistory)
     free(MoveHistory);
   MoveHistory = (Move*)calloc(MAXGAMEPLY, sizeof(Move));
+  if (!MoveHistory) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): Move MoveHistory[%d]",
+            MAXGAMEPLY);
+    exit(EXIT_FAILURE);
+  }
   if (HashHistory)
     free(HashHistory);
   HashHistory = (Hash*)calloc(MAXGAMEPLY, sizeof(Hash));
+  if (!HashHistory) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): Hash HashHistory[%d]",
+            MAXGAMEPLY);
+    exit(EXIT_FAILURE);
+  }
+  return true;
 }
 void free_resources()
 {
@@ -674,7 +760,11 @@ void undomove(Bitboard *board, Move move)
 /* ############################# */
 /* ###      root search      ### */
 /* ############################# */
-Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove)
+Score perft(Bitboard *board, bool stm, s32 depth)
+{
+  return 0;
+}
+Move rootsearch(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
   s32 i,j;
@@ -683,11 +773,9 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove)
   s32 visits = 0;
   s32 tmpvisits = 0;
 
-  Move bestmove = 0;
+  Move bestmove = MOVENONE;
   double start, end;
 
-  PLYPLAYED++;
-  
   NODECOUNT   = 0;
   TNODECOUNT  = 0;
   ABNODECOUNT = 0;
@@ -699,7 +787,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove)
 
   // prepare root node
   BOARD_STACK_TOP = 1;
-  NODES[0].move                =  lastmove;
+  NODES[0].move                =  board[QBBLAST];
   NODES[0].score               = -INF;
   NODES[0].visits              =  0;
   NODES[0].children            = -1;
@@ -805,7 +893,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove)
   nps_current =  (s32 )(ABNODECOUNT/(Elapsed));
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
   // print xboard output
-  if (post_mode == true || xboard_mode == false) {
+  if (xboard_post == true || xboard_mode == false) {
     if ( xboard_mode == false )
       printf("depth score time nodes bfdepth pv \n");
     printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (s32 )(Elapsed*100), ABNODECOUNT, plyreached);          
@@ -818,7 +906,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove)
   return bestmove;
 }
 // run an benchmark for current set up
-s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
+s32 benchmark(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
   s32 i,j;
@@ -827,11 +915,9 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
   s32 tmpvisits = 0;
   s32 visits = 0;
 
-  Move bestmove = 0;
+  Move bestmove = MOVENONE;
   double start, end;
 
-  PLYPLAYED++;
-  
   NODECOUNT   = 0;
   TNODECOUNT  = 0;
   ABNODECOUNT = 0;
@@ -842,7 +928,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 
   // prepare root node
   BOARD_STACK_TOP = 1;
-  NODES[0].move                =  lastmove;
+  NODES[0].move                =  board[QBBLAST];
   NODES[0].score               = -INF;
   NODES[0].visits              =  0;
   NODES[0].children            = -1;
@@ -950,7 +1036,7 @@ s32 benchmarkNPS(s32 benchsec)
   PLY =0;
   // read temp config created by clconfig
   read_config("config.tmp");
-  inits();
+  gameinits();
 
   state = cl_init_device();
   // something went wrong...
@@ -959,11 +1045,11 @@ s32 benchmarkNPS(s32 benchsec)
     free_resources();
     return -1;
   }
-  setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
-//  setboard((char *)"setboard r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
-//  setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
+  setboard(BOARD, (char *)"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
+//  setboard(BOARD, (char *)"r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
+//  setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
 
-  print_board(BOARD);
+  printboard(BOARD);
   Elapsed = 0;
   max_nodes = 8192; // search 8k nodes
   // run bench
@@ -971,7 +1057,7 @@ s32 benchmarkNPS(s32 benchsec)
     if (Elapsed *2 >= benchsec)
       break;
     PLY = 0;
-    bench = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
+    bench = benchmark(BOARD, STM, max_ab_depth);                
     if (bench != 0 )
       break;
     if (MEMORYFULL == 1)
@@ -982,7 +1068,7 @@ s32 benchmarkNPS(s32 benchsec)
       break;
     }
     max_nodes*=2; // search double the nodes for next iteration
-    setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
+    setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
   }
   free_resources();
   if (Elapsed <= 0 || ABNODECOUNT <= 0)
@@ -990,434 +1076,10 @@ s32 benchmarkNPS(s32 benchsec)
 
   return (ABNODECOUNT/(Elapsed));
 }
-/* ################################ */
-/* ### main xboard command loop ### */
-/* ################################ */
-int main(void) {
-
-  bool state;
-  char line[256];
-  char command[256];
-  char c_usermove[256];
-  s32 go = false;
-  Move move;
-  Move usermove;
-  s32 status = 0;
-  s32 benchsec = 0;
-  char configfile[256] = "config.ini";
-    
-  /* print engine info to console */
-  fprintf(stdout,"Zeta %s\n",VERSION);
-  fprintf(stdout,"Experimental chess engine written in OpenCL.\n");
-  fprintf(stdout,"Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
-  fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
-
-    // load zeta.cl
-    status = load_file_to_string(filename, &source);
-    if (status <= 0) {
-        printf("zeta.cl file missing\n");
-        exit(0);
-    }
-    else
-        sourceSize    = strlen(source);
-
-
-    // xboard command loop
-    for(;;) {
-
-        if (!xboard_mode) 
-            printf("#> ");   
-
-        fflush(stdout);
-
-		if (!fgets(line, 256, stdin)) {
-			continue;
-        }
-		if (line[0] == '\n') {
-        }
-
-		sscanf(line, "%s", command);
-
-		if (!strcmp(command, "xboard")) {			
-            xboard_mode = true;
-            printf("\n");
-            fflush(stdout);
-            continue;
-        }
-
-
-        if (strstr(command, "help")) {
-            
-		    printf("#> Options:\n\n");
-		    printf("#> help                 -> will show help\n");
-		    printf("#> memory 512           -> machine will try to use max 512 MB for guessconfig\n");
-		    printf("#> memory_slots 2       -> machine use memory*2 for guessconfig \n");
-		    printf("#> guessconfig          -> will guess minimal config for CPU|GPU device\n");
-		    printf("#> guessconfigx         -> will guess best config for CPU|GPU device\n");
-		    printf("#> test combined.epd 2  -> will run epd test with 2 sec per move, evaluates only best move option\n");
-		    printf("#> bench 10 config.ini  -> will run benchmark with 10 sec and config.ini as config file\n");
-		    printf("#> new                  -> init machine for new game\n");
-		    printf("#> level 40 5           -> set time control to 5 min for 40 moves\n");
-		    printf("#> go                   -> let machhine play\n");
-		    printf("#> usermove d7d5        -> play given move\n");
-		    printf("#> quit                 -> exit program\n\n");
-        }
-        if (strstr(command, "protover")) {
-            printf("feature done=0\n");  
-		    printf("feature myname=\"Zeta %s\"\n", VERSION);
-		    printf("feature variants=\"normal\"\n");
-            printf("feature reuse=0\n");
-            printf("feature analyze=0\n");
-            printf("feature setboard=1\n");
-            printf("feature memory=01\n");
-            printf("feature smp=0\n");
-            printf("feature usermove=1\n");
-            printf("feature san=0\n");
-            printf("feature time=1\n");
-            printf("feature sigint=0\n");
-            printf("feature debug=0\n");
-            printf("feature done=1\n");
-		    continue;
-        }        
-
-  	if (!strcmp(command, "bench")) {
-
-            benchsec = 10;
-			sscanf(line, "bench %i %s", &benchsec, configfile);
-
-            free_resources();
-            PLY =0;
-            read_config(configfile);
-            inits();
-            state = cl_init_device();
-            // something went wrong...
-            if (!state)
-            {
-              free_resources();
-              exit(EXIT_FAILURE);
-            }
-            setboard((char *)"setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-            printf("\n#>Benchmarking Position 1/3\n");
-            printf("#>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\n");
-            print_board(BOARD);
-            Elapsed = 0;
-            max_nodes = 8192;
-            while (Elapsed <= benchsec) {
-
-                if (Elapsed *2 >= benchsec)
-                    break;
-                PLY = 0;
-                status = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
-                if (status != 0)
-                    break;
-                if (MEMORYFULL == 1)
-                {
-          		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
-          		    printf("#");
-          		    printf("#");
-                  break;
-                }
-                max_nodes*=2;
-                setboard((char *)"setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-            }
-            free_resources();
-
-
-            PLY =0;
-            read_config(configfile);
-            inits();
-            state = cl_init_device();
-            // something went wrong...
-            if (!state)
-            {
-              free_resources();
-              exit(EXIT_FAILURE);
-            }
-            setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
-            printf("\n#>Benchmarking Position 2/3\n");
-            printf("#>r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq\n");
-            print_board(BOARD);
-            Elapsed = 0;
-            max_nodes = 8192;
-            while (Elapsed <= benchsec) {
-
-                if (Elapsed *2 >= benchsec)
-                    break;
-                PLY = 0;
-                status = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
-                if (status != 0)
-                    break;
-                if (MEMORYFULL == 1) {
-          		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
-          		    printf("#");
-          		    printf("#");
-                  break;
-                }
-                max_nodes*=2;
-                setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
-            }
-            free_resources();
-
-            PLY =0;
-            read_config(configfile);
-            inits();
-            state = cl_init_device();
-            // something went wrong...
-            if (!state)
-            {
-              free_resources();
-              exit(EXIT_FAILURE);
-            }
-            setboard((char *)"setboard 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
-            printf("\n#>Benchmarking Position 3/3\n");
-            printf("#>8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -\n");
-            print_board(BOARD);
-            Elapsed = 0;
-            max_nodes = 8192;
-            while (Elapsed <= benchsec) {
-
-                if (Elapsed *2 >= benchsec)
-                    break;
-                PLY = 0;
-                status = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
-                if (status != 0)
-                    break;
-                if (MEMORYFULL == 1) {
-          		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
-          		    printf("#");
-          		    printf("#");
-                  break;
-                }
-                max_nodes*=2;
-                setboard((char *)"setboard 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
-            }
-            free_resources();
-
-			continue;
-		}
-
-		if (!strcmp(command, "new")) {
-            PLY =0;
-            PLYPLAYED = 0;
-            free_resources();
-            read_config(configfile);
-            inits();
-            state = cl_init_device();
-            // something went wrong...
-            if (!state)
-            {
-              free_resources();
-              exit(EXIT_FAILURE);
-            }
-            setboard((char *)"setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-            Bestmove = 0;
-            go = false;
-            force_mode = false;
-            random_mode = false;
-            if (xboard_mode == false)
-                print_board(BOARD);
-			continue;
-		}
-		if (!strcmp(command, "setboard")) {
-            setboard(line);
-            if (xboard_mode == false)
-                print_board(BOARD);
-			continue;
-		}
-		if (!strcmp(command, "quit")) {
-            break;
-        }
-		if (!strcmp(command, "force")) {
-            force_mode = true;
-			continue;
-		}
-		if (!strcmp(command, "hard")) {
-			continue;
-		}
-		if (!strcmp(command, "random")) {
-			continue;
-		}
-		if (!strcmp(command, "post")) {
-            post_mode = true;
-			continue;
-		}
-		if (!strcmp(command, "nopost")) {
-            post_mode = false;
-			continue;
-		}
-		if (!strcmp(command, "debug")) {
-            post_mode = true;
-			continue;
-		}
-		if (!strcmp(command, "white")) {
-			continue;
-		}
-		if (!strcmp(command, "black")) {
-			continue;
-		}
-		if (!strcmp(command, "sd")) {
-			sscanf(line, "sd %i", &search_depth);
-      search_depth = (search_depth >= max_depth) ? max_depth : search_depth;
-			continue;
-		}
-		if (!strcmp(command, "memory")) {
-			sscanf(line, "memory %" PRIu64 , &max_mem_mb);
-			continue;
-		}
-		if (!strcmp(command, "memory_slots")) {
-			sscanf(line, "memory_slots %i", &memory_slots);
-			continue;
-		}
-		if (!strcmp(command, "cores")) {
-			sscanf(line, "cores %i", &max_cores);
-			continue;
-		}
-
-    if (!strcmp (command, "st")) {
-      sscanf(line, "st %lf", &time_left_computer); 
-        if (time_management == true) {
-	          max_time_per_move = time_left_computer;
-            max_time_per_move = (max_time_per_move < 1)? 1 : max_time_per_move;
-            max_nps_per_move = nodes_per_second*max_time_per_move;
-            max_nodes = nodes_per_second*max_time_per_move;
-        }
-        else {
-            max_nps_per_move = max_nodes;
-        }
-      continue;
-    }    
-
-
-        if (!strcmp (command, "time")) {
-	        sscanf(line, "time %lf", &time_left_computer); 
-            if (time_management == true) {
-    	        max_time_per_move = ( time_left_computer / ((max_moves-(PLYPLAYED%max_moves))+1)  ) /100;
-                max_time_per_move = (max_time_per_move < 1)? 1 : max_time_per_move;
-                max_nps_per_move = nodes_per_second*max_time_per_move;
-                max_nodes = nodes_per_second*max_time_per_move;
-            }
-            else {
-                max_nps_per_move = max_nodes;
-            }
-	        continue;
-        }    
-        if (!strcmp(command, "otim")) { 
-	        sscanf(line, "otim %lf", &time_left_opponent); 
-	        continue;
-        }	
-        if (!strcmp (command, "level")){
-            sscanf(line, "level %i %s", &max_moves, time_string);
-            if (!strcmp (time_string, ":")) {
-                sscanf(time_string, "%i:%i", &time_minutes, &time_seconds);
-            }
-            else {
-                sscanf(time_string, "%i", &time_minutes);
-                time_seconds = 0;
-            }
-            if (time_management == true) {
-                max_moves = (max_moves == 0)? 40 : max_moves;
-	            max_time_per_move = (((time_minutes*60) + time_seconds) / max_moves);
-	            time_per_move = (((time_minutes*60) + time_seconds) / max_moves);
-                max_nps_per_move = nodes_per_second*max_time_per_move;
-                max_nodes = max_nps_per_move; 
-            }
-            else {
-                max_nps_per_move = max_nodes;
-            }
-
-            continue;
-        }
-
-
-
-		if (!strcmp(command, "go")) {
-
-            force_mode = false;
-            go = true;
-
-            PLYPLAYED = (int)(PLY/2);
-
-            move = rootsearch(BOARD, STM, max_ab_depth, Lastmove);            
-            PLY++;
-
-            CR = (Lastmove>>36)&0xF;
-            Lastmove = move;
-            domove(BOARD, Lastmove);
-            Lastmove = updateCR(Lastmove, CR);
-            HashHistory[PLY] = BOARD[4];
-            MoveHistory[PLY] = Lastmove;
-            
-//            if (xboard_mode == false)
-                print_board(BOARD);
-
-            printf("move ");
-            print_movealg(move);
-            printf("\n");
-            STM = !STM;
-
-            continue;
-		}
-        if (!strcmp(command, "usermove")){
-
-            sscanf(line, "usermove %s", c_usermove);
-            usermove = move_parser(c_usermove, BOARD, STM);
-
-            PLY++;
-            CR = (Lastmove>>36)&0xF;
-            Lastmove = usermove;
-            domove(BOARD, Lastmove);
-            Lastmove = updateCR(Lastmove, CR);
-            HashHistory[PLY] = BOARD[4];
-            MoveHistory[PLY] = Lastmove;
-
-//            if (xboard_mode == false)
-                print_board(BOARD);
-
-            STM = !STM;
-            if ( force_mode == false && go == true) {
-                go = true;
-                move = rootsearch(BOARD, STM, max_ab_depth, Lastmove);
-                PLY++;
-                CR = (Lastmove>>36)&0xF;
-                Lastmove = move;
-                domove(BOARD, Lastmove);
-                Lastmove = updateCR(Lastmove, CR);
-                HashHistory[PLY] = BOARD[4];
-                MoveHistory[PLY] = Lastmove;
-
-//                if (xboard_mode == false)
-                    print_board(BOARD);
-
-                printf("move ");
-                print_movealg(move);
-                printf("\n");
-                STM = !STM;
-            }
-            continue;
-        }
-		if (!strcmp(command, "guessconfig")) {
-            cl_guess_config(false);
-            continue;
-		}
-		if (!strcmp(command, "guessconfigx")) {
-            cl_guess_config(true);
-            continue;
-		}
-    }
-
-    // free memory
-    if (NODES!=NULL)
-        free_resources();
-
-    return 0;
-}
-
-
 /* ############################# */
 /* ###        parser         ### */
 /* ############################# */
-
-void move2alg(Move move, char * movec) {
+void move2can(Move move, char * movec) {
 
     char rankc[8] = "12345678";
     char filec[8] = "abcdefgh";
@@ -1449,7 +1111,7 @@ void move2alg(Move move, char * movec) {
 }
 
 
-Move move_parser(char *usermove, Bitboard *board, bool stm) {
+Move can2move(char *usermove, Bitboard *board, bool stm) {
 
     s32 file;
     s32 rank;
@@ -1497,7 +1159,7 @@ Move move_parser(char *usermove, Bitboard *board, bool stm) {
     return move;
 }
 
-void setboard(char *fen) {
+static bool setboard(Bitboard *board, char *fen) {
 
     s32 i, j, side;
     s32 index;
@@ -1515,14 +1177,14 @@ void setboard(char *fen) {
     Cr cr = 0;
     char string[] = {" PNKBRQ pnkbrq/12345678"};
 
-	sscanf(fen, "setboard %s %c %s %s %i %i", position, csom, castle, ep, &bla, &blubb);
+	sscanf(fen, "%s %c %s %s %i %i", position, csom, castle, ep, &bla, &blubb);
 
 
-    BOARD[0] = 0;
-    BOARD[1] = 0;
-    BOARD[2] = 0;
-    BOARD[3] = 0;
-    BOARD[4] = 0;
+    board[0] = 0;
+    board[1] = 0;
+    board[2] = 0;
+    board[3] = 0;
+    board[4] = 0;
 
     i =0;
     while (!(rank==0 && file==8)) {
@@ -1541,10 +1203,10 @@ void setboard(char *fen) {
                     pos = (rank*8) + file;
                     side = (j>6) ? 1 :0;
                     index = side? j-7 : j;
-                    BOARD[0] |= (side == BLACK)? ((Bitboard)1<<pos) : 0;
-                    BOARD[1] |= ( (Bitboard)(index&1)<<pos);
-                    BOARD[2] |= ( ( (Bitboard)(index>>1)&1)<<pos);
-                    BOARD[3] |= ( ( (Bitboard)(index>>2)&1)<<pos);
+                    board[0] |= (side == BLACK)? ((Bitboard)1<<pos) : 0;
+                    board[1] |= ( (Bitboard)(index&1)<<pos);
+                    board[2] |= ( ( (Bitboard)(index>>1)&1)<<pos);
+                    board[3] |= ( ( (Bitboard)(index>>2)&1)<<pos);
                     file++;
                 }
                 break;                
@@ -1592,14 +1254,23 @@ void setboard(char *fen) {
     Lastmove |= ((Move)cr)<<36;
 
     // set hash
-    BOARD[4] = computeHash(BOARD, STM);
+    board[4] = computeHash(BOARD, STM);
     HashHistory[PLY] = BOARD[4];
 
+  return true;
 }
 
 /* ############################# */
 /* ###       print tools     ### */
 /* ############################# */
+void printmovecan(Move move)
+{
+  char movec[4];
+  move2can(move, movec);
+  fprintf(stdout, "%s",movec);
+  if (LogFile)
+    fprintf(LogFile, "%s",movec);
+}
 
 void print_movealg(Move move) {
 
@@ -1657,7 +1328,7 @@ void print_bitboard(Bitboard board) {
     fflush(stdout);
 }
 
-void print_board(Bitboard *board) {
+void printboard(Bitboard *board) {
 
     s32 i,j,pos;
     Piece piece = PNONE;
@@ -1742,10 +1413,10 @@ void read_config(char configfile[]) {
 
     if (max_nodes == 0) {
         time_management = true;
-        max_nodes = nodes_per_second; 
+        MaxNodes = nodes_per_second; 
     }
     else
-        max_nps_per_move = max_nodes;
+        MaxNodes = max_nodes;
 
 
     totalThreads = threadsX*threadsY*threadsZ;
@@ -1800,5 +1471,776 @@ int load_file_to_string(const char *filename, char **result)
 	fclose(f);
 	(*result)[size] = 0;
 	return size;
+}
+static void selftest(void)
+{
+}
+/* print engine info to console */
+static void print_version(void)
+{
+  fprintf(stdout,"Zeta version: %s\n",VERSION);
+  fprintf(stdout,"Experimental chess engine written in OpenCL.\n");
+  fprintf(stdout,"Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
+  fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
+}
+/* engine options and usage */
+static void print_help(void)
+{
+  fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"You will need an config.ini file to run the engine,\n");
+  fprintf(stdout,"start from command line and type guessconfig to create one.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Options:\n");
+  fprintf(stdout," -l, --log          Write output/debug to file zeta.log\n");
+  fprintf(stdout," -v, --version      Print Zeta version info.\n");
+  fprintf(stdout," -h, --help         Print Zeta program usage help.\n");
+  fprintf(stdout," -s, --selftest     Run an internal test, usefull after compile.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"To play against the engine use an CECP v2 protocol capable chess GUI\n");
+  fprintf(stdout,"like Arena, Cutechess, Winboard or Xboard.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Alternatively you can use Xboard commmands directly on commmand Line,\n"); 
+  fprintf(stdout,"e.g.:\n");
+  fprintf(stdout,"new            // init new game from start position\n");
+  fprintf(stdout,"level 40 4 0   // set time control to 40 moves in 4 minutes\n");
+  fprintf(stdout,"go             // let engine play site to move\n");
+  fprintf(stdout,"usermove d7d5  // let engine apply usermove in coordinate algebraic\n");
+  fprintf(stdout,"               // notation and optionally start thinking\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Not supported Xboard commands:\n");
+  fprintf(stdout,"analyze        // enter analyze mode\n");
+  fprintf(stdout,"?              // move now\n");
+  fprintf(stdout,"draw           // handle draw offers\n");
+  fprintf(stdout,"hard/easy      // turn on/off pondering\n");
+  fprintf(stdout,"hint           // give user a hint move\n");
+  fprintf(stdout,"bk             // book Lines\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Non-Xboard commands:\n");
+//  fprintf(stdout,"perft          // perform a performance test, depth set by sd command\n");
+  fprintf(stdout,"selftest       // run an internal test\n");
+  fprintf(stdout,"help           // print usage info\n");
+  fprintf(stdout,"log            // turn log on\n");
+  fprintf(stdout,"guessconfig    // guess minimal config for OpenCL devices\n");
+  fprintf(stdout,"guessconfigx   // guess best config for OpenCL devices\n");
+  fprintf(stdout,"\n");
+}
+// Zeta, experimental chess engine written in OpenCL.
+int main(int argc, char* argv[])
+{
+  bool state;
+  // config file
+  char configfile[256] = "config.ini";
+  /* xboard states */
+  s32 xboard_protover = 0;      /* Zeta works with protocoll version >= v2 */
+  /* for get opt */
+  s32 c;
+  static struct option long_options[] = 
+  {
+    {"help", 0, 0, 'h'},
+    {"version", 0, 0, 'v'},
+    {"selftest", 0, 0, 's'},
+    {"log", 0, 0, 'l'},
+    {NULL, 0, NULL, 0}
+  };
+  s32 option_index = 0;
+
+  /* no buffers */
+  setbuf (stdout, NULL);
+  setbuf (stdin, NULL);
+
+  /* turn log on */
+  for (c=1;c<argc;c++)
+  {
+    if (!strcmp(argv[c], "-l") || !strcmp(argv[c],"--log"))
+    {
+      /* open/create log file */
+      LogFile = fopen("zeta.log", "a");
+      if (!LogFile ) 
+      {
+        fprintf(stdout,"Error (opening logfile zeta.log): --log");
+      }
+    }
+  }
+  /* getopt loop, parsing for help, version and logging */
+  while ((c = getopt_long_only (argc, argv, "",
+               long_options, &option_index)) != -1) {
+    switch (option_index) 
+    {
+      case 0:
+        print_help ();
+        exit (EXIT_SUCCESS);
+        break;
+      case 1:
+        print_version ();
+        exit (EXIT_SUCCESS);
+        break;
+      case 2:
+        selftest ();
+        exit (EXIT_SUCCESS);
+        break;
+      case 3:
+        break;
+    }
+  }
+  /* open log file */
+  if (LogFile)
+  {
+    /* no buffers */
+    setbuf(LogFile, NULL);
+    /* print binary call to log */
+    fprintdate(LogFile);
+    for (c=0;c<argc;c++)
+    {
+      fprintf(LogFile, "%s ",argv[c]);
+    }
+    fprintf(LogFile, "\n");
+  }
+  /* print engine info to console */
+  fprintf(stdout,"Zeta %s\n",VERSION);
+  fprintf(stdout,"Experimental chess engine written in OpenCL.\n");
+  fprintf(stdout,"Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
+  fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
+
+  /* init memory, files and tables */
+  if (!engineinits()||!gameinits())
+  {
+    free_resources();
+    exit (EXIT_FAILURE);
+  }
+  /* init starting position */
+  setboard(BOARD,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+  // load zeta.cl
+  if (load_file_to_string(filename, &source)<=0)
+  {
+    printf("zeta.cl file missing\n");
+    exit(0);
+  }
+  else
+    sourceSize    = strlen(source);
+
+  /* xboard command loop */
+  for (;;)
+  {
+    /* print cli prompt */
+    if (!xboard_mode) 
+      printf("#> ");   
+    /* just to be sure, flush the output...*/
+    fflush (stdout);
+    if (LogFile)
+      fflush (LogFile);
+    /* get Line */
+    if (!fgets (Line, 1023, stdin)) {}
+    /* ignore empty Lines */
+    if (Line[0] == '\n')
+      continue;
+    /* print io to log file */
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "%s\n",Line);
+    }
+    /* get command */
+    sscanf (Line, "%s", Command);
+    /* xboard commands */
+    /* set xboard mode */
+    if (!strcmp(Command, "xboard"))
+    {
+      fprintf(stdout,"feature done=0\n");  
+      xboard_mode = true;
+      continue;
+    }
+    /* set epd mode */
+    if (!strcmp(Command, "epd"))
+    {
+      fprintf(stdout,"\n");
+      xboard_mode = false;
+      continue;
+    }
+    /* get xboard protocoll version */
+    if (!strcmp(Command, "protover")) 
+    {
+      sscanf (Line, "protover %d", &xboard_protover);
+      /* zeta supports only CECP >= v2 */
+      if (xboard_mode && xboard_protover<2)
+      {
+        fprintf(stdout,"Error (unsupported protocoll version,  < v2): protover\n");
+        fprintf(stdout,"tellusererror (unsupported protocoll version, < v2): protover\n");
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"Error (unsupported protocoll version,  < v2): protover\n");
+        }
+      }
+      else
+      {
+        /* send feature list to xboard */
+        fprintf(stdout,"feature myname=\"Zeta%s\"\n",VERSION);
+        fprintf(stdout,"feature ping=0\n");
+        fprintf(stdout,"feature setboard=1\n");
+        fprintf(stdout,"feature playother=0\n");
+        fprintf(stdout,"feature san=0\n");
+        /* check feature san accepted  */
+        if (!fgets (Line, 1023, stdin)) {}
+        /* get command */
+        sscanf (Line, "%s", Command);
+        if (strstr(Command, "rejected"))
+          xboard_san = true;
+        fprintf(stdout,"feature usermove=1\n");
+        /* check feature usermove accepted  */
+        if (!fgets (Line, 1023, stdin)) {}
+        /* get command */
+        sscanf (Line, "%s", Command);
+        if (strstr(Command, "rejected"))
+        {
+          fprintf(stdout,"Error (unsupported feature usermove): rejected\n");
+          fprintf(stdout,"tellusererror (unsupported feature usermove): rejected\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile,"Error (unsupported feature usermove): rejected\n");
+          }
+          free_resources();
+          exit(EXIT_FAILURE);
+        }
+        fprintf(stdout,"feature time=1\n");
+        /* check feature time accepted  */
+        if (!fgets (Line, 1023, stdin)) {}
+        /* get command */
+        sscanf (Line, "%s", Command);
+        if (strstr(Command, "accepted"))
+          xboard_time = true;
+        fprintf(stdout,"feature draw=0\n");
+        fprintf(stdout,"feature sigint=0\n");
+        fprintf(stdout,"feature reuse=1\n");
+        fprintf(stdout,"feature analyze=0\n");
+        fprintf(stdout,"feature variants=\"normal\"\n");
+        fprintf(stdout,"feature colors=0\n");
+        fprintf(stdout,"feature ics=0\n");
+        fprintf(stdout,"feature name=0\n");
+        fprintf(stdout,"feature pause=0\n");
+        fprintf(stdout,"feature nps=0\n");
+        fprintf(stdout,"feature debug=1\n");
+        /* check feature debug accepted  */
+        if (!fgets (Line, 1023, stdin)) {}
+        /* get command */
+        sscanf (Line, "%s", Command);
+        if (strstr(Command, "accepted"))
+          xboard_debug = true;
+        fprintf(stdout,"feature memory=1\n");
+        fprintf(stdout,"feature smp=0\n");
+        fprintf(stdout,"feature san=0\n");
+        fprintf(stdout,"feature exclude=0\n");
+        fprintf(stdout,"feature done=1\n");
+      }
+      continue;
+    }
+    if (!strcmp(Command, "accepted")) 
+      continue;
+    if (!strcmp(Command, "rejected")) 
+      continue;
+    /* initialize new game */
+		if (!strcmp(Command, "new"))
+    {
+      if (!setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
+      {
+        fprintf(stdout,"Error (in setting start postition): new\n");        
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"Error (in setting start postition): new\n");        
+        }
+      }
+      SD = 0;
+      free_resources();
+      read_config(configfile);
+      gameinits();
+      state = cl_init_device();
+      // something went wrong...
+      if (!state)
+      {
+        free_resources();
+        exit(EXIT_FAILURE);
+      }
+      if (!xboard_mode)
+        printboard(BOARD);
+      xboard_force  = false;
+			continue;
+		}
+    /* set board to position in FEN */
+		if (!strcmp(Command, "setboard"))
+    {
+      sscanf (Line, "setboard %1023[0-9a-zA-Z /-]", Fen);
+      if(*Fen != '\n' && *Fen != '\0'  && !setboard (BOARD, Fen))
+      {
+        fprintf(stdout,"Error (in setting chess psotition via fen string): setboard\n");        
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"Error (in setting chess psotition via fen string): setboard\n");        
+        }
+      }
+      if (!xboard_mode)
+        printboard(BOARD);
+      continue;
+		}
+    if (!strcmp(Command, "go"))
+    {
+      /* zeta supports only CECP >= v2 */
+      if (xboard_mode && xboard_protover<2)
+      {
+        fprintf(stdout,"Error (unsupported protocoll version, < v2): go\n");
+        fprintf(stdout,"tellusererror (unsupported protocoll version. < v2): go\n");
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"Error (unsupported protocoll version, < v2): go\n");
+        }
+      }
+      else 
+      {
+        bool kic = false;
+        Move move;
+        xboard_force = false;
+        NODECOUNT = 0;
+        MOVECOUNT = 0;
+        start = get_time();
+
+        HashHistory[PLY] = BOARD[QBBHASH];
+
+        /* start thinking */
+        move = rootsearch(BOARD, STM, SD);
+
+        fprintf(stdout,"move ");
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"move ");
+        }
+        printmovecan(move);
+        fprintf(stdout,"\n");
+        if (LogFile)
+          fprintf(LogFile,"\n");
+
+        fflush(stdout);
+        fflush(LogFile);
+
+        domove(BOARD, move);
+
+        end = get_time();   
+        elapsed = end-start;
+
+        if ((!xboard_mode)||xboard_debug)
+        {
+          printboard(BOARD);
+          fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, nps: %" PRIu64 " \n", NODECOUNT, elapsed/1000, (u64)(NODECOUNT/(elapsed/1000)));
+        }
+
+        PLY++;
+        STM = !STM;
+
+        HashHistory[PLY] = BOARD[QBBHASH];
+        MoveHistory[PLY] = move;
+
+        /* time mngmt */
+        TimeLeft-=elapsed;
+        /* get moves left, one move as time spare */
+        if (timemode==1)
+          MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
+        /* get new time inc */
+        if (timemode==0)
+          TimeLeft = TimeBase;
+        if (timemode==2)
+          TimeLeft+= TimeInc;
+        /* set max time per move */
+        MaxTime = TimeLeft/MovesLeft+TimeInc;
+        /* get new time inc */
+        if (timemode==1&&MovesLeft==2)
+          TimeLeft+= TimeBase;
+        /* get max nodes to search */
+        MaxNodes = MaxTime*nodes_per_second;
+      }
+      continue;
+    }
+    /* set xboard force mode, no thinking just apply moves */
+		if (!strcmp(Command, "force"))
+    {
+      xboard_force = true;
+      continue;
+    }
+    /* set time control */
+		if (!strcmp(Command, "level"))
+    {
+      s32 sec   = 0;
+      s32 min   = 0;
+      TimeBase  = 0;
+      TimeLeft  = 0;
+      TimeInc   = 0;
+      MovesLeft = 0;
+      MaxMoves  = 0;
+
+      if(sscanf(Line, "level %d %d %lf",
+               &MaxMoves, &min, &TimeInc)!=3 &&
+         sscanf(Line, "level %d %d:%d %lf",
+               &MaxMoves, &min, &sec, &TimeInc)!=4)
+           continue;
+
+      /* from seconds to milli seconds */
+      TimeBase  = 60*min + sec;
+      TimeBase *= 1000;
+      TimeInc  *= 1000;
+      TimeLeft  = TimeBase;
+
+      if (MaxMoves==0)
+        timemode = 2; /* ics clocks */
+      else
+        timemode = 1; /* conventional clock mode */
+
+      /* set moves left to 40 in sudden death or ics time control */
+      if (timemode==2)
+        MovesLeft = 40;
+
+      /* get moves left */
+      if (timemode==1)
+        MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
+      /* set max time per move */
+      MaxTime = TimeLeft/MovesLeft+TimeInc;
+      /* get max nodes to search */
+      MaxNodes = MaxTime*nodes_per_second;
+
+      continue;
+    }
+    /* set time control to n seconds per move */
+		if (!strcmp(Command, "st"))
+    {
+      sscanf(Line, "st %lf", &TimeBase);
+      TimeBase *= 1000; 
+      TimeLeft  = TimeBase; 
+      TimeInc   = 0;
+      MovesLeft = MaxMoves = 1; /* just one move*/
+      timemode  = 0;
+      /* set max time per move */
+      MaxTime   = TimeLeft/MovesLeft+TimeInc;
+      /* get max nodes to search */
+      MaxNodes = MaxTime*nodes_per_second;
+
+      continue;
+    }
+    /* time left on clock */
+		if (!strcmp(Command, "time"))
+    {
+      sscanf(Line, "time %lf", &TimeLeft);
+      TimeLeft *= 10;  /* centi-seconds to milliseconds */
+      /* get moves left, one move time spare */
+      if (timemode==1)
+        MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
+      /* set max time per move */
+      MaxTime = TimeLeft/MovesLeft+TimeInc;
+      /* get max nodes to search */
+      MaxNodes = MaxTime*nodes_per_second;
+
+      continue;
+    }
+    /* opp time left, ignore */
+		if (!strcmp(Command, "otim"))
+      continue;
+    /* memory for hash size  */
+		if (!strcmp(Command, "memory"))
+    {
+      sscanf(Line, "memory %d", &xboardmb);
+      continue;
+    }
+    if (!strcmp(Command, "usermove"))
+    {
+      char movec[6];
+      Move move;
+      /* zeta supports only CECP >= v2 */
+      if (xboard_mode && xboard_protover<2)
+      {
+        fprintf(stdout,"Error (unsupported protocoll version, < v2): usermove\n");
+        fprintf(stdout,"tellusererror (unsupported protocoll version, <v2): usermove\n");
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"Error (unsupported protocoll version, < v2): usermove\n");
+        }
+      }
+      /* apply given move */
+      sscanf (Line, "usermove %s", movec);
+      move = can2move(movec, BOARD,STM);
+
+      domove(BOARD, move);
+
+      PLY++;
+      STM = !STM;
+
+      HashHistory[PLY] = BOARD[QBBHASH];
+      MoveHistory[PLY] = move;
+
+      if (!xboard_mode||xboard_debug)
+          printboard(BOARD);
+      /* start thinking */
+      if (!xboard_force)
+      {
+        /* start thinking */
+        move = rootsearch(BOARD, STM, SD);
+
+        fprintf(stdout,"move ");
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"move ");
+        }
+        printmovecan(move);
+        fprintf(stdout,"\n");
+        if (LogFile)
+          fprintf(LogFile,"\n");
+
+        fflush(stdout);
+        fflush(LogFile);
+
+        domove(BOARD, move);
+
+        end = get_time();   
+        elapsed = end-start;
+
+        if (!xboard_mode||xboard_debug)
+        {
+          printboard(BOARD);
+          fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, nps: %" PRIu64 " \n", NODECOUNT, elapsed/1000, (u64)(NODECOUNT/(elapsed/1000)));
+        }
+
+        PLY++;
+        STM = !STM;
+
+        HashHistory[PLY] = BOARD[QBBHASH];
+        MoveHistory[PLY] = move;
+
+        /* time mngmt */
+        TimeLeft-=elapsed;
+        /* get moves left, one move as time spare */
+        if (timemode==1)
+          MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
+        /* get new time inc */
+        if (timemode==0)
+          TimeLeft = TimeBase;
+        if (timemode==2)
+          TimeLeft+= TimeInc;
+        /* set max time per move */
+        MaxTime = TimeLeft/MovesLeft+TimeInc;
+        /* get new time inc */
+        if (timemode==1&&MovesLeft==2)
+          TimeLeft+= TimeBase;
+        /* get max nodes to search */
+        MaxNodes = MaxTime*nodes_per_second;
+      }
+      continue;
+    }
+    /* back up one ply */
+		if (!strcmp(Command, "undo"))
+    {
+      if (PLY>0)
+      {
+        undomove(BOARD, MoveHistory[PLY]);
+        PLY--;
+        STM = !STM;
+      }
+      continue;
+    }
+    /* back up two plies */
+		if (!strcmp(Command, "remove"))
+    {
+      if (PLY>=2)
+      {
+        undomove(BOARD, MoveHistory[PLY]);
+        PLY--;
+        STM = !STM;
+        undomove(BOARD, MoveHistory[PLY]);
+        PLY--;
+        STM = !STM;
+      }
+      continue;
+    }
+    /* exit program */
+		if (!strcmp(Command, "quit"))
+    {
+      break;
+    }
+    /* set search depth */
+    if (!strcmp(Command, "sd"))
+    {
+      sscanf (Line, "sd %d", &SD);
+      SD = (SD>=max_ab_depth)?max_ab_depth:SD;
+      continue;
+    }
+    /* turn on thinking output */
+		if (!strcmp(Command, "post"))
+    {
+      xboard_post = true;
+      continue;
+    }
+    /* turn off thinking output */
+		if (!strcmp(Command, "nopost"))
+    {
+      xboard_post = false;
+      continue;
+    }
+    /* xboard commands to ignore */
+		if (!strcmp(Command, "random"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "white"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "black"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "draw"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "ping"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "result"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "hint"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "bk"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "hard"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "easy"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "name"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "rating"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "ics"))
+    {
+      continue;
+    }
+		if (!strcmp(Command, "computer"))
+    {
+      continue;
+    }
+    /* non xboard commands */
+    /* do an node count to depth defined via sd  */
+    if (!xboard_mode && !strcmp(Command, "perft"))
+    {
+      NODECOUNT = 0;
+      MOVECOUNT = 0;
+
+      fprintf(stdout,"### doing perft depth %d: ###\n", SD);  
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"### doing perft depth %d: ###\n", SD);  
+      }
+
+      start = get_time();
+
+      perft(BOARD, STM, SD);
+
+      end = get_time();   
+      elapsed = end-start;
+
+      fprintf(stdout,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
+              NODECOUNT, (elapsed/1000), (u64)(NODECOUNT/(elapsed/1000)));
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
+              NODECOUNT, (elapsed/1000), (u64)(NODECOUNT/(elapsed/1000)));
+      }
+
+      fflush(stdout);
+      fflush(LogFile);
+  
+      continue;
+    }
+    /* do an internal self test */
+    if (!xboard_mode && !strcmp(Command, "selftest"))
+    {
+      selftest();
+      continue;
+    }
+    /* print help */
+    if (!xboard_mode && !strcmp(Command, "help"))
+    {
+      print_help();
+      continue;
+    }
+    /* toggle log flag */
+    if (!xboard_mode && !strcmp(Command, "log"))
+    {
+      /* open/create log file */
+      if (!LogFile ) 
+      {
+        LogFile = fopen("zeta.log", "a");
+        if (!LogFile ) 
+        {
+          fprintf(stdout,"Error (opening logfile zeta.log): log");
+        }
+      }
+      continue;
+    }
+    /* not supported xboard commands...tell user */
+		if (!strcmp(Command, "edit"))
+    {
+      fprintf(stdout,"Error (unsupported command): %s\n",Command);
+      fprintf(stdout,"tellusererror (unsupported command): %s\n",Command);
+      fprintf(stdout,"tellusererror engine supports only CECP (Xboard) version >=2\n");
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"Error (unsupported command): %s\n",Command);
+      }
+      continue;
+    }
+		if (
+        !strcmp(Command, "analyze")||
+        !strcmp(Command, "pause")||
+        !strcmp(Command, "resume")
+        )
+    {
+      fprintf(stdout,"Error (unsupported command): %s\n",Command);
+      fprintf(stdout,"tellusererror (unsupported command): %s\n",Command);
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"Error (unsupported command): %s\n",Command);
+      }
+      continue;
+    }
+    /* unknown command...*/
+    fprintf(stdout,"Error (unsupported command): %s\n",Command);
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile,"Error (unsupported command): %s\n",Command);
+    }
+  }
+  /* release memory, files and tables */
+  free_resources();
+  exit(EXIT_SUCCESS);
 }
 

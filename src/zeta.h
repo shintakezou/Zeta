@@ -43,6 +43,7 @@ extern s32 memory_slots;
 extern u64 max_nodes;
 extern s32 max_depth;
 extern s32 max_leaf_depth;
+extern s64 MaxNodes;
 // globals
 extern s32 PLY;
 extern u64 max_mem_mb;
