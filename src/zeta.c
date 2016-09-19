@@ -474,7 +474,7 @@ Hash computeHash(Bitboard *board, bool stm)
   if (!stm)
     hash ^= 0x1ULL;
 
-    return hash;    
+  return hash;    
 }
 /* incremental board hash update */
 void updateHash(Bitboard *board, Move move)
@@ -674,324 +674,325 @@ void undomove(Bitboard *board, Move move)
 /* ############################# */
 /* ###      root search      ### */
 /* ############################# */
-Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove) {
+Move rootsearch(Bitboard *board, bool stm, s32 depth, Move lastmove)
+{
+  bool state;
+  s32 i,j;
+  Score score;
+  Score tmpscore;
+  s32 visits = 0;
+  s32 tmpvisits = 0;
 
-    bool state;
-    s32 i,j= 0;
-    Score score;
-    Score tmpscore;
-    s32 visits = 0;
-    s32 tmpvisits = 0;
+  Move bestmove = 0;
+  double start, end;
 
-    Move bestmove = 0;
-    double start, end;
+  PLYPLAYED++;
+  
+  NODECOUNT   = 0;
+  TNODECOUNT  = 0;
+  ABNODECOUNT = 0;
+  MOVECOUNT   = 0;
+  NODECOPIES  = 0;
+  MEMORYFULL  = 0;
 
-    PLYPLAYED++;
-    
-    NODECOUNT   = 0;
-    TNODECOUNT  = 0;
-    ABNODECOUNT = 0;
-    MOVECOUNT   = 0;
-    NODECOPIES  = 0;
-    MEMORYFULL  = 0;
+  start = get_time(); 
 
-    start = get_time(); 
+  // prepare root node
+  BOARD_STACK_TOP = 1;
+  NODES[0].move                =  lastmove;
+  NODES[0].score               = -INF;
+  NODES[0].visits              =  0;
+  NODES[0].children            = -1;
+  NODES[0].parent              = -1;
+  NODES[0].child               = -1;
+  NODES[0].lock                =  0; // assign root node to process 0   
 
-    // prepare root node
-    BOARD_STACK_TOP = 1;
-    NODES[0].move                =  lastmove;
-    NODES[0].score               = -INF;
-    NODES[0].visits              =  0;
-    NODES[0].children            = -1;
-    NODES[0].parent              = -1;
-    NODES[0].child               = -1;
-    NODES[0].lock                =  0; // assign root node to process 0   
+  // init board
+  memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
+  // reset counters
+  if (COUNTERS)
+    free(COUNTERS);
+  COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
+  // prepare hash history
+  for(i=0;i<totalThreads;i++)
+  {
+    memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+  }
 
-    // init board
-    memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
-    // reset counters
-    if (COUNTERS)
-      free(COUNTERS);
-    COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
-    // prepare hash history
-    for(i=0;i<totalThreads;i++)
-    {
-      memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
-    }
-
-    // call GPU functions
+  // call GPU functions
 /*
-    state = cl_init_device();
-    // something went wrong...
-    if (!state)
-    {
-      free_resources();
-      exit(EXIT_FAILURE);
-    }
+  state = cl_init_device();
+  // something went wrong...
+  if (!state)
+  {
+    free_resources();
+    exit(EXIT_FAILURE);
+  }
 */
-    state = cl_init_objects();
-    // something went wrong...
-    if (!state)
-    {
-      free_resources();
-      exit(EXIT_FAILURE);
-    }
-    state = cl_run_kernel(stm, depth);
-    // something went wrong...
-    if (!state)
-    {
-      free_resources();
-      exit(EXIT_FAILURE);
-    }
-    state = cl_get_and_release_memory();
-    // something went wrong...
-    if (!state)
-    {
-      free_resources();
-      exit(EXIT_FAILURE);
-    }
+  state = cl_init_objects();
+  // something went wrong...
+  if (!state)
+  {
+    free_resources();
+    exit(EXIT_FAILURE);
+  }
+  state = cl_run_kernel(stm, depth);
+  // something went wrong...
+  if (!state)
+  {
+    free_resources();
+    exit(EXIT_FAILURE);
+  }
+  state = cl_get_and_release_memory();
+  // something went wrong...
+  if (!state)
+  {
+    free_resources();
+    exit(EXIT_FAILURE);
+  }
 /*
-    state = cl_release_device();
-    // something went wrong...
-    if (!state)
-    {
-      free_resources();
-      exit(EXIT_FAILURE);
-    }
+  state = cl_release_device();
+  // something went wrong...
+  if (!state)
+  {
+    free_resources();
+    exit(EXIT_FAILURE);
+  }
 */
-    // single reply
-    score = -NODES[NODES[0].child].score;
-    bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
-    // get best move from tree copied from cl device
-    for(i=0; i < NODES[0].children; i++)
+  // single reply
+  score = -NODES[NODES[0].child].score;
+  bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
+  // get best move from tree copied from cl device
+  for(i=0; i < NODES[0].children; i++)
+  {
+    j = NODES[0].child + i;
+    tmpscore = -NODES[j].score;
+    tmpvisits = NODES[j].visits;
+  /*
+    FILE 	*Stats;
+    Stats = fopen("zeta.debug", "a");
+    fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
+    fclose(Stats);
+  */
+    if (ISINF(tmpscore)) // skip illegal
+      continue;
+    if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
     {
-        j = NODES[0].child + i;
-        tmpscore = -NODES[j].score;
-        tmpvisits = NODES[j].visits;
-/*
-        FILE 	*Stats;
-        Stats = fopen("zeta.debug", "a");
-        fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
-        fclose(Stats);
-*/
-        if (ISINF(tmpscore)) // skip illegal
-            continue;
-        if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
-        {
-            score = tmpscore;
-            visits = tmpvisits;
-            // collect bestmove
-            bestmove = NODES[j].move&0x000000003FFFFFFF;
-        }
+      score = tmpscore;
+      visits = tmpvisits;
+      // collect bestmove
+      bestmove = NODES[j].move&0x000000003FFFFFFF;
     }
-    bestscore = ISINF(score)?DRAWSCORE:score;
-    Bestmove = bestmove;
-    // collect counters
-    for (i=0; i < totalThreads; i++) {
-        NODECOUNT+=     COUNTERS[i*10+0];
-        TNODECOUNT+=    COUNTERS[i*10+1];
-        ABNODECOUNT+=   COUNTERS[i*10+2];
-    }
-//    bestscore = (s32)COUNTERS[totalThreads*4+0];
-    MOVECOUNT = COUNTERS[3];
-    plyreached = COUNTERS[5];
-    MEMORYFULL = COUNTERS[6];
-    bestmoveply = COUNTERS[7];
-    // timers
-    end = get_time();
-    Elapsed = end-start;
-    Elapsed/=1000;
-    // compute next nps value
-    nps_current =  (s32 )(ABNODECOUNT/(Elapsed));
-    nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
-    // print xboard output
-    if (post_mode == true || xboard_mode == false) {
-        if ( xboard_mode == false )
-            printf("depth score time nodes bfdepth pv \n");
-        printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (s32 )(Elapsed*100), ABNODECOUNT, plyreached);          
-        print_movealg(bestmove);
-        printf("\n");
-    }
-    print_stats();
-    fflush(stdout);        
-    return bestmove;
+  }
+  bestscore = ISINF(score)?DRAWSCORE:score;
+  Bestmove = bestmove;
+  // collect counters
+  for (i=0; i < totalThreads; i++) {
+    NODECOUNT+=     COUNTERS[i*10+0];
+    TNODECOUNT+=    COUNTERS[i*10+1];
+    ABNODECOUNT+=   COUNTERS[i*10+2];
+  }
+//  bestscore = (s32)COUNTERS[totalThreads*4+0];
+  MOVECOUNT = COUNTERS[3];
+  plyreached = COUNTERS[5];
+  MEMORYFULL = COUNTERS[6];
+  bestmoveply = COUNTERS[7];
+  // timers
+  end = get_time();
+  Elapsed = end-start;
+  Elapsed/=1000;
+  // compute next nps value
+  nps_current =  (s32 )(ABNODECOUNT/(Elapsed));
+  nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
+  // print xboard output
+  if (post_mode == true || xboard_mode == false) {
+    if ( xboard_mode == false )
+      printf("depth score time nodes bfdepth pv \n");
+    printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (s32 )(Elapsed*100), ABNODECOUNT, plyreached);          
+    print_movealg(bestmove);
+    printf("\n");
+  }
+  print_stats();
+  fflush(stdout);
+
+  return bestmove;
 }
 // run an benchmark for current set up
 s32 benchmark(Bitboard *board, bool stm, s32 depth, Move lastmove)
 {
-    bool state;
-    s32 i,j= 0;
-    Score score = -2147483647;
-    Score tmpscore;
-    s32 tmpvisits = 0;
-    s32 visits = 0;
+  bool state;
+  s32 i,j;
+  Score score = -2147483647;
+  Score tmpscore;
+  s32 tmpvisits = 0;
+  s32 visits = 0;
 
-    Move bestmove = 0;
-    double start, end;
+  Move bestmove = 0;
+  double start, end;
 
-    PLYPLAYED++;
-    
-    NODECOUNT   = 0;
-    TNODECOUNT  = 0;
-    ABNODECOUNT = 0;
-    MOVECOUNT   = 0;
-    NODECOPIES  = 0;
+  PLYPLAYED++;
+  
+  NODECOUNT   = 0;
+  TNODECOUNT  = 0;
+  ABNODECOUNT = 0;
+  MOVECOUNT   = 0;
+  NODECOPIES  = 0;
 
-    start = get_time();
+  start = get_time();
 
-    // prepare root node
-    BOARD_STACK_TOP = 1;
-    NODES[0].move                =  lastmove;
-    NODES[0].score               = -INF;
-    NODES[0].visits              =  0;
-    NODES[0].children            = -1;
-    NODES[0].parent              = -1;
-    NODES[0].child               = -1;
-    NODES[0].lock                =  0; // assign root node to process 0   
+  // prepare root node
+  BOARD_STACK_TOP = 1;
+  NODES[0].move                =  lastmove;
+  NODES[0].score               = -INF;
+  NODES[0].visits              =  0;
+  NODES[0].children            = -1;
+  NODES[0].parent              = -1;
+  NODES[0].child               = -1;
+  NODES[0].lock                =  0; // assign root node to process 0   
 
-    // init board
-    memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
-    // reset counters
-    if (COUNTERS)
-      free(COUNTERS);
-    COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
-    // prepare hash history
-    for(i=0;i<totalThreads;i++)
-    {
-      memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
-    }
+  // init board
+  memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
+  // reset counters
+  if (COUNTERS)
+    free(COUNTERS);
+  COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
+  // prepare hash history
+  for(i=0;i<totalThreads;i++)
+  {
+    memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+  }
 
-    // call GPU functions
+  // call GPU functions
 /*
-    state = cl_init_device();
-    if (!state)
-        return -1;
-*/
-    state = cl_init_objects();
-    // something went wrong...
-    if (!state)
-    {
+  state = cl_init_device();
+  if (!state)
       return -1;
-    }
-    state = cl_run_kernel(stm, depth);
-    // something went wrong...
-    if (!state)
-    {
-      return -1;
-    }
-    // timers
-    end = get_time();
-    Elapsed = end-start;
-    Elapsed/=1000;
+*/
+  state = cl_init_objects();
+  // something went wrong...
+  if (!state)
+  {
+    return -1;
+  }
+  state = cl_run_kernel(stm, depth);
+  // something went wrong...
+  if (!state)
+  {
+    return -1;
+  }
+  // timers
+  end = get_time();
+  Elapsed = end-start;
+  Elapsed/=1000;
 
-    state= cl_get_and_release_memory();
-    if (!state)
-        return -1;
+  state= cl_get_and_release_memory();
+  if (!state)
+    return -1;
 /*
-    state = cl_release_device();
-    if (!state)
-        return -1;
+  state = cl_release_device();
+  if (!state)
+    return -1;
 */
-    // single reply
-    score = -NODES[NODES[0].child].score;
-    bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
-    // get best move from tree copied from cl device
-    for(i=0; i < NODES[0].children; i++)
+  // single reply
+  score = -NODES[NODES[0].child].score;
+  bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
+  // get best move from tree copied from cl device
+  for(i=0; i < NODES[0].children; i++)
+  {
+    j = NODES[0].child + i;
+    tmpscore = -NODES[j].score;
+    tmpvisits = NODES[j].visits;
+  /*
+    FILE 	*Stats;
+    Stats = fopen("zeta.debug", "a");
+    fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
+    fclose(Stats);
+  */
+    if (ISINF(tmpscore)) // skip illegal
+      continue;
+    if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
     {
-        j = NODES[0].child + i;
-        tmpscore = -NODES[j].score;
-        tmpvisits = NODES[j].visits;
-/*
-        FILE 	*Stats;
-        Stats = fopen("zeta.debug", "a");
-        fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
-        fclose(Stats);
-*/
-        if (ISINF(tmpscore)) // skip illegal
-            continue;
-        if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
-        {
-            score = tmpscore;
-            visits = tmpvisits;
-            // collect bestmove
-            bestmove = NODES[j].move&0x000000003FFFFFFF;
-        }
+      score = tmpscore;
+      visits = tmpvisits;
+      // collect bestmove
+      bestmove = NODES[j].move&0x000000003FFFFFFF;
     }
-    bestscore = ISINF(score)?DRAWSCORE:score;
-    Bestmove = bestmove;
-    // collect counters
-    for (i=0; i < totalThreads; i++) {
-        NODECOUNT+=     COUNTERS[i*10+0];
-        TNODECOUNT+=    COUNTERS[i*10+1];
-        ABNODECOUNT+=   COUNTERS[i*10+2];
-    }
-//    bestscore = (s32)COUNTERS[totalThreads*4+0];
-    MOVECOUNT = COUNTERS[3];
-    plyreached = COUNTERS[5];
-    MEMORYFULL = COUNTERS[6];
-    bestmoveply = COUNTERS[7];
-    // print cli output
-    printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore/10);
-    printf(" move ");
-    print_movealg(bestmove);
-    printf("\n");
-    print_stats();
-    fflush(stdout);        
-    return 0;
+  }
+  bestscore = ISINF(score)?DRAWSCORE:score;
+  Bestmove = bestmove;
+  // collect counters
+  for (i=0; i < totalThreads; i++) {
+    NODECOUNT+=     COUNTERS[i*10+0];
+    TNODECOUNT+=    COUNTERS[i*10+1];
+    ABNODECOUNT+=   COUNTERS[i*10+2];
+  }
+//  bestscore = (s32)COUNTERS[totalThreads*4+0];
+  MOVECOUNT = COUNTERS[3];
+  plyreached = COUNTERS[5];
+  MEMORYFULL = COUNTERS[6];
+  bestmoveply = COUNTERS[7];
+  // print cli output
+  printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore/10);
+  printf(" move ");
+  print_movealg(bestmove);
+  printf("\n");
+  print_stats();
+  fflush(stdout);        
+
+  return 0;
 }
 // get nodes per second for temp config and specified position
 s32 benchmarkNPS(s32 benchsec)
 {
-    bool state;
-    s32 bench = 0;
+  bool state;
+  s32 bench = 0;
 
-    PLY =0;
-    // read temp config created by clconfig
-    read_config("config.tmp");
-    inits();
+  PLY =0;
+  // read temp config created by clconfig
+  read_config("config.tmp");
+  inits();
 
-    state = cl_init_device();
-    // something went wrong...
-    if (!state)
-    {
-      free_resources();
-      return -1;
-    }
-    setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
-//    setboard((char *)"setboard r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
-//    setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
-
-    print_board(BOARD);
-    Elapsed = 0;
-    max_nodes = 8192; // search 8k nodes
-    while (Elapsed <= benchsec) {
-        if (Elapsed *2 >= benchsec)
-            break;
-        PLY = 0;
-        bench = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
-        if (bench != 0 )
-            break;
-        if (MEMORYFULL == 1)
-        {
-  		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
-  		    printf("#");
-  		    printf("#");
-          break;
-        }
-        max_nodes*=2; // search double the nodes for next iteration
-        setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
-    }
+  state = cl_init_device();
+  // something went wrong...
+  if (!state)
+  {
     free_resources();
-    if (Elapsed <= 0 || ABNODECOUNT <= 0)
-        return -1;
-    return (ABNODECOUNT/(Elapsed));
+    return -1;
+  }
+  setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
+//  setboard((char *)"setboard r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
+//  setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
+
+  print_board(BOARD);
+  Elapsed = 0;
+  max_nodes = 8192; // search 8k nodes
+  // run bench
+  while (Elapsed <= benchsec) {
+    if (Elapsed *2 >= benchsec)
+      break;
+    PLY = 0;
+    bench = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
+    if (bench != 0 )
+      break;
+    if (MEMORYFULL == 1)
+    {
+      printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
+      printf("#");
+      printf("#");
+      break;
+    }
+    max_nodes*=2; // search double the nodes for next iteration
+    setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
+  }
+  free_resources();
+  if (Elapsed <= 0 || ABNODECOUNT <= 0)
+    return -1;
+
+  return (ABNODECOUNT/(Elapsed));
 }
-
-
-
-/* ############################# */
-/* ### main loop, and Xboard ### */
-/* ############################# */
+/* ################################ */
+/* ### main xboard command loop ### */
+/* ################################ */
 int main(void) {
 
   bool state;
