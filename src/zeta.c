@@ -87,7 +87,14 @@ s32 plyreached = 0;
 s32 bestmoveply = 0;
 
 // our quad bitboard
-Bitboard BOARD[5];
+Bitboard BOARD[5];  
+/*
+  0 => pieces black
+  1 => 1st bit piece tyoe
+  2 => 2nd bit piece tyoe
+  3 => 3rd bit piece tyoe
+  4 => board hash
+*/
 
 // for exchange with OpenCL Device
 Bitboard *GLOBAL_INIT_BOARD;
@@ -396,7 +403,6 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
 
   return false;
 }
-
 /* ############################# */
 /* ###        inits          ### */
 /* ############################# */
@@ -470,7 +476,7 @@ Hash computeHash(Bitboard *board, bool stm)
 
     return hash;    
 }
-
+/* incremental board hash update */
 void updateHash(Bitboard *board, Move move)
 {
   Square castlefrom   = (Square)((move>>40) & 0x7F); // is set to illegal square 64 when empty
@@ -510,8 +516,6 @@ void updateHash(Bitboard *board, Move move)
   // site to move
   board[4]^=0x1ULL;
 }
-
-
 /* ############################# */
 /* ###     domove undomove   ### */
 /* ############################# */
@@ -544,148 +548,127 @@ Move updateCR(Move move, Cr cr) {
 
     return move;
 }
+void domove(Bitboard *board, Move move)
+{
+  Square from = GETSQFROM(move);
+  Square to   = GETSQTO(move);
+  Square cpt  = GETSQCPT(move);
 
-void domove(Bitboard *board, Move move) {
+  Bitboard pfrom   = GETPFROM(move);
+  Bitboard pto   = GETPTO(move);
 
-    Square from = GETSQFROM(move);
-    Square to   = GETSQTO(move);
-    Square cpt  = GETSQCPT(move);
-
-    Bitboard pfrom   = GETPFROM(move);
-    Bitboard pto   = GETPTO(move);
-
-    // Castle move kingside move rook
-    if ( ( (pfrom>>1) == KING) && (to-from == 2) ) {
-
-        // unset from rook
-        board[0] &= CLRMASKBB(from+3);
-        board[1] &= CLRMASKBB(from+3);
-        board[2] &= CLRMASKBB(from+3);
-        board[3] &= CLRMASKBB(from+3);
-
-        // set to rook
-        board[0] |= (Bitboard)(pfrom&1)<<(to-1); // set color
-        board[1] |= (Bitboard)((ROOK)&1)<<(to-1);
-        board[2] |= (Bitboard)((ROOK>>1)&1)<<(to-1);
-        board[3] |= (Bitboard)((ROOK>>2)&1)<<(to-1);
-    }
-    // Castle move queenside move rook
-    if ( ( (pfrom>>1) == KING) && (from-to == 2) ) {
-
-        // unset from rook
-        board[0] &= CLRMASKBB(from-4);
-        board[1] &= CLRMASKBB(from-4);
-        board[2] &= CLRMASKBB(from-4);
-        board[3] &= CLRMASKBB(from-4);
-
-        // set to rook
-        board[0] |= (Bitboard)(pfrom&1)<<(to+1); // set color
-        board[1] |= (Bitboard)((ROOK)&1)<<(to+1);
-        board[2] |= (Bitboard)((ROOK>>1)&1)<<(to+1);
-        board[3] |= (Bitboard)((ROOK>>2)&1)<<(to+1);
-
-    }
-
-
-    // unset from
-    board[0] &= CLRMASKBB(from);
-    board[1] &= CLRMASKBB(from);
-    board[2] &= CLRMASKBB(from);
-    board[3] &= CLRMASKBB(from);
-
-    // unset cpt
-    board[0] &= CLRMASKBB(cpt);
-    board[1] &= CLRMASKBB(cpt);
-    board[2] &= CLRMASKBB(cpt);
-    board[3] &= CLRMASKBB(cpt);
-
-    // unset to
-    board[0] &= CLRMASKBB(to);
-    board[1] &= CLRMASKBB(to);
-    board[2] &= CLRMASKBB(to);
-    board[3] &= CLRMASKBB(to);
-
-    // set to
-    board[0] |= (pto&1)<<to;
-    board[1] |= ((pto>>1)&1)<<to;
-    board[2] |= ((pto>>2)&1)<<to;
-    board[3] |= ((pto>>3)&1)<<to;
-
-    // hash
-    board[4] = computeHash(board, (pfrom&1));
-
+  // Castle move kingside move rook
+  if (((GETPTYPE(pfrom))==KING)&&(to-from==2))
+  {
+    // unset from rook
+    board[0] &= CLRMASKBB(from+3);
+    board[1] &= CLRMASKBB(from+3);
+    board[2] &= CLRMASKBB(from+3);
+    board[3] &= CLRMASKBB(from+3);
+    // set to rook
+    board[0] |= (Bitboard)(pfrom&1)<<(to-1); // set color
+    board[1] |= (Bitboard)((ROOK)&1)<<(to-1);
+    board[2] |= (Bitboard)((ROOK>>1)&1)<<(to-1);
+    board[3] |= (Bitboard)((ROOK>>2)&1)<<(to-1);
+  }
+  // Castle move queenside move rook
+  if ((GETPTYPE(pfrom)==KING)&&(from-to==2))
+  {
+    // unset from rook
+    board[0] &= CLRMASKBB(from-4);
+    board[1] &= CLRMASKBB(from-4);
+    board[2] &= CLRMASKBB(from-4);
+    board[3] &= CLRMASKBB(from-4);
+    // set to rook
+    board[0] |= (Bitboard)(pfrom&1)<<(to+1); // set color
+    board[1] |= (Bitboard)((ROOK)&1)<<(to+1);
+    board[2] |= (Bitboard)((ROOK>>1)&1)<<(to+1);
+    board[3] |= (Bitboard)((ROOK>>2)&1)<<(to+1);
+  }
+  // unset from
+  board[0] &= CLRMASKBB(from);
+  board[1] &= CLRMASKBB(from);
+  board[2] &= CLRMASKBB(from);
+  board[3] &= CLRMASKBB(from);
+  // unset cpt
+  board[0] &= CLRMASKBB(cpt);
+  board[1] &= CLRMASKBB(cpt);
+  board[2] &= CLRMASKBB(cpt);
+  board[3] &= CLRMASKBB(cpt);
+  // unset to
+  board[0] &= CLRMASKBB(to);
+  board[1] &= CLRMASKBB(to);
+  board[2] &= CLRMASKBB(to);
+  board[3] &= CLRMASKBB(to);
+  // set to
+  board[0] |= (pto&1)<<to;
+  board[1] |= ((pto>>1)&1)<<to;
+  board[2] |= ((pto>>2)&1)<<to;
+  board[3] |= ((pto>>3)&1)<<to;
+  // hash
+  board[4] = computeHash(board, GETCOLOR(pfrom));
 //    updateHash(board, move);
-
 }
-void undomove(Bitboard *board, Move move) {
+void undomove(Bitboard *board, Move move)
+{
+  Square from = GETSQFROM(move);
+  Square to   = GETSQTO(move);
+  Square cpt  = GETSQCPT(move);
 
+  Bitboard pfrom = GETPFROM(move);
+  Bitboard pcpt  = GETPCPT(move);
 
-    Square from = GETSQFROM(move);
-    Square to   = GETSQTO(move);
-    Square cpt  = GETSQCPT(move);
+  // Castle move kingside move rook
+  if ((GETPTYPE(pfrom)==KING)&&(to-from==2))
+  {
+    // unset to rook
+    board[0] &= CLRMASKBB(to-1);
+    board[1] &= CLRMASKBB(to-1);
+    board[2] &= CLRMASKBB(to-1);
+    board[3] &= CLRMASKBB(to-1);
+    // set from rook
+    board[0] |= (Bitboard)(pfrom&1)<<(from+3); // set color
+    board[1] |= (Bitboard)((ROOK)&1)<<(from+3);
+    board[2] |= (Bitboard)((ROOK>>1)&1)<<(from+3);
+    board[3] |= (Bitboard)((ROOK>>2)&1)<<(from+3);
+  }
+  // Castle move queenside move rook
+  if ((GETPTYPE(pfrom)==KING)&&(from-to==2))
+  {
+    // unset to rook
+    board[0] &= CLRMASKBB(to+1);
+    board[1] &= CLRMASKBB(to+1);
+    board[2] &= CLRMASKBB(to+1);
+    board[3] &= CLRMASKBB(to+1);
 
-    Bitboard pfrom = GETPFROM(move);
-    Bitboard pcpt  = GETPCPT(move);
-
-    // Castle move kingside move rook
-    if ( ( (pfrom>>1) == KING) && (to-from == 2) ) {
-
-        // unset to rook
-        board[0] &= CLRMASKBB(to-1);
-        board[1] &= CLRMASKBB(to-1);
-        board[2] &= CLRMASKBB(to-1);
-        board[3] &= CLRMASKBB(to-1);
-
-        // set from rook
-        board[0] |= (Bitboard)(pfrom&1)<<(from+3); // set color
-        board[1] |= (Bitboard)((ROOK)&1)<<(from+3);
-        board[2] |= (Bitboard)((ROOK>>1)&1)<<(from+3);
-        board[3] |= (Bitboard)((ROOK>>2)&1)<<(from+3);
-    }
-    // Castle move queenside move rook
-    if ( ( (pfrom>>1) == KING) && (from-to == 2) ) {
-
-        // unset to rook
-        board[0] &= CLRMASKBB(to+1);
-        board[1] &= CLRMASKBB(to+1);
-        board[2] &= CLRMASKBB(to+1);
-        board[3] &= CLRMASKBB(to+1);
-
-        // set from rook
-        board[0] |= (Bitboard)(pfrom&1)<<(from-4); // set color
-        board[1] |= (Bitboard)((ROOK)&1)<<(from-4);
-        board[2] |= (Bitboard)((ROOK>>1)&1)<<(from-4);
-        board[3] |= (Bitboard)((ROOK>>2)&1)<<(from-4);
-
-    }
-
-    // unset to
-    board[0] &= CLRMASKBB(to);
-    board[1] &= CLRMASKBB(to);
-    board[2] &= CLRMASKBB(to);
-    board[3] &= CLRMASKBB(to);
-
-    // unset cpt
-    board[0] &= CLRMASKBB(cpt);
-    board[1] &= CLRMASKBB(cpt);
-    board[2] &= CLRMASKBB(cpt);
-    board[3] &= CLRMASKBB(cpt);
-
-    // restore cpt
-    board[0] |= (pcpt&1)<<cpt;
-    board[1] |= ((pcpt>>1)&1)<<cpt;
-    board[2] |= ((pcpt>>2)&1)<<cpt;
-    board[3] |= ((pcpt>>3)&1)<<cpt;
-
-    // restore from
-    board[0] |= (pfrom&1)<<from;
-    board[1] |= ((pfrom>>1)&1)<<from;
-    board[2] |= ((pfrom>>2)&1)<<from;
-    board[3] |= ((pfrom>>3)&1)<<from;
-
-    // hash
-    board[4] = computeHash(board, (pfrom&1));
-
+    // set from rook
+    board[0] |= (Bitboard)(pfrom&1)<<(from-4); // set color
+    board[1] |= (Bitboard)((ROOK)&1)<<(from-4);
+    board[2] |= (Bitboard)((ROOK>>1)&1)<<(from-4);
+    board[3] |= (Bitboard)((ROOK>>2)&1)<<(from-4);
+  }
+  // unset to
+  board[0] &= CLRMASKBB(to);
+  board[1] &= CLRMASKBB(to);
+  board[2] &= CLRMASKBB(to);
+  board[3] &= CLRMASKBB(to);
+  // unset cpt
+  board[0] &= CLRMASKBB(cpt);
+  board[1] &= CLRMASKBB(cpt);
+  board[2] &= CLRMASKBB(cpt);
+  board[3] &= CLRMASKBB(cpt);
+  // restore cpt
+  board[0] |= (pcpt&1)<<cpt;
+  board[1] |= ((pcpt>>1)&1)<<cpt;
+  board[2] |= ((pcpt>>2)&1)<<cpt;
+  board[3] |= ((pcpt>>3)&1)<<cpt;
+  // restore from
+  board[0] |= (pfrom&1)<<from;
+  board[1] |= ((pfrom>>1)&1)<<from;
+  board[2] |= ((pfrom>>2)&1)<<from;
+  board[3] |= ((pfrom>>3)&1)<<from;
+  // hash
+  board[4] = computeHash(board, GETCOLOR(pfrom));
 }
 
 /* ############################# */
