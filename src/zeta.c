@@ -1034,9 +1034,12 @@ s32 benchmarkNPS(s32 benchsec)
         bench = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
         if (bench != 0 )
             break;
-        if (MEMORYFULL == 1) {
-		    printf("#> Lack of Device Memory\n\n");
-            break;
+        if (MEMORYFULL == 1)
+        {
+  		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
+  		    printf("#");
+  		    printf("#");
+          break;
         }
         max_nodes*=2; // search double the nodes for next iteration
         setboard((char *)"setboard 1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
@@ -1144,6 +1147,7 @@ int main(void) {
             benchsec = 10;
 			sscanf(line, "bench %i %s", &benchsec, configfile);
 
+            free_resources();
             PLY =0;
             read_config(configfile);
             inits();
@@ -1168,9 +1172,12 @@ int main(void) {
                 status = benchmark(BOARD, STM, max_ab_depth, Lastmove);                
                 if (status != 0)
                     break;
-                if (MEMORYFULL == 1) {
-        		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n\n");
-                    break;
+                if (MEMORYFULL == 1)
+                {
+          		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
+          		    printf("#");
+          		    printf("#");
+                  break;
                 }
                 max_nodes*=2;
                 setboard((char *)"setboard rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -1203,8 +1210,10 @@ int main(void) {
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
-        		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n\n");
-                    break;
+          		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
+          		    printf("#");
+          		    printf("#");
+                  break;
                 }
                 max_nodes*=2;
                 setboard((char *)"setboard r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
@@ -1236,8 +1245,10 @@ int main(void) {
                 if (status != 0)
                     break;
                 if (MEMORYFULL == 1) {
-        		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n\n");
-                    break;
+          		    printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
+          		    printf("#");
+          		    printf("#");
+                  break;
                 }
                 max_nodes*=2;
                 setboard((char *)"setboard 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
@@ -1250,8 +1261,7 @@ int main(void) {
 		if (!strcmp(command, "new")) {
             PLY =0;
             PLYPLAYED = 0;
-            if (NODES!=NULL)
-                free_resources();
+            free_resources();
             read_config(configfile);
             inits();
             state = cl_init_device();
