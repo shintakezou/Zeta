@@ -399,8 +399,8 @@ bool cl_init_objects() {
   }
 	return true;
 }
-// run OpenCL kernel, every search
-bool cl_run_kernel(bool stm, s32 depth)
+// run OpenCL bestfirst kernel, every search
+bool cl_run_search(bool stm, s32 depth)
 {
   s32 i = 0;
   // set kernel arguments
