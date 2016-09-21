@@ -147,7 +147,7 @@ s32 load_file_to_string(const char *filename, char **result);
 // cl functions
 extern bool cl_init_device();
 extern bool cl_init_objects();
-extern bool cl_run_kernel(bool stm, s32 depth);
+extern bool cl_run_search(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
 extern bool cl_guess_config(bool extreme);
@@ -824,7 +824,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     free_resources();
     exit(EXIT_FAILURE);
   }
-  state = cl_run_kernel(stm, depth);
+  state = cl_run_search(stm, depth);
   // something went wrong...
   if (!state)
   {
@@ -960,7 +960,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   {
     return -1;
   }
-  state = cl_run_kernel(stm, depth);
+  state = cl_run_search(stm, depth);
   // something went wrong...
   if (!state)
   {
@@ -1621,9 +1621,6 @@ int main(int argc, char* argv[])
   /* xboard command loop */
   for (;;)
   {
-    /* print cli prompt */
-    if (!xboard_mode) 
-      printf("#> ");   
     /* just to be sure, flush the output...*/
     fflush (stdout);
     if (LogFile)
