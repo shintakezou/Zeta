@@ -1601,7 +1601,7 @@ int main(int argc, char* argv[])
   fprintf(stdout,"Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
   fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
 
-  /* init memory, files and tables */
+  /* init memory */
   if (!engineinits()||!gameinits())
   {
     free_resources();
@@ -1671,7 +1671,7 @@ int main(int argc, char* argv[])
       else
       {
         /* send feature list to xboard */
-        fprintf(stdout,"feature myname=\"Zeta%s\"\n",VERSION);
+        fprintf(stdout,"feature myname=\"Zeta %s\"\n",VERSION);
         fprintf(stdout,"feature ping=0\n");
         fprintf(stdout,"feature setboard=1\n");
         fprintf(stdout,"feature playother=0\n");
@@ -1750,6 +1750,7 @@ int main(int argc, char* argv[])
       SD = 0;
       free_resources();
       read_config(configfile);
+      MaxNodes = MaxTime/1000*nodes_per_second;
       gameinits();
       state = cl_init_device();
       // something went wrong...
