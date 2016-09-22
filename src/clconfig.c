@@ -24,7 +24,7 @@
 
 #include "zeta.h"       // for global vars
 
-extern s32 benchmarkNPS();
+extern s32 benchmarkWrapper();
 extern void read_config();
 extern s32 load_file_to_string(const char *filename, char **result);
 extern const char filename[];
@@ -437,7 +437,7 @@ bool cl_guess_config(bool extreme)
         printf("#\n");
         printf("#> ### Running NPS-Benchmark for minimal config on device, this can last %i seconds... \n", benchsec);
         printf("#\n");
-        npstmp = benchmarkNPS(benchsec);
+        npstmp = benchmarkWrapper(benchsec);
         remove("config.tmp");
         
         // something went wrong
@@ -493,7 +493,7 @@ bool cl_guess_config(bool extreme)
             printf("#\n");
             printf("#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
             printf("#\n");
-            npstmp = benchmarkNPS(benchsec);
+            npstmp = benchmarkWrapper(benchsec);
             remove("config.tmp");
 
             // something went wrong
@@ -543,7 +543,7 @@ bool cl_guess_config(bool extreme)
             printf("#\n");
             printf("#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
             printf("#\n");
-            npstmp = benchmarkNPS(benchsec);
+            npstmp = benchmarkWrapper(benchsec);
             remove("config.tmp");
 
             // something went wrong

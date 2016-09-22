@@ -1730,38 +1730,18 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
   }
-
-  // call GPU functions
-/*
-  state = cl_init_device();
-  if (!state)
-      return -1;
-*/
-  state = cl_init_objects();
-  // something went wrong...
-  if (!state)
-  {
-    return -1;
-  }
-  state = cl_run_search(stm, depth);
-  // something went wrong...
-  if (!state)
+  // release game inits
+  release_gameinits();
+  // run benchmark
+  if (!gameinits()||!cl_init_objects()||!cl_run_search(stm, depth)||!cl_get_and_release_memory())
   {
     return -1;
   }
   // timers
   end = get_time();
-  Elapsed = end-start;
-  Elapsed/=1000;
+  elapsed = end-start;
+  elapsed/=1000;
 
-  state= cl_get_and_release_memory();
-  if (!state)
-    return -1;
-/*
-  state = cl_release_device();
-  if (!state)
-    return -1;
-*/
   // single reply
   score = -NODES[NODES[0].child].score;
   bestmove = NODES[NODES[0].child].move&0x000000003FFFFFFF;
@@ -1810,21 +1790,18 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   return 0;
 }
 // get nodes per second for temp config and specified position
-s32 benchmarkNPS(s32 benchsec)
+s32 benchmarkWrapper(s32 benchsec)
 {
-  bool state;
   s32 bench = 0;
-
-  PLY =0;
-  // read temp config created by clconfig
+  // releases and inits
   cl_release_device();
+  release_gameinits();
   release_configinits();
-  read_and_init_config("config.tmp");
-  state = cl_init_device();
   // something went wrong...
-  if (!state)
+  if (!gameinits()||!read_and_init_config("config.tmp")||cl_init_device())
   {
     cl_release_device();
+    release_gameinits();
     release_configinits();
     return -1;
   }
@@ -1853,7 +1830,9 @@ s32 benchmarkNPS(s32 benchsec)
     max_nodes*=2; // search double the nodes for next iteration
     setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
   }
+  // release inits
   cl_release_device();
+  release_gameinits();
   release_configinits();
   if (Elapsed <= 0 || ABNODECOUNT <= 0)
     return -1;
@@ -1964,7 +1943,7 @@ int main(int argc, char* argv[])
     quitengine(EXIT_FAILURE);
   }
   else
-    sourceSize    = strlen(source);
+    sourceSize = strlen(source);
 
   /* init engine and game memory, read config ini file and init OpenCL device */
   if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
