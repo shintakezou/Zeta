@@ -1395,9 +1395,18 @@ bool read_and_init_config(char configfile[])
   fcfg = fopen(configfile, "r");
   if (fcfg == NULL)
   {
-    printf("%s file missing\n", configfile);
-    printf("try --guessconfig option to create a config.ini file\n");
-    printf("or --help option for further options\n");
+    fprintf(stdout,"Error (");
+    fprintf(stdout, "%s file missing) ", configfile);
+    fprintf(stdout, "try --guessconfig option to create a config.ini file ");
+    fprintf(stdout, "or --help option for further options\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile,"Error (");
+      fprintf(LogFile, "%s file missing) ", configfile);
+      fprintf(LogFile, "try --guessconfig option to create a config.ini file ");
+      fprintf(LogFile, "or --help option for further options\n");
+    }
     return false;
   }
   while (fgets(line, sizeof(line), fcfg))
@@ -1501,7 +1510,7 @@ static void print_help(void)
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"You will need an config.ini file to run the engine,\n");
-  fprintf(stdout,"start from command line and type guessconfig to create one.\n");
+  fprintf(stdout,"start engine from command line with --guessconfig option.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Options:\n");
   fprintf(stdout," -l, --log          Write output/debug to file zeta.log\n");
@@ -1883,7 +1892,7 @@ int main(int argc, char* argv[])
     {
       /* open/create log file */
       LogFile = fopen("zeta.log", "a");
-      if (!LogFile ) 
+      if (LogFile==NULL) 
       {
         fprintf(stdout,"Error (opening logfile zeta.log): --log");
       }
@@ -1940,7 +1949,18 @@ int main(int argc, char* argv[])
   // load zeta.cl
   if (load_file_to_string(filename, &source)<=0)
   {
-    printf("zeta.cl file missing\n");
+    fprintf(stdout,"Error (");
+    fprintf(stdout, "%s file missing) ", filename);
+    fprintf(stdout, "please place the file in the same directory like engine ");
+    fprintf(stdout, "and set in GUI the appropriate directory path\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile,"Error (");
+      fprintf(LogFile, "%s file missing) ", filename);
+      fprintf(LogFile, "please place the file in the same directory like engine ");
+      fprintf(LogFile, "and set in GUI the appropriate directory path\n");
+    }
     quitengine(EXIT_FAILURE);
   }
   else
@@ -2618,10 +2638,10 @@ int main(int argc, char* argv[])
     if (!xboard_mode && !strcmp(Command, "log"))
     {
       /* open/create log file */
-      if (!LogFile ) 
+      if (LogFile==NULL ) 
       {
         LogFile = fopen("zeta.log", "a");
-        if (!LogFile ) 
+        if (LogFile==NULL ) 
         {
           fprintf(stdout,"Error (opening logfile zeta.log): log");
         }
