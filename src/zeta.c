@@ -1716,8 +1716,10 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   NODES[0].child               = -1;
   NODES[0].lock                =  0; // assign root node to process 0   
 
-  // init board
-  memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
+  // release game inits
+  release_gameinits();
+  // copy board
+  memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
   // reset counters
   if (COUNTERS)
     free(COUNTERS);
@@ -1725,12 +1727,20 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   // prepare hash history
   for(i=0;i<totalThreads;i++)
   {
-    memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY*sizeof(Hash));
   }
-  // release game inits
-  release_gameinits();
-  // run benchmark
-  if (!gameinits()||!cl_init_objects()||!cl_run_search(stm, depth)||!cl_get_and_release_memory())
+  // inits
+  if (!gameinits()||!cl_init_objects())
+  {
+    return -1;
+  }
+  // run  benchmark
+  if (!cl_run_search(stm, depth))
+  {
+    return -1;
+  }
+  // copy results
+  if (!cl_get_and_release_memory())
   {
     return -1;
   }
@@ -2170,12 +2180,12 @@ int main(int argc, char* argv[])
             if ((!xboard_mode)||xboard_debug)
             {
               printboard(BOARD);
-              fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed);
+              fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
             }
             if (LogFile)
             {
               fprintdate(LogFile);
-              fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed);
+              fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
             }
 
             PLY++;
@@ -2330,6 +2340,12 @@ int main(int argc, char* argv[])
       if (!xboard_force)
       {
         bool kic = squareunderattack(BOARD, STM, getkingpos(BOARD,STM));
+        ITERCOUNT = 0;
+        MOVECOUNT = 0;
+        start = get_time();
+
+        HashHistory[PLY] = BOARD[QBBHASH];
+
         /* check bounds */
         if (PLY>=MAXGAMEPLY)
         {
@@ -2400,12 +2416,12 @@ int main(int argc, char* argv[])
             if ((!xboard_mode)||xboard_debug)
             {
               printboard(BOARD);
-              fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed);
+              fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
             }
             if (LogFile)
             {
               fprintdate(LogFile);
-              fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed);
+              fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
             }
 
             PLY++;
