@@ -29,6 +29,9 @@ extern void read_config();
 extern s32 load_file_to_string(const char *filename, char **result);
 extern const char filename[];
 
+extern const char *zeta_cl;
+extern const size_t zeta_cl_len;
+
 // guess minimal and optimal setup for given cl device
 bool cl_guess_config(bool extreme)
 {
@@ -47,6 +50,7 @@ bool cl_guess_config(bool extreme)
   s32 npstmp = 0;
   s32 devicecounter = 0;
   s32 benchsec = 10;
+  const char *content = zeta_cl;
     
   printf("#> ### Query the OpenCL Platforms on Host...\n");
 
@@ -311,13 +315,11 @@ bool cl_guess_config(bool extreme)
         else
           printf("#> OK, Creating Command Queue\n");
         // create program
-        content = source;
-        contentSize = &sourceSize;
         program = clCreateProgramWithSource(
                                             context, 
                                             1, 
                                             &content,
-                                            contentSize,
+                                  		      &zeta_cl_len,
                                             &status);
         if(status!=CL_SUCCESS) 
         { 

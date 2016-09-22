@@ -22,6 +22,7 @@
 #include <stdio.h>      // for file io
 
 #include "zeta.h"       // for global vars
+#include "zetacl.h"     // OpenCL source file
 
 static cl_int status = 0;
 cl_uint deviceListSize;
@@ -112,14 +113,12 @@ bool cl_init_device()
   // build OpenCL program object
   if (program==NULL)
   {
-    content = source;
-    contentSize = &sourceSize;
-
+    const char *content = zeta_cl;
     program = clCreateProgramWithSource(
                             	          context, 
                                         1, 
                                         &content,
-                              		      contentSize,
+                              		      &zeta_cl_len,
                                         &status);
     if(status!=CL_SUCCESS) 
     { 

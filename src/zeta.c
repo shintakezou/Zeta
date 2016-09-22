@@ -35,8 +35,6 @@ char *Line;                   /* for fgetting the input on stdin */
 char *Command;                /* for pasring the xboard command */
 char *Fen;                    /* for storing the fen chess baord string */
 const char filename[]  = "zeta.cl";
-char *source;
-size_t sourceSize;
 /* counters */
 u64 ITERCOUNT = 0;
 u64 EXNODECOUNT = 0;
@@ -1692,7 +1690,6 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 // run an benchmark for current set up
 s32 benchmark(Bitboard *board, bool stm, s32 depth)
 {
-  bool state;
   s32 i,j;
   Score score = -2147483647;
   Score tmpscore;
@@ -1924,26 +1921,6 @@ int main(int argc, char* argv[])
   fprintf(stdout,"Experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
   fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
-
-  // load zeta.cl
-  if (load_file_to_string(filename, &source)<=0)
-  {
-    fprintf(stdout,"Error (");
-    fprintf(stdout, "%s file missing) ", filename);
-    fprintf(stdout, "please place the file in the same directory like engine ");
-    fprintf(stdout, "and set in GUI the appropriate directory path\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile,"Error (");
-      fprintf(LogFile, "%s file missing) ", filename);
-      fprintf(LogFile, "please place the file in the same directory like engine ");
-      fprintf(LogFile, "and set in GUI the appropriate directory path\n");
-    }
-    quitengine(EXIT_FAILURE);
-  }
-  else
-    sourceSize = strlen(source);
 
   /* init engine and game memory, read config ini file and init OpenCL device */
   if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())

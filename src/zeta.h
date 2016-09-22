@@ -27,9 +27,6 @@
 s32  load_file_to_string(const char *filename, char **result);
 void print_debug(char *debug);
 
-extern char *source;
-extern size_t sourceSize;
-
 // from ini config file
 extern s32 threadsX;
 extern s32 threadsY;
