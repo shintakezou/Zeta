@@ -175,7 +175,7 @@ bool cl_init_objects() {
   GLOBAL_INIT_BOARD_Buffer = clCreateBuffer(
                           			      context, 
                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                      sizeof(cl_ulong) * 6,
+                                      sizeof(cl_ulong) * 7,
                                       GLOBAL_INIT_BOARD, 
                                       &status);
   if(status!=CL_SUCCESS) 
@@ -918,6 +918,7 @@ bool cl_release_device() {
   if (program!=NULL)
   {
     status = clReleaseProgram(program);
+    program = NULL;
     if(status!=CL_SUCCESS)
     {
       print_debug((char *)"Error: In clReleaseProgram\n");
@@ -928,6 +929,7 @@ bool cl_release_device() {
   if (context!=NULL)
   {
     status = clReleaseContext(context);
+    context = NULL;
     if(status!=CL_SUCCESS)
     {
       print_debug((char *)"Error: In clReleaseContext\n");

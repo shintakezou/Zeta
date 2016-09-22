@@ -56,8 +56,9 @@ typedef struct
 #define QBBP1     1     /* piece type first bit */
 #define QBBP2     2     /* piece type second bit */
 #define QBBP3     3     /* piece type third bit */
-#define QBBHASH   4     /* 64 bit board Zobrist hash */
-#define QBBLAST   5     /* lastmove + ep target + halfmove clock + move score */
+#define QBBPMVD   4     /* piece moved flags, for castle rights */
+#define QBBHASH   5     /* 64 bit board Zobrist hash */
+#define QBBLAST   6     /* lastmove + ep target + halfmove clock + move score */
 /* move encoding 
    0  -  5  square from
    6  - 11  square to
@@ -65,6 +66,12 @@ typedef struct
   18  - 21  piece from
   22  - 25  piece to
   26  - 29  piece capture
+  30  - 35  square en passant target
+  36        move is castle kingside
+  37        move is castle queenside
+  38  - 39  2 bit free
+  40  - 47  halfmove clock for fity move rule, last capture/castle/pawn move
+  48  - 63  move score, signed 16 bit
 */
 // colors
 #define WHITE 0
@@ -458,33 +465,33 @@ void updateHash(__private Bitboard *board, Move move)
   // from
   zobrist = Zobrist[(((move>>18)&0xF)&0x1)*6+(((move>>18)&0xF)>>1)-1];
   pos = (u64)(move&0x3F);
-  board[4] ^= rotate((ulong)zobrist,pos);
+  board[QBBHASH] ^= rotate((ulong)zobrist,pos);
   // to
   zobrist = Zobrist[(((move>>22)&0xF)&0x1)*6+(((move>>22)&0xF)>>1)-1];
   pos = (u64)((move>>6)&0x3F);
-  board[4] ^= rotate(zobrist,pos);
+  board[QBBHASH] ^= rotate(zobrist,pos);
   // capture
   if ( (((move>>26) & 0xF)>>1) != PNONE)
   {
     zobrist = Zobrist[(((move>>26)&0xF)&0x1)*6+(((move>>26)&0xF)>>1)-1];
     pos = (u64)((move>>12)&0x3F);
-    board[4] ^= rotate(zobrist,pos);
+    board[QBBHASH] ^= rotate(zobrist,pos);
   }
   // castle from
   zobrist = Zobrist[(((move>>18)&0xF)&0x1)*6+ROOK-1];
   if (((move>>40)&0x7F)<ILL&&(((move>>54)&0xF)>>1)==ROOK)
   {
     pos =  (u64)((move>>40)&0x3F);
-    board[4] ^= rotate(zobrist,pos);
+    board[QBBHASH] ^= rotate(zobrist,pos);
   }
   // castle to
   if (((move>>47)&0x7F)<ILL&&(((move>>54)&0xF)>>1)==ROOK)
   {
     pos =  (u64)((move>>47)&0x3F);
-    board[4] ^= rotate(zobrist,pos);
+    board[QBBHASH] ^= rotate(zobrist,pos);
   }
   // site to move
-  board[4]^=0x1;
+  board[QBBHASH]^=0x1;
 
 }
 // update castle rights, TODO: make nice
@@ -952,134 +959,6 @@ void gen_moves(
       undomove(board, move);
     }
   }
-  // ################################
-  // ####       Castle moves      ###
-  // ################################
-  // TODO: reimplement
-  // get Rooks
-  bbOpp  = (bbMe & board[1] & ~board[2] & board[3] );
-  //get king position
-  bbTemp  = bbMe & board[1] & board[2] & ~board[3]; // get king
-  kingpos = first1(bbTemp);
-
-  // Queenside
-  bbMoves  = (!som)? 0xE : 0x0E00000000000000;   
-  bbMoves &= (board[1] | board[2] | board[3]); 
-
-  if ( !qs && ( (!som && (CR&0x1)) || ( som && (CR&0x4))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic && (!bbMoves) && (bbOpp & SETMASKBB(kingpos-4)) ) {
-
-      kic      = false;            
-      kic     |= squareunderattack(board, !som, kingpos-2);
-      kic     |= squareunderattack(board, !som, kingpos-1);
-
-      if (!kic) {
-
-
-          // make move
-          to = kingpos-4;
-          cpt = kingpos-1;
-          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos-2)<<6)&0x0000000000000FC0) | (((Move)(kingpos-2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PNONE<<26)&0x000000003C000000) | (((Move)PNONE<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
-
-          // update castle rights        
-          move = updateCR(move, CR);
-
-          // copy move to global
-          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
-          // Movecounters
-          n[0]++;
-      }
-  }
-
-  // kingside
-  bbMoves  = (!som)? 0x60 : 0x6000000000000000;   
-  bbMoves &= (board[1] | board[2] | board[3]); 
-
-  if ( !qs && ( (!som && (CR&0x2)) || (som && (CR&0x8))) && ( (!som && kingpos == 4) || (!som && kingpos == 60) ) && !rootkic  && (!bbMoves)  && (bbOpp & SETMASKBB(kingpos+3))) {
-
-
-      kic      = false;
-      kic     |= squareunderattack(board, !som, kingpos+1);
-      kic     |= squareunderattack(board, !som, kingpos+2);
-  
-      if (!kic) {
-
-
-          // make move
-          to = kingpos+3;
-          cpt = kingpos+1;
-          move = ( (((Move)kingpos)&0x000000000000003F) | (((Move)(kingpos+2)<<6)&0x0000000000000FC0) | (((Move)(kingpos+2)<<12)&0x000000000003F000) | (((Move)( (KING<<1) | (som&1))<<18)&0x00000000003C0000) | (((Move)( (KING<<1) | (som&1))<<22)&0x0000000003C00000) | (((Move)PNONE<<26)&0x000000003C000000) | (((Move)PNONE<<30)&0x0000000FC0000000) | (((Move)to<<40)&0x00007F0000000000) | (((Move)cpt<<47)&0x003F800000000000) | (((Move)( (ROOK<<1) | (som&1))<<54)&0x03C0000000000000) );
-
-          // update castle rights        
-          move = updateCR(move, CR);
-
-          // copy move to global
-          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
-          // Movecounters
-          n[0]++;
-
-      }
-  }
-
-
-  // ################################
-  // ####     En passant moves    ###
-  // ################################
-  // TODO: reimplement
-  cpt = (lastmove>>30)&0x3F;
-
-  if (cpt) {
-
-      piece = ((PAWN<<1) | (Piece)som);
-      pieceto = piece;
-      piececpt = ( (PAWN<<1) | (Piece)(!som) );
-      ep = 0;
-
-      bbMoves  =  bbMe & board[1] & ~board[2]  & ~board[3];
-
-      // white
-      if (!som) {
-          bbMoves &= (0xFF00000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
-          
-      }
-      // black     
-      else {
-          bbMoves &= (0xFF000000 & (SETMASKBB(cpt+1)|SETMASKBB(cpt-1)));
-      }
-      while(bbMoves)
-      {
-
-          // pop 1st bit
-          pos = popfirst1(&bbMoves);
-
-          to  = (som)? cpt-8 : cpt+8;
-          
-          // make move
-          move = ( (((Move)pos)&0x000000000000003F) | (((Move)to<<6)&0x0000000000000FC0) | (((Move)cpt<<12)&0x000000000003F000) | (((Move)piece<<18)&0x00000000003C0000) | (((Move)pieceto<<22)&0x0000000003C00000) | (((Move)piececpt<<26)&0x000000003C000000) | (((Move)ep<<30)&0x0000000FC0000000) | (((Move)ILL<<40)&0x00007F0000000000) | (((Move)ILL<<47)&0x003F800000000000) | (((Move)PNONE<<54)&0x03C0000000000000) );
-
-          // domove
-          domove(board, move);
-
-          //get king position
-          bbTemp  = bbMe&board[1]&board[2]&~board[3];
-          kingpos = first1(bbTemp);
-
-          // king in check?
-          kic = squareunderattack(board, !som, kingpos);
-
-          if (!kic) {
-
-              // update castle rights        
-              move = updateCR(move, CR);
-              // copy move to global
-              global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
-              // Movecounters
-              n[0]++;
-          }
-
-          // undomove
-          undomove(board, move);
-      }
-  }
 }
 Score evalpiece(Piece piece, Square sq)
 {
@@ -1216,7 +1095,7 @@ __kernel void bestfirst_gpu(
   __global NodeBlock *board_stack;
   __global NodeBlock *board_stack_tmp;
 
-  __private Bitboard board[6]; // Quadbitboard + hash + lastmove
+  __private Bitboard board[7]; // Quadbitboard + hash + lastmove
 
   const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
 
@@ -1240,12 +1119,14 @@ __kernel void bestfirst_gpu(
   {
     // root node
     index = 0;
-    // get init board
-    board[0] = init_board[0];
-    board[1] = init_board[1];
-    board[2] = init_board[2];
-    board[3] = init_board[3];
-    board[4] = init_board[4]; // hash
+      // get init quadbitboard plus plus
+    board[QBBBLACK] = init_board[QBBBLACK];
+    board[QBBP1]    = init_board[QBBP1];
+    board[QBBP2]    = init_board[QBBP2];
+    board[QBBP3]    = init_board[QBBP3];
+    board[QBBPMVD]  = init_board[QBBPMVD]; // piece moved flags
+    board[QBBHASH]  = init_board[QBBHASH]; // hash
+    board[QBBLAST]  = init_board[QBBLAST]; // lastmove
     som      = (bool)som_init;
     ply      = 0;
     sd       = 0;
@@ -1273,12 +1154,14 @@ __kernel void bestfirst_gpu(
     {
       index = 0;
       board_stack_1[0].visits++;
-      // get init quadbitboard with hash
-      board[0] = init_board[0];
-      board[1] = init_board[1];
-      board[2] = init_board[2];
-      board[3] = init_board[3];
-      board[4] = init_board[4]; // hash
+      // get init quadbitboard plus plus
+      board[QBBBLACK] = init_board[QBBBLACK];
+      board[QBBP1]    = init_board[QBBP1];
+      board[QBBP2]    = init_board[QBBP2];
+      board[QBBP3]    = init_board[QBBP3];
+      board[QBBPMVD]  = init_board[QBBPMVD]; // piece moved flags
+      board[QBBHASH]  = init_board[QBBHASH]; // hash
+      board[QBBLAST]  = init_board[QBBLAST]; // lastmove
       depth    = search_depth;
       som      = (bool)som_init;
       ply      = 0;
@@ -1368,14 +1251,14 @@ __kernel void bestfirst_gpu(
         move = board_stack_tmp[(current%max_nodes_per_slot)].move;
         lastmove = move;
         ply++;
-        // remember bestfirst depth for xboard output
+        // remember bf depth for xboard output
         if (ply>COUNTERS[5])
           COUNTERS[5] = ply;
         domove(board, move);
-        global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[4];
+        global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
         som = !som;    
         updateHash(board, move);
-//        board[4] = computeHash(board, som);
+//        board[QBBHASH] = computeHash(board, som);
         index = current;
       }
     }
@@ -1460,7 +1343,7 @@ __kernel void bestfirst_gpu(
     // draw by 3 fold repetition
     for (s32 i=ply+ply_init-2;i>0&&mode==EXPAND&&index>0;i-=2)
     {
-      if (board[4]==global_hashhistory[pid*MAXGAMEPLY+i])
+      if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
       {
         n       = 0;
         score   = DRAWSCORE;
@@ -1590,7 +1473,7 @@ __kernel void bestfirst_gpu(
         // switch site to move
         som = !som;
 //        updateHash(board, move);
-//        board[4] = computeHash(board, som);
+//        board[QBBHASH] = computeHash(board, som);
         // store score to child from expanded node
         if (sd==0)
         {
@@ -1655,11 +1538,11 @@ __kernel void bestfirst_gpu(
       // switch site to move
       som = !som;
 //      updateHash(board, move);
-//      board[4] = computeHash(board, som);
+//      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
       sd++;
       ply++;
-      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[4];
+      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
       // set values for next depth
       global_pid_movecounter[pid*max_depth+sd] = 0;
       global_pid_todoindex[pid*max_depth+sd] = 0;
@@ -1672,7 +1555,7 @@ __kernel void bestfirst_gpu(
     // ################################
     // ####      backupscore       ####
     // ################################
-    // backup score from alphabeta search in bestfirst node tree
+    // backup score from alphabeta search in bf node tree
     if (mode==BACKUPSCORE)
     {
       Score tmpscore = 0;
