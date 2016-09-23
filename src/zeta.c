@@ -960,7 +960,9 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
       pto = MAKEPIECE(ROOK,stm);
 
   /* pack move, considering hmc, cr and score */
-  move = MAKEMOVE(sqfrom, sqto, sqcpt, pfrom, pto , pcpt, sqep,
+  move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, 
+                  (Move)pfrom, (Move)pto , (Move)pcpt, 
+                  (Move)sqep,
                   GETHMC(board[QBBLAST]), (u64)0);
 
   /* set castle move flag */
