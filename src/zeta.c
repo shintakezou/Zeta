@@ -607,7 +607,7 @@ void domovequick(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
-  Piece pto       = GETPTO(move);
+  Bitboard pto    = GETPTO(move);
   Bitboard bbTemp = BBEMPTY;
 
   /* check for edges */
@@ -633,8 +633,8 @@ void undomovequick(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
-  Piece pfrom     = GETPFROM(move);
-  Piece pcpt      = GETPCPT(move);
+  Bitboard pfrom  = GETPFROM(move);
+  Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
 
   /* check for edges */
@@ -666,11 +666,11 @@ void domove(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
-  Piece pfrom     = GETPFROM(move);
-  Piece pto       = GETPTO(move);
-  Piece pcpt      = GETPCPT(move);
+  Bitboard pfrom  = GETPFROM(move);
+  Bitboard pto    = GETPTO(move);
+  Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
-  Piece pcastle   = PNONE;
+  Bitboard pcastle= PNONE;
   u64 hmc         = GETHMC(board[QBBLAST]);
   Hash zobrist;
 
@@ -807,8 +807,8 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
-  Piece pfrom     = GETPFROM(move);
-  Piece pcpt      = GETPCPT(move);
+  Bitboard pfrom  = GETPFROM(move);
+  Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
   Piece pcastle   = PNONE;
 
