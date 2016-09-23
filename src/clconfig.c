@@ -417,7 +417,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-        fprintf(Cfg, "max_ab_depth: 0;\n");
+        fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
         fprintf(Cfg, "max_depth: 32;\n");
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -473,7 +473,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-            fprintf(Cfg, "max_ab_depth: 0;\n");
+            fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
             fprintf(Cfg, "max_depth: 32;\n");
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -523,7 +523,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-            fprintf(Cfg, "max_ab_depth: 0;\n");
+            fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
             fprintf(Cfg, "max_depth: 32;\n");
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -582,7 +582,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
-        fprintf(Cfg, "max_ab_depth: 0;\n");
+        fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
         fprintf(Cfg, "max_depth: 32;\n");
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -611,7 +611,7 @@ bool cl_guess_config(bool extreme)
         printf("max_nodes: 0;\n");
         printf("max_memory: %i;\n", (s32)devicememalloc/1024/1024);
         printf("memory_slots: %i;\n", memory_slots);
-        printf("max_ab_depth: 0;\n");
+        printf("max_ab_depth: 1; // min 1\n");
         printf("max_depth: 32;\n");
         printf("opencl_platform_id: %i;\n",i);
         printf("opencl_device_id: %i;\n\n",j);
