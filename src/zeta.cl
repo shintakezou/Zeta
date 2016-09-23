@@ -1343,6 +1343,7 @@ __kernel void bestfirst_gpu(
                             __global s32 *global_pid_depths,
                             __global Move *global_pid_moves,
                             __global Move *global_pid_movehistory,
+                            __global Move *global_pid_crhistory,
                             __global Hash *global_hashhistory,
                                const s32 som_init,
                                const s32 ply_init,
@@ -1369,7 +1370,7 @@ __kernel void bestfirst_gpu(
   s32 current = 0;
   s32 child   = 0;
   s32 depth = search_depth;
-  s32 sd = 0;
+  s32 sd = 1;
   s32 ply = 0;
   s32 n = 0;
   Move move = 0;
@@ -1390,7 +1391,7 @@ __kernel void bestfirst_gpu(
     board[QBBLAST]  = init_board[QBBLAST]; // lastmove
     som      = (bool)som_init;
     ply      = 0;
-    sd       = 0;
+    sd       = 1;
     Lastmove = board_stack_1[0].move;
     mode     = EXPAND;
   }
@@ -1426,7 +1427,7 @@ __kernel void bestfirst_gpu(
       depth    = search_depth;
       som      = (bool)som_init;
       ply      = 0;
-      sd       = 0;
+      sd       = 1;
       Lastmove = board_stack_1[0].move;
       mode     = SELECT;
     }
@@ -1693,20 +1694,24 @@ __kernel void bestfirst_gpu(
     // init values for alphabeta search
     if (mode==EVALLEAF)
     {
-      sd = 0;
+      sd = 1;
       Lastmove = board[QBBLAST];
       // search extensions
       depth = search_depth;
       depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
       depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
       depth = (PROMOEXT&&(((Lastmove>>18)&0xF)>>1)==PAWN&&(GETRRANK(((Lastmove>>6)&0x3F),(((Lastmove>>18)&0xF)&0x1))>=RANK_7))?search_depth+1:depth;
+      // set move history
+      global_pid_movehistory[pid*max_depth+0]=board[QBBLAST];
       // set move todo index
       global_pid_todoindex[pid*max_depth+sd] = 0;
       // set init Alpha Beta values
       global_pid_ab_score[pid*max_depth*2+0*2+ALPHA] = -INF;
       global_pid_ab_score[pid*max_depth*2+0*2+BETA]  =  INF;
+      global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -INF;
+      global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  =  INF;
       // set current search depth
-      global_pid_depths[pid*max_depth+sd] = depth;
+//      global_pid_depths[pid*max_depth+sd] = depth;
       mode = MOVEUP;
     }
     // ################################
@@ -1727,25 +1732,23 @@ __kernel void bestfirst_gpu(
         sd--;
         ply--;
         // this is the end
-        if (sd < 0)
+        if (sd<1)
             break;
-        depth = global_pid_depths[pid*max_depth+sd];
-        move = global_pid_movehistory[pid*max_depth+sd];
-        undomove(board, move, (sd==0)?Lastmove:global_pid_movehistory[pid*max_depth+sd-1], BBFULL, global_hashhistory[pid*MAXGAMEPLY+ply+ply_init]);
+        undomove(board, global_pid_movehistory[pid*max_depth+sd], global_pid_movehistory[pid*max_depth+sd-1], BBFULL, BBEMPTY);
         // switch site to move
         som = !som;
 //        updateHash(board, move);
 //        board[QBBHASH] = computeHash(board, som);
         // store score to child from expanded node
-        if (sd==0)
+        if (sd==1)
         {
           board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-          board_stack_tmp[(child%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+1*2+ALPHA];
+          board_stack_tmp[(child%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+2*2+ALPHA];
         }
       }
       mode = MOVEUP;
       // on root, set score of current node block and backup score
-      if (sd < 0)
+      if (sd<1)
       {
         board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
 //        board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
@@ -1786,11 +1789,14 @@ __kernel void bestfirst_gpu(
           i = j;
         }
       }
-      // remember child node index
-      if (sd==0)
+      if (sd==1)
       {
+          // remember child node index
           board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
           child = board_stack[(index%max_nodes_per_slot)].child + i;
+          // reset alpha beta scores, hack for bf
+//          global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -INF;
+//          global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = +INF;
       }
       global_pid_moves[i+current] = MOVENONE; // reset move
 //      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
@@ -1803,14 +1809,15 @@ __kernel void bestfirst_gpu(
       global_pid_todoindex[pid*max_depth+sd]++;
       sd++;
       ply++;
-      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
+//      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
+//      global_crhistory[pid*MAXGAMEPLY+sd] = board[QBBPMVD];
       // set values for next depth
       global_pid_movecounter[pid*max_depth+sd] = 0;
       global_pid_todoindex[pid*max_depth+sd] = 0;
       global_pid_depths[pid*max_depth+sd] = depth;
       // set alpha beta values for next depth
-      global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = (sd==0)?-INF:-global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
-      global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = (sd==0)?+INF:-global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
+      global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
+      global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
       continue;
     }
     // ################################
