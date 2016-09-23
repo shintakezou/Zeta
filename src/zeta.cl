@@ -761,7 +761,7 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
          ks_attacks_rs7(bbBlockers, sq) |
          ks_attacks_rs9(bbBlockers, sq);
 }
-Square getkingpos(__private Bitboard *board, bool side)
+Square getkingsq(__private Bitboard *board, bool side)
 {
   Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
   bbTemp &= board[1]&board[2]&~board[3]; // get king
@@ -822,7 +822,7 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 void gen_moves(
                 __private Bitboard *board, 
                           s32 *n, 
-                          bool som, 
+                          bool stm, 
                           bool qs, 
                           s32 sd, 
                           const s32 pid, 
@@ -834,21 +834,20 @@ void gen_moves(
   bool kic = false;
   Score score;
   s32 i;
-  s32 j;
-  Square kingpos;
-  Square pos;
-  Square to;
-  Square cpt;   
-  Square ep;
-  Piece piece;
-  Piece pieceto;
-  Piece piececpt;
+  Square sqking;
+  Square sqfrom;
+  Square sqto;
+  Square sqcpt;   
+  Square sqep;
+  Piece pfrom;
+  Piece pto;
+  Piece pcpt;
   Move move;
   Move lastmove = board[QBBLAST];
 //  Move tmpmove = 0;
   Bitboard bbBlockers     = board[1]|board[2]|board[3];
-  Bitboard bbMe           = (som)?board[0]:(board[0]^bbBlockers);
-  Bitboard bbOpp          = (!som)?board[0]:(board[0]^bbBlockers);
+  Bitboard bbMe           = (stm)?board[0]:(board[0]^bbBlockers);
+  Bitboard bbOpp          = (!stm)?board[0]:(board[0]^bbBlockers);
   Bitboard bbTemp;
   Bitboard bbTempO;
   Bitboard bbWork;
@@ -862,10 +861,10 @@ void gen_moves(
 
   while(bbWork)
   {
-    pos     = popfirst1(&bbWork);
-    piece   = GETPIECE(board,pos);
+    sqfrom     = popfirst1(&bbWork);
+    pfrom   = GETPIECE(board, sqfrom);
 
-    bbTempO = SETMASKBB(pos);
+    bbTempO = SETMASKBB(sqfrom);
     // get koggestone wraps
     bbWrap4 = wraps4[0];
     // generator and propagator (piece and empty squares)
@@ -895,40 +894,36 @@ void gen_moves(
     bbGen4  = bbWrap4 & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // consider knights
-    bbTemp  = ((piece>>1)==KNIGHT)?BBFULL:bbTemp;
+    bbTemp  = ((pfrom>>1)==KNIGHT)?BBFULL:bbTemp;
     // verify captures
-    i       = ((piece>>1)==PAWN)?(s32)som:(piece>>1);
-    bbTempO  = AttackTables[i*64+pos];
+    i       = ((pfrom>>1)==PAWN)?(s32)stm:(pfrom>>1);
+    bbTempO  = AttackTables[i*64+sqfrom];
     bbMoves = bbTempO&bbTemp&bbOpp;
     // verify non captures
-    bbTempO  = ((piece>>1)==PAWN)?(AttackTablesPawnPushes[som*64+pos]):bbTempO;
+    bbTempO  = ((pfrom>>1)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbTempO;
     bbMoves |= (!qs)?(bbTempO&bbTemp&~bbBlockers):BBEMPTY; 
 
     while(bbMoves)
     {
-      to = popfirst1(&bbMoves);
-
-      // en passant to
-      i = pos-to;
-      ep = ( (piece>>1) == PAWN && abs(i) == 16 ) ? to : 0;
-
-      cpt = to;
-      pieceto = ((piece>>1)==PAWN&&GETRRANK(cpt,piece&0x1)==7)?(QUEEN<<1|(Piece)som):piece; // pawn promotion
-
-      piececpt = GETPIECE(board,cpt);
-
+      sqto = popfirst1(&bbMoves);
+      sqcpt = sqto;
+      // set en passant target square
+      sqep = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(sqfrom,stm)==2)?(stm)?sqto:sqto:0x0; 
+      // get piece captured
+      pcpt = GETPIECE(board, sqcpt);
+      // set pawn prommotion, queen
+      pto = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN, GETCOLOR(pfrom)):pfrom;
       // make move
-      move = MAKEMOVE((Move)pos, (Move)to, (Move)cpt, (Move)piece, (Move)pieceto, (Move)piececpt, (Move)ep, (u64)GETHMC(lastmove), (u64)score);
+      move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(lastmove), (u64)score);
       // get move score
       score = EvalMove(move);
-      score/=10; // in centi pawn please
       move = SETSCORE(move,(Move)score);
  
       // TODO: pseudo legal move gen: 2x speedup?
       // domove
       domovequick(board, move);
 
-      kic = squareunderattack(board, !som, getkingpos(board, som));
+      kic = squareunderattack(board, !stm, getkingsq(board, stm));
 
       if (!kic)
       {
@@ -956,6 +951,60 @@ void gen_moves(
       }
       // undomove
       undomovequick(board, move);
+    }
+  }
+  sqking = getkingsq(board, stm);
+
+  /* gen en passant moves */
+  if (GETSQEP(lastmove))
+  {
+    sqep    = GETSQEP(lastmove); 
+    bbTempO = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]);
+    bbTempO  &= (stm)? 0xFF000000 : 0xFF00000000;
+    bbTemp  = (sqep)?bbTempO&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1)):BBEMPTY;
+    score   = EvalPieceValues[PAWN]*16-EvalPieceValues[PAWN];
+    /* check for first en passant pawn */
+    sqfrom  = (bbTemp)?popfirst1(&bbTemp):0x0;
+    pfrom   = GETPIECE(board, sqfrom);
+    pto     = pfrom;
+    sqcpt   = sqep;
+    pcpt    = GETPIECE(board, sqcpt);
+    sqto    = (stm)? sqep-8:sqep+8;
+    /* pack move into 64 bits, considering castle rights and halfmovecounter and score */
+    move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), (u64)score);
+    /* legal moves only */
+    if (sqfrom)
+    {
+      domovequick(board, move);
+      kic = squareunderattack(board, !stm, sqking);
+      undomovequick(board, move);
+    }
+    if (sqfrom&&!kic)
+    {
+      // copy move to global
+      global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
+      // movecounters
+      n[0]++;
+    }
+    /* check for second en passant pawn */
+    sqfrom  = (bbTemp)?popfirst1(&bbTemp):0x0;
+    sqcpt   = sqep;
+    sqto    = (stm)? sqep-8:sqep+8;
+    /* pack move into 64 bits, considering castle rights and halfmovecounter and score */
+    move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), (u64)score);
+    /* legal moves only */
+    if (sqfrom)
+    {
+      domovequick(board, move);
+      kic = squareunderattack(board, !stm, sqking);
+      undomovequick(board, move);
+    }
+    if (sqfrom&&!kic)
+    {
+      // copy move to global
+      global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
+      // movecounters
+      n[0]++;
     }
   }
 }
@@ -986,7 +1035,7 @@ Score EvalMove(Move move)
 Score eval(__private Bitboard *board)
 {
   s32 j;
-  Square pos;
+  Square sq;
   Piece piece;
   Bitboard bbBlockers = board[1]|board[2]|board[3];        // all pieces
   Bitboard bbTemp     = board[1]&~board[2]&~board[3];      // all pawns
@@ -1002,24 +1051,24 @@ Score eval(__private Bitboard *board)
 
   while (bbWork) 
   {
-    pos = popfirst1(&bbWork);
-    piece = GETPIECETYPE(board,pos);
+    sq = popfirst1(&bbWork);
+    piece = GETPIECETYPE(board, sq);
     // piece bonus
     score+= 10;
     // wodd count
     score+= EvalPieceValues[piece];
-    // piece posuare tables
-    score+= EvalTable[piece*64+FLOP(pos)];
-    // posuare control table
-    score+= EvalControl[FLOP(pos)];
+    // piece square tables
+    score+= EvalTable[piece*64+FLOP(sq)];
+    // square control table
+    score+= EvalControl[FLOP(sq)];
     // simple pawn structure white
     // blocked
-    score-=(piece==PAWN&&GETRANK(pos)<RANK_8&&(bbOpp&SETMASKBB(pos+8)))?15:0;
+    score-=(piece==PAWN&&GETRANK(sq)<RANK_8&&(bbOpp&SETMASKBB(sq+8)))?15:0;
     // chain
-    score+=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos-7)))?10:0;
-    score+=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos-9)))?10:0;
+    score+=(piece==PAWN&&GETFILE(sq)<FILE_H&&(bbTemp&bbMe&SETMASKBB(sq-7)))?10:0;
+    score+=(piece==PAWN&&GETFILE(sq)>FILE_A&&(bbTemp&bbMe&SETMASKBB(sq-9)))?10:0;
     // column
-    for(j=pos-8;j>7&&piece==PAWN;j-=8)
+    for(j=sq-8;j>7&&piece==PAWN;j-=8)
       score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
   }
   // duble bishop
@@ -1032,24 +1081,24 @@ Score eval(__private Bitboard *board)
 
   while (bbWork) 
   {
-    pos = popfirst1(&bbWork);
-    piece = GETPIECETYPE(board,pos);
+    sq = popfirst1(&bbWork);
+    piece = GETPIECETYPE(board, sq);
     // piece bonus
     score-= 10;
     // wodd count
     score-= EvalPieceValues[piece];
-    // piece posuare tables
-    score-= EvalTable[piece*64+pos];
-    // posuare control table
-    score-= EvalControl[pos];
+    // piece square tables
+    score-= EvalTable[piece*64+sq];
+    // square control table
+    score-= EvalControl[sq];
     // simple pawn structure black
     // blocked
-    score+=(piece==PAWN&&GETRANK(pos)>RANK_1&&(bbOpp&SETMASKBB(pos-8)))?15:0;
+    score+=(piece==PAWN&&GETRANK(sq)>RANK_1&&(bbOpp&SETMASKBB(sq-8)))?15:0;
     // chain
-    score-=(piece==PAWN&&GETFILE(pos)>FILE_A&&(bbTemp&bbMe&SETMASKBB(pos+7)))?10:0;
-    score-=(piece==PAWN&&GETFILE(pos)<FILE_H&&(bbTemp&bbMe&SETMASKBB(pos+9)))?10:0;
+    score-=(piece==PAWN&&GETFILE(sq)>FILE_A&&(bbTemp&bbMe&SETMASKBB(sq+7)))?10:0;
+    score-=(piece==PAWN&&GETFILE(sq)<FILE_H&&(bbTemp&bbMe&SETMASKBB(sq+9)))?10:0;
     // column
-    for(j=pos+8;j<56&&piece==PAWN;j+=8)
+    for(j=sq+8;j<56&&piece==PAWN;j+=8)
       score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
   }
   // duble bishop
@@ -1318,7 +1367,7 @@ __kernel void bestfirst_gpu(
     // ################################
     n = 0;
     // king in check?
-    rootkic = squareunderattack(board, !som, getkingpos(board, som));
+    rootkic = squareunderattack(board, !som, getkingsq(board, som));
     // enter quiescence search?
     qs = (sd<=depth)?false:true;
     qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
@@ -1516,7 +1565,7 @@ __kernel void bestfirst_gpu(
         tmpmove = global_pid_moves[j+current];
         if (tmpmove==MOVENONE)
           continue;
-        tmpscore = EvalMove(tmpmove);
+        tmpscore = (Score)GETSCORE(tmpmove);
         if (tmpscore>score)
         {
           score = tmpscore;
