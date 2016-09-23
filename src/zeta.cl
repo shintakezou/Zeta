@@ -1676,7 +1676,6 @@ __kernel void bestfirst_gpu(
       {
         board_stack[(index%max_nodes_per_slot)].score = score;
         board_stack[(index%max_nodes_per_slot)].children = n;
-        current = index;
         mode = BACKUPSCORE;
       }
       // something went wrong, release lock
@@ -1739,20 +1738,13 @@ __kernel void bestfirst_gpu(
         som = !som;
 //        updateHash(board, move);
 //        board[QBBHASH] = computeHash(board, som);
-        // store score to child from expanded node
-        if (sd==1)
-        {
-          board_stack_tmp = (child>=max_nodes_per_slot*2)?board_stack_3:(child>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-          board_stack_tmp[(child%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+2*2+ALPHA];
-        }
       }
       mode = MOVEUP;
       // on root, set score of current node block and backup score
       if (sd<1)
       {
         board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-//        board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+0*2+ALPHA];
-        current = board_stack[(index%max_nodes_per_slot)].child;
+        board_stack[(index%max_nodes_per_slot)].score =  global_pid_ab_score[pid*max_depth*2+1*2+ALPHA];
         mode = BACKUPSCORE;
 			}
     }
@@ -1794,9 +1786,11 @@ __kernel void bestfirst_gpu(
           // remember child node index
           board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
           child = board_stack[(index%max_nodes_per_slot)].child + i;
-          // reset alpha beta scores, hack for bf
-//          global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -INF;
-//          global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = +INF;
+          // reset alpha beta scores, uncomment for unstable bf hack
+/*
+          global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -INF;
+          global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = +INF;
+*/
       }
       global_pid_moves[i+current] = MOVENONE; // reset move
 //      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
@@ -1831,8 +1825,8 @@ __kernel void bestfirst_gpu(
       s32 parent;
 
       mode = INIT;
-      board_stack = (current>=max_nodes_per_slot*2)?board_stack_3:(current>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-      parent = board_stack[(current%max_nodes_per_slot)].parent;
+      board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
+      parent = board_stack[(index%max_nodes_per_slot)].parent;
 
       // backup score
       while(parent>=0)
