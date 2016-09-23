@@ -810,7 +810,7 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   Bitboard pfrom  = GETPFROM(move);
   Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
-  Piece pcastle   = PNONE;
+  Bitboard pcastle= PNONE;
 
   /* check for edges */
   if (move==MOVENONE)
@@ -1425,6 +1425,8 @@ bool read_and_init_config(char configfile[])
   }
   fclose(fcfg);
 
+  SD = max_ab_depth;
+
   max_nodes_to_expand = max_memory*1024*1024/sizeof(NodeBlock);
 
 /*
@@ -1826,7 +1828,7 @@ s32 benchmarkWrapper(s32 benchsec)
     if (Elapsed *2 >= benchsec)
       break;
     PLY = 0;
-    bench = benchmark(BOARD, STM, max_ab_depth);                
+    bench = benchmark(BOARD, STM, SD);                
     if (bench != 0 )
       break;
     if (MEMORYFULL == 1)
@@ -2063,7 +2065,7 @@ int main(int argc, char* argv[])
           fprintf(LogFile,"Error (in setting start postition): new\n");        
         }
       }
-      SD = 0;
+      SD = max_ab_depth;
       // reset time control
       MaxNodes = MaxTime/1000*nodes_per_second;
       if (!xboard_mode)
