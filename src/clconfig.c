@@ -50,6 +50,7 @@ bool cl_guess_config(bool extreme)
   s32 npstmp = 0;
   s32 devicecounter = 0;
   s32 benchsec = 10;
+  const char *content = zeta_cl;
     
   printf("#> ### Query the OpenCL Platforms on Host...\n");
 
@@ -314,7 +315,6 @@ bool cl_guess_config(bool extreme)
         else
           printf("#> OK, Creating Command Queue\n");
         // create program
-        const char *content = zeta_cl;
         program = clCreateProgramWithSource(
                                             context, 
                                             1, 

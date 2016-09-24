@@ -1040,7 +1040,8 @@ void gen_moves(
                           const s32 pid, 
                           const s32 max_depth,
                 __global  Move *global_pid_moves, 
-                          bool rootkic
+                          bool rootkic,
+                          const bool fullpromo
 )
 {
   bool kic = false;
@@ -1134,9 +1135,8 @@ void gen_moves(
       // TODO: pseudo legal move gen: 2x speedup?
       // domove
       domovequick(board, move);
-
+      // king in check, illegal move
       kic = squareunderattack(board, !stm, getkingsq(board, stm));
-
       if (!kic)
       {
         // update castle rights        
@@ -1166,9 +1166,56 @@ void gen_moves(
       }
       // undomove
       undomovequick(board, move);
+      
+      // all pawn promotions
+      if (fullpromo)
+      {
+        // handle pawn promo: knight
+        pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(KNIGHT, GETCOLOR(pfrom)):PNONE;
+        // get score, non captures via static values, capture via MVV-LVA
+        // pack move into 64 bits, considering castle rights and halfmovecounter and score
+        move = (pto==PNONE)?MOVENONE:MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), 0);
+        if (move)
+        {
+          // get move score
+          score = EvalMove(move);
+          move = SETSCORE(move,(Move)score);
+          // copy move to global
+          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
+          // movecounters
+          n[0]++;
+        }
+        // handle pawn promo: bishop
+        pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(BISHOP, GETCOLOR(pfrom)):PNONE;
+        // pack move into 64 bits, considering castle rights and halfmovecounter and score
+        move = (pto==PNONE)?MOVENONE:MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), 0);
+        if (move)
+        {
+          // get move score
+          score = EvalMove(move);
+          move = SETSCORE(move,(Move)score);
+          // copy move to global
+          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
+          // movecounters
+          n[0]++;
+        }
+        // handle pawn promo: rook
+        pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(ROOK, GETCOLOR(pfrom)):PNONE;
+        // pack move into 64 bits, considering castle rights and halfmovecounter and score
+        move = (pto==PNONE)?MOVENONE:MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), 0);
+        if (move)
+        {
+          // get move score
+          score = EvalMove(move);
+          move = SETSCORE(move,(Move)score);
+          // copy move to global
+          global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
+          // movecounters
+          n[0]++;
+        }
+      }
     }
   }
-
   // gen en passant moves 
   sqking = getkingsq(board, stm);
   if (GETSQEP(lastmove))
@@ -1442,7 +1489,7 @@ __kernel void perft_gpu(
     // enter quiescence search?
     qs = false;
     // generate moves
-    gen_moves(board, &n, som, qs, sd, pid, max_depth, global_pid_moves, rootkic);
+    gen_moves(board, &n, som, qs, sd, pid, max_depth, global_pid_moves, rootkic, true);
 /*
     // ################################
     // ####        evaluation       ###
@@ -1834,7 +1881,7 @@ __kernel void bestfirst_gpu(
     qs = (rootkic&&sd<=search_depth+MAXEVASIONS)?false:qs;
 //    qs = (rootkic)?false:qs;
     // generate moves
-    gen_moves(board, &n, som, qs, sd, pid, max_depth, global_pid_moves, rootkic);
+    gen_moves(board, &n, som, qs, sd, pid, max_depth, global_pid_moves, rootkic, false);
     // ################################
     // ####        evaluation       ###
     // ################################

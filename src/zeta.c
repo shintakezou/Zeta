@@ -130,6 +130,7 @@ Move Bestmove = 0;
 Move Lastmove = 0;
 Cr  CR = 0;
 // functions
+Score perft(Bitboard *board, bool stm, s32 depth);
 static void print_help(void);
 static void print_version(void);
 static void selftest(void);
@@ -1498,6 +1499,122 @@ int load_file_to_string(const char *filename, char **result)
 }
 static void selftest(void)
 {
+  u64 done;
+  u64 passed = 0;
+  const u64 todo = 23;
+
+  char fenpositions[23][256]  =
+  {
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
+    "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
+    "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
+    "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
+    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
+    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
+    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
+    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
+    "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -",
+    "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -",
+    "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -"
+  };
+  u32 depths[] =
+  {
+    1,2,3,4,
+    1,2,3,
+    1,2,3,4,5,
+    1,2,3,4,
+    1,2,3,4,
+    1,2,3
+  };
+  u64 nodecounts[] =
+  {
+    20,400,8902,197281,
+    48,2039,97862,
+    14,191,2812,43238,674624,
+    6,264,9467,422333,
+    44,1486,62379,2103487,
+    46,2079,89890,3894594
+  };
+
+  for (done=0;done<23;done++)
+  {
+    ABNODECOUNT = 0;
+
+    SD = depths[done];
+    
+    fprintf(stdout,"# doing perft depth: %d for position\n", SD);  
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile,"# doing perft depth: %d for position\n", SD);  
+    }
+    if (!setboard(BOARD,  fenpositions[done]))
+    {
+      fprintf(stdout,"# Error (in setting fen position): setboard\n");        
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"# Error (in setting fen position): setboard\n");        
+      }
+      continue;
+    }
+    else
+      printboard(BOARD);
+
+    /* time measurement */
+    start = get_time();
+    /* perfomance test, just leaf nodecount to given depth */
+    perft(BOARD, STM, SD);
+    /* time measurement */
+    end = get_time();   
+    elapsed = end-start;
+
+    if(ABNODECOUNT==nodecounts[done])
+      passed++;
+
+    if(ABNODECOUNT==nodecounts[done])
+    {
+      fprintf(stdout,"# Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"# Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+      }
+    }
+    else
+    {
+      fprintf(stdout,"# Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"# Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
+      }
+    }
+  }
+  fprintf(stdout,"#\n###############################\n");
+  fprintf(stdout,"### passed %" PRIu64 " from %" PRIu64 " tests ###\n", passed, todo);
+  fprintf(stdout,"###############################\n");
+  if (LogFile)
+  {
+    fprintdate(LogFile);
+    fprintf(LogFile,"#\n###############################\n");
+    fprintdate(LogFile);
+    fprintf(LogFile,"### passed %" PRIu64 " from %" PRIu64 " tests ###\n", passed, todo);
+    fprintdate(LogFile);
+    fprintf(LogFile,"###############################\n");
+  }
 }
 /* print engine info to console */
 static void print_version(void)
@@ -1950,18 +2067,33 @@ int main(int argc, char* argv[])
         exit(EXIT_SUCCESS);
         break;
       case 2:
+        /* init engine and game memory, read config ini file and init OpenCL device */
+        if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
+        {
+          quitengine(EXIT_FAILURE);
+        }
         selftest();
-        exit(EXIT_SUCCESS);
+        quitengine(EXIT_SUCCESS);
         break;
       case 3:
         break;
       case 4:
+        /* init engine and game memory */
+        if (!engineinits()||!gameinits())
+        {
+          quitengine(EXIT_FAILURE);
+        }
         cl_guess_config(false);
-        exit(EXIT_SUCCESS);
+        quitengine(EXIT_SUCCESS);
         break;
       case 5:
+        /* init engine and game memory */
+        if (!engineinits()||!gameinits())
+        {
+          quitengine(EXIT_FAILURE);
+        }
         cl_guess_config(true);
-        exit(EXIT_SUCCESS);
+        quitengine(EXIT_SUCCESS);
         break;
     }
   }
