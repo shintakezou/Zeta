@@ -1235,7 +1235,7 @@ void gen_moves(
     /* check for king and empty squares in check */
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom-1)|squareunderattack(board,!stm,sqfrom-2));
     /* make move */
-    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
+    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
     move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRQ:BBEMPTY;
     /* store move */
     if (move)
@@ -1254,7 +1254,7 @@ void gen_moves(
     /* check for king and empty squares in check */
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom+1)|squareunderattack(board,!stm,sqfrom+2));
     /* make move */
-    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom+2), (Move)(sqfrom+2), (Move)pfrom, (Move)pfrom, PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
+    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom+2), (Move)(sqfrom+2), (Move)pfrom, (Move)pfrom, (Move)PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
     move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRK:BBEMPTY;
     /* store move */
     if (move)
@@ -1648,7 +1648,7 @@ __kernel void bestfirst_gpu(
     // stalemate
     score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
     // draw by 3 fold repetition
-    for (s32 i=ply+ply_init-2;i>0&&mode==EXPAND&&index>0;i-=2)
+    for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
     {
       if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
       {
