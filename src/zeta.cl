@@ -595,7 +595,7 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   Bitboard pfrom  = GETPFROM(move);
   Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
-  Piece pcastle   = PNONE;
+  Bitboard pcastle= PNONE;
 
   /* check for edges */
   if (move==MOVENONE)
@@ -1165,7 +1165,6 @@ void gen_moves(
     }
   }
 
-/*
   // gen en passant moves 
   sqking = getkingsq(board, stm);
   if (GETSQEP(lastmove))
@@ -1219,7 +1218,53 @@ void gen_moves(
       n[0]++;
     }
   }
-*/
+  /* gen castle moves */
+  if (!qs&&board[QBBPMVD]&SMCRALL)
+  { 
+    /* get king square */
+    sqfrom  = sqking;
+    /* set castle move score */
+    score   = EvalPieceValues[ROOK];
+    pfrom   = GETPIECE(board, sqfrom);
+    /* get castle rights queenside */
+    bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)?true:false:(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)?true:false;
+    /* rook present */
+    bbTemp  = (GETPIECE(board, sqfrom-4)==MAKEPIECE(ROOK,stm))?bbTemp:false;
+    /* check for empty squares */
+    bbTempO   = ((bbBlockers&SETMASKBB(sqfrom-1))|(bbBlockers&SETMASKBB(sqfrom-2))|(bbBlockers&SETMASKBB(sqfrom-3)));
+    /* check for king and empty squares in check */
+    bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom-1)|squareunderattack(board,!stm,sqfrom-2));
+    /* make move */
+    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
+    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRQ:BBEMPTY;
+    /* store move */
+    if (move)
+    {
+      // copy move to global
+      global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
+      // movecounters
+      n[0]++;
+    }
+    /* get castle rights kingside */
+    bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)?true:false:(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)?true:false;
+    /* rook present */
+    bbTemp  = (GETPIECE(board, sqfrom+3)==MAKEPIECE(ROOK,stm))?bbTemp:false;
+    /* check for empty squares */
+    bbTempO   = ((bbBlockers&SETMASKBB(sqfrom+1))|(bbBlockers&SETMASKBB(sqfrom+2)));
+    /* check for king and empty squares in check */
+    bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom+1)|squareunderattack(board,!stm,sqfrom+2));
+    /* make move */
+    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom+2), (Move)(sqfrom+2), (Move)pfrom, (Move)pfrom, PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
+    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRK:BBEMPTY;
+    /* store move */
+    if (move)
+    {
+      // copy move to global
+      global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
+      // movecounters
+      n[0]++;
+    }
+  }
 }
 Score evalpiece(Piece piece, Square sq)
 {
@@ -1729,11 +1774,16 @@ __kernel void bestfirst_gpu(
         if (abs(score)!=INF&&sd>0)
           atom_max(&global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA],-score);
         sd--;
-        ply--;
         // this is the end
         if (sd<1)
             break;
-        undomove(board, global_pid_movehistory[pid*max_depth+sd], global_pid_movehistory[pid*max_depth+sd-1], BBFULL, BBEMPTY);
+        undomove(board, 
+                  global_pid_movehistory[pid*max_depth+sd],
+                  global_pid_movehistory[pid*max_depth+sd-1],
+                  global_pid_crhistory[pid*MAXGAMEPLY+sd], 
+                  global_hashhistory[pid*MAXGAMEPLY+ply+ply_init]
+                );
+        ply--;
         // switch site to move
         som = !som;
 //        updateHash(board, move);
@@ -1781,30 +1831,20 @@ __kernel void bestfirst_gpu(
           i = j;
         }
       }
-      if (sd==1)
-      {
-          // remember child node index
-          board_stack = (index>=max_nodes_per_slot*2)?board_stack_3:(index>=max_nodes_per_slot)?board_stack_2:board_stack_1;
-          child = board_stack[(index%max_nodes_per_slot)].child + i;
-          // reset alpha beta scores, uncomment for unstable bf hack
-/*
-          global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -INF;
-          global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = +INF;
-*/
-      }
       global_pid_moves[i+current] = MOVENONE; // reset move
 //      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
       domove(board, move);
+      // set history
       global_pid_movehistory[pid*max_depth+sd]=move;
-      // switch site to move
-      som = !som;
+      global_pid_crhistory[pid*MAXGAMEPLY+sd] = board[QBBPMVD];
 //      updateHash(board, move);
 //      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
+      // switch site to move
+      som = !som;
       sd++;
       ply++;
-//      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
-//      global_crhistory[pid*MAXGAMEPLY+sd] = board[QBBPMVD];
+      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
       // set values for next depth
       global_pid_movecounter[pid*max_depth+sd] = 0;
       global_pid_todoindex[pid*max_depth+sd] = 0;
