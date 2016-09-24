@@ -86,7 +86,7 @@ double MaxTime  = 5*1000; /* max time per move */
 s64 MaxNodes    = 1;
 /* game state */
 bool STM        = WHITE;  /* site to move */
-s32 SD          = 0; /* max search depth*/
+s32 SD          = 0;      /* max search depth*/
 s32 GAMEPLY     = 0;      /* total ply, considering depth via fen string */
 s32 PLY         = 0;      /* engine specifix ply counter */
 Move *MoveHistory;
@@ -145,6 +145,7 @@ s32 load_file_to_string(const char *filename, char **result);
 extern bool cl_init_device();
 extern bool cl_init_objects();
 extern bool cl_run_search(bool stm, s32 depth);
+extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
 extern bool cl_guess_config(bool extreme);
@@ -1555,6 +1556,53 @@ static void print_help(void)
 /* ############################# */
 Score perft(Bitboard *board, bool stm, s32 depth)
 {
+  bool state;
+
+  ITERCOUNT   = 0;
+  EXNODECOUNT = 0;
+  ABNODECOUNT = 0;
+  MOVECOUNT   = 0;
+  MEMORYFULL  = 0;
+
+  // init board
+  memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
+  // reset counters
+  if (COUNTERS)
+    free(COUNTERS);
+  COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
+  // prepare hash history
+  for(s32 i=0;i<totalThreads;i++)
+  {
+    memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+  }
+
+  start = get_time(); 
+
+  state = cl_init_objects("perft_gpu");
+  // something went wrong...
+  if (!state)
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  state = cl_run_perft(stm, depth);
+  // something went wrong...
+  if (!state)
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  state = cl_get_and_release_memory();
+  // something went wrong...
+  if (!state)
+  {
+    quitengine(EXIT_FAILURE);
+  }
+
+  // collect counters
+  for (s32 i=0;i<totalThreads;i++)
+  {
+    ABNODECOUNT+=   COUNTERS[i*10+2];
+  }
+
   return 0;
 }
 Move rootsearch(Bitboard *board, bool stm, s32 depth)
@@ -1570,7 +1618,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   double start, end;
 
   ITERCOUNT   = 0;
-  EXNODECOUNT  = 0;
+  EXNODECOUNT = 0;
   ABNODECOUNT = 0;
   MOVECOUNT   = 0;
   MEMORYFULL  = 0;
@@ -1588,7 +1636,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   NODES[0].lock                =  0; // assign root node to process 0   
 
   // init board
-  memcpy(GLOBAL_INIT_BOARD, board, 5* sizeof(Bitboard));
+  memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
   // reset counters
   if (COUNTERS)
     free(COUNTERS);
@@ -1608,7 +1656,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     quitengine(EXIT_FAILURE);
   }
 */
-  state = cl_init_objects();
+  state = cl_init_objects("bestfirst_gpu");
   // something went wrong...
   if (!state)
   {
@@ -1734,7 +1782,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY*sizeof(Hash));
   }
   // inits
-  if (!gameinits()||!cl_init_objects())
+  if (!gameinits()||!cl_init_objects("bestfirst_gpu"))
   {
     return -1;
   }
@@ -2491,7 +2539,7 @@ int main(int argc, char* argv[])
     if (!strcmp(Command, "sd"))
     {
       sscanf (Line, "sd %d", &SD);
-      SD = (SD>=max_ab_depth)?max_ab_depth:SD;
+//      SD = (SD>=max_ab_depth)?max_ab_depth:SD;
       continue;
     }
     /* turn on thinking output */

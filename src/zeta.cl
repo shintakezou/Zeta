@@ -60,6 +60,7 @@ typedef struct
 #define MOVEDOWN        5
 #define UPDATESCORE     6
 #define BACKUPSCORE     7
+#define EXIT            8
 // defaults
 #define VERSION "098e"
 /* quad bitboard array index definition */
@@ -1144,6 +1145,9 @@ void gen_moves(
         global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
         // movecounters
         n[0]++;
+
+        Move tmpmove;
+        s32 j;
 /*
         // sort moves, obsolete by move picker
         i = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
@@ -1363,6 +1367,204 @@ Score eval(__private Bitboard *board)
   score-= (count1s(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
 
   return score;
+}
+// performance test on gpu, single threaded
+__kernel void perft_gpu(  
+                            __global Bitboard *init_board,
+                            __global NodeBlock *board_stack_1,
+                            __global NodeBlock *board_stack_2,
+                            __global NodeBlock *board_stack_3,
+                            __global u64 *COUNTERS,
+                            __global s32 *board_stack_top,
+                            __global s32 *total_nodes_visited,
+                            __global s32 *global_finished,
+                            __global s32 *global_pid_movecounter,
+                            __global s32 *global_pid_todoindex,
+                            __global s32 *global_pid_ab_score,
+                            __global s32 *global_pid_depths,
+                            __global Move *global_pid_moves,
+                            __global Move *global_pid_movehistory,
+                            __global Move *global_pid_crhistory,
+                            __global Hash *global_hashhistory,
+                               const s32 som_init,
+                               const s32 ply_init,
+                               const s32 search_depth,
+                               const s32 max_nodes_to_expand,
+                               const s32 max_nodes_per_slot,
+                               const u64 max_nodes,
+                               const s32 max_depth
+)
+{
+  __private Bitboard board[7]; // Quadbitboard + piece moved flags + hash + lastmove
+  const s32 pid = get_global_id(0) * get_global_size(1) * get_global_size(2) + get_global_id(1) * get_global_size(2) + get_global_id(2);
+
+  bool som = (bool)som_init;
+  bool rootkic = false;
+  bool qs = false;
+  Score score = 0;
+  s32 mode;
+  s32 sd = 1;
+  s32 ply = 0;
+  s32 n = 0;
+  Move move = 0;
+
+    // get init quadbitboard plus plus
+  board[QBBBLACK] = init_board[QBBBLACK];
+  board[QBBP1]    = init_board[QBBP1];
+  board[QBBP2]    = init_board[QBBP2];
+  board[QBBP3]    = init_board[QBBP3];
+  board[QBBPMVD]  = init_board[QBBPMVD]; // piece moved flags
+  board[QBBHASH]  = init_board[QBBHASH]; // hash
+  board[QBBLAST]  = init_board[QBBLAST]; // lastmove
+  som      = (bool)som_init;
+  ply      = 0;
+  sd       = 1;
+  mode     = MOVEUP;
+
+  global_pid_todoindex[pid*max_depth+0] =0;
+  global_pid_movecounter[pid*max_depth+0] = 0;
+  global_pid_todoindex[pid*max_depth+sd] =0;
+  global_pid_movecounter[pid*max_depth+sd] = 0;
+
+  // ################################
+  // ####       main loop        ####
+  // ################################
+  while(mode!=EXIT)
+  {
+    // iterations counter
+    COUNTERS[pid*10+0]++;
+    // ################################
+    // ####     nove generator     ####
+    // ################################
+    n = 0;
+    // king in check?
+    rootkic = squareunderattack(board, !som, getkingsq(board, som));
+    // enter quiescence search?
+    qs = false;
+    // generate moves
+    gen_moves(board, &n, som, qs, sd, pid, max_depth, global_pid_moves, rootkic);
+/*
+    // ################################
+    // ####        evaluation       ###
+    // ################################
+    score = eval(board);
+    // centi pawn *10
+    score*=10;
+    // hack for drawscore == 0, site to move bonus
+    score+=(!som)?1:-1;
+    // negamaxed scores
+    score = (som)?-score:score;
+    // checkmate
+    score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
+    // stalemate
+    score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
+    // draw by 3 fold repetition
+    for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
+    {
+      if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
+      {
+        n       = 0;
+        score   = DRAWSCORE;
+        break;
+      }
+    }
+*/
+    // #################################
+    // ####     alphabeta stuff      ###
+    // #################################
+    // terminal node
+    if (sd>search_depth)
+    {
+      // perft node counter
+      COUNTERS[pid*10+2]++;
+      n = 0;
+    }
+
+    global_pid_movecounter[pid*max_depth+sd] = n;
+
+    // terminal node
+    if (mode==MOVEUP&&n==0)
+    {
+      mode = MOVEDOWN;
+    }
+    // ################################
+    // ####        movedown        ####
+    // ################################
+    // move down in alphabeta search
+    if (mode==MOVEDOWN)
+    {
+      while (global_pid_todoindex[pid*max_depth+sd]>=global_pid_movecounter[pid*max_depth+sd]
+            ) 
+      {
+        sd--;
+        // this is the end
+        if (sd==0)
+            break;
+        undomove(board, 
+                  global_pid_movehistory[pid*max_depth+sd],
+                  global_pid_movehistory[pid*max_depth+sd-1],
+                  global_pid_crhistory[pid*MAXGAMEPLY+sd], 
+                  global_hashhistory[pid*MAXGAMEPLY+ply+ply_init]
+                );
+        ply--;
+        // switch site to move
+        som = !som;
+      }
+      mode = MOVEUP;
+      // on root exit
+      if (sd==0)
+        mode = EXIT;
+    }
+    // ################################
+    // ####         moveup         ####
+    // ################################
+    // move up in alphabeta search
+    if (mode==MOVEUP)
+    {
+      Move tmpmove = 0;
+      Score tmpscore = 0;
+      s32 i = 0;
+      s32 current;
+
+      // movepicker
+      move = MOVENONE;
+      n = global_pid_movecounter[pid*max_depth+sd];
+      current = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
+      score = -INF;
+      tmpscore = 0;
+      // iterate and eval moves
+      for(s32 j=0;j<n;j++)
+      {
+        tmpmove = global_pid_moves[j+current];
+        if (tmpmove==MOVENONE)
+          continue;
+        tmpscore = (Score)GETSCORE(tmpmove);
+        if (tmpscore>score)
+        {
+          score = tmpscore;
+          move = tmpmove;
+          i = j;
+        }
+      }
+      global_pid_moves[i+current] = MOVENONE; // reset move
+//      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
+      domove(board, move);
+      // set history
+      global_pid_movehistory[pid*max_depth+sd]=move;
+      global_pid_crhistory[pid*MAXGAMEPLY+sd] = board[QBBPMVD];
+//      updateHash(board, move);
+//      board[QBBHASH] = computeHash(board, som);
+      global_pid_todoindex[pid*max_depth+sd]++;
+      // switch site to move
+      som = !som;
+      sd++;
+      ply++;
+      global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
+      // set values for next depth
+      global_pid_movecounter[pid*max_depth+sd] = 0;
+      global_pid_todoindex[pid*max_depth+sd] = 0;
+    }
+  } // end main loop
 }
 // bestfirst minimax search on gpu
 /*

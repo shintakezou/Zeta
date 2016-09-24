@@ -155,7 +155,7 @@ bool cl_init_device()
   return true;
 }
 // initialize OpenCL objects, called every search run
-bool cl_init_objects() {
+bool cl_init_objects(char *kernelname) {
 
   cl_event events[2];
 
@@ -402,7 +402,7 @@ bool cl_init_objects() {
   }
 
   // create kernel
-  kernel = clCreateKernel(program, "bestfirst_gpu", &status);
+  kernel = clCreateKernel(program, kernelname, &status);
   if(status!=CL_SUCCESS) 
   {  
     print_debug((char *)"Error: Creating Kernel for bestfirst_gpu. (clCreateKernel)\n");
@@ -738,6 +738,335 @@ bool cl_run_search(bool stm, s32 depth)
 
   return true;
 }
+// run OpenCL bestfirst kernel, every search
+bool cl_run_perft(bool stm, s32 depth)
+{
+  s32 i = 0;
+  // set kernel arguments
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_INIT_BOARD_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_INIT_BOARD_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_BOARD_STACK_1_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_BOARD_STACK_2_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_2_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_BOARD_STACK_3_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_3_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&COUNTERS_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (COUNTERS_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_BOARD_STAK_TOP_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. ( GLOBAL_BOARD_STAK_TOP_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_TOTAL_NODES_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. ( GLOBAL_TOTAL_NODES_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_FINISHED_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_FINISHED_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PID_MOVECOUNTER_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVECOUNTER_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PID_TODOINDEX_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_TODOINDEX_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PID_AB_SCORES_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_AB_SCORES_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PID_DEPTHS_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_DEPTHS_Buffer)\n");
+    return false;
+  }
+  i++;
+
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PID_MOVES_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVES_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PID_MOVE_HISTORY_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVE_HISTORY_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PID_CR_HISTORY_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_CR_HISTORY_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_HASHHISTORY_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_HASHHISTORY_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  temp = (s32)stm;
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&temp);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (stm)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&PLY);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (PLY)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&depth);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (max_ab_depth)\n");
+    return false;
+  }
+  i++;
+
+  temp = max_nodes_to_expand*memory_slots;
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&temp);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (max_nodes_to_expand)\n");
+    return false;
+  }
+  i++;
+
+  temp = max_nodes_to_expand;
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&temp);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. ( max_nodes_per_slot)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_long), 
+                          (void *)&MaxNodes);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (MaxNodes)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&max_depth);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (max_depth)\n");
+    return false;
+  }
+  i++;
+
+  // enqueue a kernel run call.
+  globalThreads[0] = 1;
+  globalThreads[1] = 1;
+  globalThreads[2] = 1;
+
+  localThreads[0]  = 1;
+  localThreads[1]  = 1;
+  localThreads[2]  = 1;
+
+  status = clEnqueueNDRangeKernel(
+	                                 commandQueue,
+                                   kernel,
+                                   maxDims,
+                                   NULL,
+                                   globalThreads,
+                                   localThreads,
+                                   0,
+                                   NULL,
+                                   NULL);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)\n");
+    return false;
+  }
+
+  // flush command queueu
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the Kernel. (clFlush)\n");
+    return false;
+  }
+
+  // wair for kernel to finish execution
+  status = clFinish(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for kernel run to finish. (clFinish)\n");
+    return false;
+  }
+
+  return true;
+}
+
 // copy and release memory from device
 bool cl_get_and_release_memory()
 {
