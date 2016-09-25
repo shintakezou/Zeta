@@ -1501,9 +1501,9 @@ static void selftest(void)
 {
   u64 done;
   u64 passed = 0;
-  const u64 todo = 23;
+  const u64 todo = 20;
 
-  char fenpositions[23][256]  =
+  char fenpositions[20][256]  =
   {
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
@@ -1516,12 +1516,9 @@ static void selftest(void)
     "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
     "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
     "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
-    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
     "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
     "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
     "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
-    "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
-    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
     "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
     "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
     "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",
@@ -1533,32 +1530,32 @@ static void selftest(void)
   {
     1,2,3,4,
     1,2,3,
-    1,2,3,4,5,
     1,2,3,4,
-    1,2,3,4,
+    1,2,3,
+    1,2,3,
     1,2,3
   };
   u64 nodecounts[] =
   {
     20,400,8902,197281,
     48,2039,97862,
-    14,191,2812,43238,674624,
-    6,264,9467,422333,
-    44,1486,62379,2103487,
-    46,2079,89890,3894594
+    14,191,2812,43238,
+    6,264,9467,
+    44,1486,62379,
+    46,2079,89890,
   };
 
-  for (done=0;done<23;done++)
+  for (done=0;done<todo;done++)
   {
     ABNODECOUNT = 0;
 
     SD = depths[done];
     
-    fprintf(stdout,"# doing perft depth: %d for position\n", SD);  
+    fprintf(stdout,"# doing perft depth: %d for position %" PRIu64 " of %" PRIu64 "\n", SD, done+1, todo);  
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile,"# doing perft depth: %d for position\n", SD);  
+      fprintf(LogFile,"# doing perft depth: %d for position %" PRIu64 " of %" PRIu64 "\n", SD, done+1, todo);  
     }
     if (!setboard(BOARD,  fenpositions[done]))
     {
