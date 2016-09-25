@@ -1551,11 +1551,11 @@ static void selftest(void)
 
     SD = depths[done];
     
-    fprintf(stdout,"# doing perft depth: %d for position %" PRIu64 " of %" PRIu64 "\n", SD, done+1, todo);  
+    fprintf(stdout,"#> doing perft depth: %d for position %" PRIu64 " of %" PRIu64 "\n", SD, done+1, todo);  
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile,"# doing perft depth: %d for position %" PRIu64 " of %" PRIu64 "\n", SD, done+1, todo);  
+      fprintf(LogFile,"#> doing perft depth: %d for position %" PRIu64 " of %" PRIu64 "\n", SD, done+1, todo);  
     }
     if (!setboard(BOARD,  fenpositions[done]))
     {
@@ -1583,20 +1583,20 @@ static void selftest(void)
 
     if(ABNODECOUNT==nodecounts[done])
     {
-      fprintf(stdout,"# Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+      fprintf(stdout,"#> OK, Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
       if (LogFile)
       {
         fprintdate(LogFile);
-        fprintf(LogFile,"# Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+        fprintf(LogFile,"#> OK, Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
       }
     }
     else
     {
-      fprintf(stdout,"# Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
+      fprintf(stdout,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
       if (LogFile)
       {
         fprintdate(LogFile);
-        fprintf(LogFile,"# Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
+        fprintf(LogFile,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
       }
     }
   }
