@@ -63,14 +63,14 @@ typedef struct
 #define EXIT            8
 // defaults
 #define VERSION "098e"
-/* quad bitboard array index definition */
-#define QBBBLACK  0     /* pieces white */
-#define QBBP1     1     /* piece type first bit */
-#define QBBP2     2     /* piece type second bit */
-#define QBBP3     3     /* piece type third bit */
-#define QBBPMVD   4     /* piece moved flags, for castle rights */
-#define QBBHASH   5     /* 64 bit board Zobrist hash */
-#define QBBLAST   6     /* lastmove + ep target + halfmove clock + move score */
+// quad bitboard array index definition
+#define QBBBLACK  0     // pieces white
+#define QBBP1     1     // piece type first bit
+#define QBBP2     2     // piece type second bit
+#define QBBP3     3     // piece type third bit
+#define QBBPMVD   4     // piece moved flags, for castle rights
+#define QBBHASH   5     // 64 bit board Zobrist hash
+#define QBBLAST   6     // lastmove + ep target + halfmove clock + move score
 /* move encoding 
    0  -  5  square from
    6  - 11  square to
@@ -91,18 +91,18 @@ typedef struct
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 64
 #define MAXDEVICEMB 1024
-/* colors */
+// colors
 #define BLACK               1
 #define WHITE               0
 // score indexing
 #define ALPHA   0
 #define BETA    1
-/* scores */
+// scores
 #define INF             1000000
 #define MATESCORE        999000
 #define DRAWSCORE       0
 #define STALEMATESCORE  0
-/* piece type enumeration */
+// piece type enumeration
 #define PNONE               0
 #define PAWN                1
 #define KNIGHT              2
@@ -110,66 +110,66 @@ typedef struct
 #define BISHOP              4
 #define ROOK                5
 #define QUEEN               6
-/* move is castle flag */
+// move is castle flag
 #define MOVEISCR            0x0000003000000000
 #define MOVEISCRK           0x0000001000000000
 #define MOVEISCRQ           0x0000002000000000
-/* bitboard masks, computation prefered over lookup */
+// bitboard masks, computation prefered over lookup
 #define SETMASKBB(sq)       ((ulong)1<<(sq))
 #define CLRMASKBB(sq)       (~((ulong)1<<(sq)))
-/* u64 defaults */
+// u64 defaults
 #define BBEMPTY             0x0000000000000000
 #define BBFULL              0xFFFFFFFFFFFFFFFF
 #define MOVENONE            0x0000000000000000
 #define HASHNONE            0x0000000000000000
 #define CRNONE              0x0000000000000000
 #define SCORENONE           0x0000000000000000
-/* set masks */
+// set masks
 #define SMMOVE              0x0000003FFFFFFFFF
 #define SMSQEP              0x0000000FC0000000
 #define SMHMC               0x0000FF0000000000
 #define SMCRALL             0x8900000000000091
 #define SMSCORE             0xFFFF000000000000
 #define SMTTMOVE            0x000000003FFFFFFF
-/* clear masks */
+// clear masks
 #define CMMOVE              0xFFFFFFC000000000
 #define CMSQEP              0xFFFFFFF03FFFFFFF
 #define CMHMC               0xFFFF00FFFFFFFFFF
 #define CMCRALL             0x76FFFFFFFFFFFF6E
 #define CMSCORE             0x0000FFFFFFFFFFFF
 #define CMTTMOVE            0xFFFFFFFFC0000000
-/* castle right masks */
+// castle right masks
 #define SMCRWHITE           0x0000000000000091
 #define SMCRWHITEQ          0x0000000000000011
 #define SMCRWHITEK          0x0000000000000090
 #define SMCRBLACK           0x9100000000000000
 #define SMCRBLACKQ          0x1100000000000000
 #define SMCRBLACKK          0x9000000000000000
-/* move helpers */
+// move helpers
 #define MAKEPIECE(p,c)     ((((Piece)p)<<1)|(Piece)c)
 #define JUSTMOVE(move)     (move&SMMOVE)
 #define GETCOLOR(p)        ((p)&0x1)
-#define GETPTYPE(p)        (((p)>>1)&0x7)      /* 3 bit piece type encoding */
-#define GETSQFROM(mv)      ((mv)&0x3F)         /* 6 bit square */
-#define GETSQTO(mv)        (((mv)>>6)&0x3F)    /* 6 bit square */
-#define GETSQCPT(mv)       (((mv)>>12)&0x3F)   /* 6 bit square */
-#define GETPFROM(mv)       (((mv)>>18)&0xF)    /* 4 bit piece encoding */
-#define GETPTO(mv)         (((mv)>>22)&0xF)    /* 4 bit piece encoding */
-#define GETPCPT(mv)        (((mv)>>26)&0xF)    /* 4 bit piece encodinge */
-#define GETSQEP(mv)        (((mv)>>30)&0x3F)   /* 6 bit square */
+#define GETPTYPE(p)        (((p)>>1)&0x7)      // 3 bit piece type encoding
+#define GETSQFROM(mv)      ((mv)&0x3F)         // 6 bit square
+#define GETSQTO(mv)        (((mv)>>6)&0x3F)    // 6 bit square
+#define GETSQCPT(mv)       (((mv)>>12)&0x3F)   // 6 bit square
+#define GETPFROM(mv)       (((mv)>>18)&0xF)    // 4 bit piece encoding
+#define GETPTO(mv)         (((mv)>>22)&0xF)    // 4 bit piece encoding
+#define GETPCPT(mv)        (((mv)>>26)&0xF)    // 4 bit piece encodinge
+#define GETSQEP(mv)        (((mv)>>30)&0x3F)   // 6 bit square
 #define SETSQEP(mv,sq)     (((mv)&CMSQEP)|(((sq)&0x3F)<<30))
-#define GETHMC(mv)         (((mv)>>40)&0xFF)   /* 8 bit halfmove clock */
+#define GETHMC(mv)         (((mv)>>40)&0xFF)   // 8 bit halfmove clock
 #define SETHMC(mv,hmc)     (((mv)&CMHMC)|(((hmc)&0xFF)<<40))
-#define GETSCORE(mv)       (((mv)>>48)&0xFFFF) /* signed 16 bit move score */
+#define GETSCORE(mv)       (((mv)>>48)&0xFFFF) // signed 16 bit move score
 #define SETSCORE(mv,score) (((mv)&CMSCORE)|(((score)&0xFFFF)<<48)) 
-/* pack move into 64 bits */
+// pack move into 64 bits
 #define MAKEMOVE(sqfrom, sqto, sqcpt, pfrom, pto, pcpt, sqep, hmc, score) \
 ( \
      sqfrom      | (sqto<<6)  | (sqcpt<<12) \
   | (pfrom<<18)  | (pto<<22)  | (pcpt<<26) \
   | (sqep<<30)   | (hmc<<40)  | (score<<48) \
 )
-/* square helpers */
+// square helpers
 #define MAKESQ(file,rank)   ((rank)<<3|(file))
 #define GETRANK(sq)         ((sq)>>3)
 #define GETFILE(sq)         ((sq)&7)
@@ -177,7 +177,7 @@ typedef struct
 #define FLIP(sq)            ((sq)^7)
 #define FLOP(sq)            ((sq)^56)
 #define FLIPFLOP(sq)        (((sq)^56)^7)
-/* piece helpers */
+// piece helpers
 #define GETPIECE(board,sq)  ( \
                                ((board[0]>>(sq))&0x1)\
                            |  (((board[1]>>(sq))&0x1)<<1) \
@@ -189,7 +189,7 @@ typedef struct
                            |  (((board[2]>>(sq))&0x1)<<1) \
                            |  (((board[3]>>(sq))&0x1)<<2) \
                              )
-/* file enumeration */
+// file enumeration
 enum Files
 {
   FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NONE
@@ -204,7 +204,7 @@ enum Files
 #define BBFILEH             0x8080808080808080
 #define BBNOTHFILE          0x7F7F7F7F7F7F7F7F
 #define BBNOTAFILE          0xFEFEFEFEFEFEFEFE
-/* rank enumeration */
+// rank enumeration
 enum Ranks
 {
   RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NONE
@@ -213,7 +213,7 @@ enum Ranks
 #define BBRANK5             0x000000FF00000000
 #define BBRANK4             0x00000000FF000000
 #define BBRANK2             0x000000000000FF00
-/* square enumeration */
+// square enumeration
 enum Squares
 {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
@@ -225,9 +225,9 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
-/* is score a mate in n */
+// is score a mate in n
 #define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
-/* is score default inf */
+// is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
 #define MAXEVASIONS          4               // max check evasions from qsearch
@@ -253,10 +253,10 @@ __constant Hash Zobrist[17]=
   0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC,
   0x05D1A1AE85B49AA1
 };
-/* 
-  piece square tables based on proposal by Tomasz Michniewski
-  https://chessprogramming.wikispaces.com/Simplified+evaluation+function
-*/
+
+//  piece square tables based on proposal by Tomasz Michniewski
+//  https://chessprogramming.wikispaces.com/Simplified+evaluation+function
+
 
 // piece values
 // pnone, pawn, knight, king, bishop, rook, queen
@@ -381,11 +381,11 @@ u8 popfirst1(u64 *a)
   *a &= (*a-1);  // clear lsb 
   return count1s((b&-b)-1); // return pop count of isolated lsb
 }
-/* bit twiddling hacks
-  bb_work=bb_temp&-bb_temp;  // get lsb 
-  bb_temp&=bb_temp-1;       // clear lsb
-*/
-/* apply move on board, quick during move generation */
+// bit twiddling hacks
+//  bb_work=bb_temp&-bb_temp;  // get lsb 
+//  bb_temp&=bb_temp-1;       // clear lsb
+
+// apply move on board, quick during move generation
 void domovequick(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -394,18 +394,18 @@ void domovequick(Bitboard *board, Move move)
   Bitboard pto    = GETPTO(move);
   Bitboard bbTemp = BBEMPTY;
 
-  /* check for edges */
+  // check for edges
   if (move==MOVENONE)
     return;
 
-  /* unset square from, square capture and square to */
+  // unset square from, square capture and square to
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
 
-  /* set piece to */
+  // set piece to
   board[QBBBLACK] |= (pto&0x1)<<sqto;
   board[QBBP1]    |= ((pto>>1)&0x1)<<sqto;
   board[QBBP2]    |= ((pto>>2)&0x1)<<sqto;
@@ -413,7 +413,7 @@ void domovequick(Bitboard *board, Move move)
 
   // set lastmove
 }
-/* restore board again, quick during move generation */
+// restore board again, quick during move generation
 void undomovequick(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -423,30 +423,30 @@ void undomovequick(Bitboard *board, Move move)
   Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
 
-  /* check for edges */
+  // check for edges
   if (move==MOVENONE)
     return;
 
-  /* unset square capture, square to */
+  // unset square capture, square to
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
 
-  /* restore piece capture */
+  // restore piece capture
   board[QBBBLACK] |= (pcpt&0x1)<<sqcpt;
   board[QBBP1]    |= ((pcpt>>1)&0x1)<<sqcpt;
   board[QBBP2]    |= ((pcpt>>2)&0x1)<<sqcpt;
   board[QBBP3]    |= ((pcpt>>3)&0x1)<<sqcpt;
 
-  /* restore piece from */
+  // restore piece from
   board[QBBBLACK] |= (pfrom&0x1)<<sqfrom;
   board[QBBP1]    |= ((pfrom>>1)&0x1)<<sqfrom;
   board[QBBP2]    |= ((pfrom>>2)&0x1)<<sqfrom;
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 }
-/* apply move on board */
+// apply move on board
 void domove(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -460,14 +460,14 @@ void domove(Bitboard *board, Move move)
   u64 hmc         = GETHMC(board[QBBLAST]);
   Hash zobrist;
 
-  /* check for edges */
+  // check for edges
   if (move==MOVENONE)
     return;
 
-  /* increase half move clock */
+  // increase half move clock
   hmc++;
 
-  /* do hash increment , clear old */
+  // do hash increment , clear old
   /* castle rights 
   if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
     board[QBBHASH] ^= Zobrist[12];
@@ -485,81 +485,81 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(board[QBBLAST])))|(zobrist>>(64-GETFILE(GETSQEP(board[QBBLAST])))));; // rotate left 64
   }
 */
-  /* unset square from, square capture and square to */
+  // unset square from, square capture and square to
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
 
-  /* set piece to */
+  // set piece to
   board[QBBBLACK] |= (pto&0x1)<<sqto;
   board[QBBP1]    |= ((pto>>1)&0x1)<<sqto;
   board[QBBP2]    |= ((pto>>2)&0x1)<<sqto;
   board[QBBP3]    |= ((pto>>3)&0x1)<<sqto;
 
-  /* set piece moved flag, for castle rights */
+  // set piece moved flag, for castle rights
   board[QBBPMVD]  |= SETMASKBB(sqfrom);
   board[QBBPMVD]  |= SETMASKBB(sqto);
   board[QBBPMVD]  |= SETMASKBB(sqcpt);
 
-  /* handle castle rook, queenside */
+  // handle castle rook, queenside
   pcastle = (move&MOVEISCRQ)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  /* unset castle rook from */
+  // unset castle rook from
   bbTemp  = (move&MOVEISCRQ)?CLRMASKBB(sqfrom-4):BBFULL;
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
-  /* set castle rook to */
+  // set castle rook to
   board[QBBBLACK] |= (pcastle&0x1)<<(sqto+1);
   board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqto+1);
   board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto+1);
   board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto+1);
-  /* set piece moved flag, for castle rights */
+  // set piece moved flag, for castle rights
   board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom-4):BBEMPTY;
-  /* reset halfmoveclok */
-  hmc = (pcastle)?0:hmc;  /* castle move */
-  /* do hash increment, clear old rook */
+  // reset halfmoveclok
+  hmc = (pcastle)?0:hmc;  // castle move
+  // do hash increment, clear old rook
   zobrist = Zobrist[GETCOLOR(pcastle)*6+ROOK-1];
   board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom-4))|(zobrist>>(64-(sqfrom-4)))):BBEMPTY;
-  /* do hash increment, set new rook */
+  // do hash increment, set new rook
   board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto+1))|(zobrist>>(64-(sqto+1)))):BBEMPTY;
 
-  /* handle castle rook, kingside */
+  // handle castle rook, kingside
   pcastle = (move&MOVEISCRK)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  /* unset castle rook from */
+  // unset castle rook from
   bbTemp  = (move&MOVEISCRK)?CLRMASKBB(sqfrom+3):BBFULL;
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
-  /* set castle rook to */
+  // set castle rook to
   board[QBBBLACK] |= (pcastle&0x1)<<(sqto-1);
   board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqto-1);
   board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto-1);
   board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto-1);
-  /* set piece moved flag, for castle rights */
+  // set piece moved flag, for castle rights
   board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom+3):BBEMPTY;
-  /* reset halfmoveclok */
-  hmc = (pcastle)?0:hmc;  /* castle move */
-  /* do hash increment, clear old rook */
+  // reset halfmoveclok
+  hmc = (pcastle)?0:hmc;  // castle move
+  // do hash increment, clear old rook
   board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom+3))|(zobrist>>(64-(sqfrom+3)))):BBEMPTY;
-  /* do hash increment, set new rook */
+  // do hash increment, set new rook
   board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto-1))|(zobrist>>(64-(sqto-1)))):BBEMPTY;
 
-  /* handle halfmove clock */
-  hmc = (GETPTYPE(pfrom)==PAWN)?0:hmc;   /* pawn move */
-  hmc = (GETPTYPE(pcpt)!=PNONE)?0:hmc;  /* capture move */
+  // handle halfmove clock
+  hmc = (GETPTYPE(pfrom)==PAWN)?0:hmc;   // pawn move
+  hmc = (GETPTYPE(pcpt)!=PNONE)?0:hmc;  // capture move
 
-  /* do hash increment , set new */
-  /* do hash increment, clear piece from */
+  // do hash increment , set new
+  // do hash increment, clear piece from
   zobrist = Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1];
   board[QBBHASH] ^= ((zobrist<<(sqfrom))|(zobrist>>(64-(sqfrom))));
-  /* do hash increment, set piece to */
+  // do hash increment, set piece to
   zobrist = Zobrist[GETCOLOR(pto)*6+GETPTYPE(pto)-1];
   board[QBBHASH] ^= ((zobrist<<(sqto))|(zobrist>>(64-(sqto))));
-  /* do hash increment, clear piece capture */
+  // do hash increment, clear piece capture
   zobrist = Zobrist[GETCOLOR(pcpt)*6+GETPTYPE(pcpt)-1];
   board[QBBHASH] ^= (pcpt)?((zobrist<<(sqcpt))|(zobrist>>(64-(sqcpt)))):BBEMPTY;
   /* castle rights
@@ -579,15 +579,15 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(move)))|(zobrist>>(64-GETFILE(GETSQEP(move)))));; // rotate left 64
   }
 */
-  /* color flipping */
+  // color flipping
   board[QBBHASH] ^= 0x1;
 
-  /* store hmc  */  
+  // store hmc   
   move = SETHMC(move, hmc);
-  /* store lastmove in board */
+  // store lastmove in board
   board[QBBLAST] = move;
 }
-/* restore board again */
+// restore board again
 void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -598,58 +598,58 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   Bitboard bbTemp = BBEMPTY;
   Bitboard pcastle= PNONE;
 
-  /* check for edges */
+  // check for edges
   if (move==MOVENONE)
     return;
 
-  /* restore lastmove with hmc and cr */
+  // restore lastmove with hmc and cr
   board[QBBLAST] = lastmove;
-  /* restore castle rights. via piece moved flags */
+  // restore castle rights. via piece moved flags
   board[QBBPMVD] = cr;
-  /* restore hash */
+  // restore hash
   board[QBBHASH] = hash;
 
-  /* unset square capture, square to */
+  // unset square capture, square to
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
 
-  /* restore piece capture */
+  // restore piece capture
   board[QBBBLACK] |= (pcpt&0x1)<<sqcpt;
   board[QBBP1]    |= ((pcpt>>1)&0x1)<<sqcpt;
   board[QBBP2]    |= ((pcpt>>2)&0x1)<<sqcpt;
   board[QBBP3]    |= ((pcpt>>3)&0x1)<<sqcpt;
 
-  /* restore piece from */
+  // restore piece from
   board[QBBBLACK] |= (pfrom&0x1)<<sqfrom;
   board[QBBP1]    |= ((pfrom>>1)&0x1)<<sqfrom;
   board[QBBP2]    |= ((pfrom>>2)&0x1)<<sqfrom;
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 
-  /* handle castle rook, queenside */
+  // handle castle rook, queenside
   pcastle = (move&MOVEISCRQ)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  /* unset castle rook to */
+  // unset castle rook to
   bbTemp  = (move&MOVEISCRQ)?CLRMASKBB(sqto+1):BBFULL;
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
-  /* restore castle rook from */
+  // restore castle rook from
   board[QBBBLACK] |= (pcastle&0x1)<<(sqfrom-4);
   board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqfrom-4);
   board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqfrom-4);
   board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom-4);
-  /* handle castle rook, kingside */
+  // handle castle rook, kingside
   pcastle = (move&MOVEISCRK)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  /* restore castle rook from */
+  // restore castle rook from
   bbTemp  = (move&MOVEISCRK)?CLRMASKBB(sqto-1):BBFULL;
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
-  /* set castle rook to */
+  // set castle rook to
   board[QBBBLACK] |= (pcastle&0x1)<<(sqfrom+3);
   board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqfrom+3);
   board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqfrom+3);
@@ -664,11 +664,11 @@ Hash computehash(__private Bitboard *board, bool stm)
   Hash zobrist;
   u8 side;
 
-  /* for each color */
+  // for each color
   for (side=WHITE;side<=BLACK;side++)
   {
     bbWork = (side==BLACK)?board[QBBBLACK]:(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
-    /* for each piece */
+    // for each piece
     while(bbWork)
     {
       sq    = popfirst1(&bbWork);
@@ -695,7 +695,7 @@ Hash computehash(__private Bitboard *board, bool stm)
     hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
   }
  */
-  /* site to move */
+  // site to move
   if (!stm)
     hash ^= 0x1;
 
@@ -1269,26 +1269,26 @@ void gen_moves(
       n[0]++;
     }
   }
-  /* gen castle moves */
+  // gen castle moves
   if (!qs&&board[QBBPMVD]&SMCRALL)
   { 
-    /* get king square */
+    // get king square
     sqfrom  = sqking;
-    /* set castle move score */
+    // set castle move score
     score   = EvalPieceValues[ROOK];
     pfrom   = GETPIECE(board, sqfrom);
-    /* get castle rights queenside */
+    // get castle rights queenside
     bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)?true:false:(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)?true:false;
-    /* rook present */
+    // rook present
     bbTemp  = (GETPIECE(board, sqfrom-4)==MAKEPIECE(ROOK,stm))?bbTemp:false;
-    /* check for empty squares */
+    // check for empty squares
     bbTempO   = ((bbBlockers&SETMASKBB(sqfrom-1))|(bbBlockers&SETMASKBB(sqfrom-2))|(bbBlockers&SETMASKBB(sqfrom-3)));
-    /* check for king and empty squares in check */
+    // check for king and empty squares in check
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom-1)|squareunderattack(board,!stm,sqfrom-2));
-    /* make move */
+    // make move
     move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
     move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRQ:BBEMPTY;
-    /* store move */
+    // store move
     if (move)
     {
       // copy move to global
@@ -1296,18 +1296,18 @@ void gen_moves(
       // movecounters
       n[0]++;
     }
-    /* get castle rights kingside */
+    // get castle rights kingside
     bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)?true:false:(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)?true:false;
-    /* rook present */
+    // rook present
     bbTemp  = (GETPIECE(board, sqfrom+3)==MAKEPIECE(ROOK,stm))?bbTemp:false;
-    /* check for empty squares */
+    // check for empty squares
     bbTempO   = ((bbBlockers&SETMASKBB(sqfrom+1))|(bbBlockers&SETMASKBB(sqfrom+2)));
-    /* check for king and empty squares in check */
+    // check for king and empty squares in check
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom+1)|squareunderattack(board,!stm,sqfrom+2));
-    /* make move */
+    // make move
     move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom+2), (Move)(sqfrom+2), (Move)pfrom, (Move)pfrom, (Move)PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
     move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRK:BBEMPTY;
-    /* store move */
+    // store move
     if (move)
     {
       // copy move to global
