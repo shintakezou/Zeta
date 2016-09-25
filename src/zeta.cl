@@ -1148,7 +1148,6 @@ void gen_moves(
 
         Move tmpmove;
         s32 j;
-/*
         // sort moves, obsolete by move picker
         i = pid*max_depth*MAXMOVES+sd*MAXMOVES+0;
         for(j=n[0]-1;j>0;j--)
@@ -1162,7 +1161,6 @@ void gen_moves(
            else
             break;
         }
-*/
       }
       // undomove
       undomovequick(board, move);
@@ -1174,7 +1172,8 @@ void gen_moves(
         pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(KNIGHT, GETCOLOR(pfrom)):PNONE;
         // get score, non captures via static values, capture via MVV-LVA
         // pack move into 64 bits, considering castle rights and halfmovecounter and score
-        move = (pto==PNONE)?MOVENONE:MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), 0);
+        move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(lastmove), (Move)0x0);
+        move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
           // get move score
@@ -1188,7 +1187,8 @@ void gen_moves(
         // handle pawn promo: bishop
         pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(BISHOP, GETCOLOR(pfrom)):PNONE;
         // pack move into 64 bits, considering castle rights and halfmovecounter and score
-        move = (pto==PNONE)?MOVENONE:MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), 0);
+        move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(lastmove), (Move)0x0);
+        move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
           // get move score
@@ -1202,7 +1202,8 @@ void gen_moves(
         // handle pawn promo: rook
         pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(ROOK, GETCOLOR(pfrom)):PNONE;
         // pack move into 64 bits, considering castle rights and halfmovecounter and score
-        move = (pto==PNONE)?MOVENONE:MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), 0);
+        move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(lastmove), (Move)0x0);
+        move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
           // get move score
@@ -1233,7 +1234,7 @@ void gen_moves(
     pcpt    = GETPIECE(board, sqcpt);
     sqto    = (stm)? sqep-8:sqep+8;
     // pack move into 64 bits, considering castle rights and halfmovecounter and score
-    move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), (u64)score);
+    move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(lastmove), (u64)score);
     // legal moves only
     if (sqfrom)
     {
@@ -1253,7 +1254,7 @@ void gen_moves(
     sqcpt   = sqep;
     sqto    = (stm)? sqep-8:sqep+8;
     // pack move into 64 bits, considering castle rights and halfmovecounter and score
-    move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0, (u64)GETHMC(lastmove), (u64)score);
+    move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(lastmove), (u64)score);
     // legal moves only
     if (sqfrom)
     {
@@ -1286,7 +1287,8 @@ void gen_moves(
     // check for king and empty squares in check
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom-1)|squareunderattack(board,!stm,sqfrom-2));
     // make move
-    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
+    move    = MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, (Move)0x0, (u64)GETHMC(lastmove), (u64)score);
+    move    = (bbTemp&&!bbTempO&&!bbMoves)?move:MOVENONE;
     move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRQ:BBEMPTY;
     // store move
     if (move)
@@ -1305,8 +1307,9 @@ void gen_moves(
     // check for king and empty squares in check
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom+1)|squareunderattack(board,!stm,sqfrom+2));
     // make move
-    move    = (bbTemp&&!bbTempO&&!bbMoves)?MAKEMOVE((Move)sqfrom, (Move)(sqfrom+2), (Move)(sqfrom+2), (Move)pfrom, (Move)pfrom, (Move)PNONE, 0, (u64)GETHMC(lastmove), (u64)score):MOVENONE;
-    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRK:BBEMPTY;
+    move    = MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, (Move)0x0, (u64)GETHMC(lastmove), (u64)score);
+    move    = (bbTemp&&!bbTempO&&!bbMoves)?move:MOVENONE;
+    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRQ:BBEMPTY;
     // store move
     if (move)
     {

@@ -1751,6 +1751,15 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 
   // init board
   memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
+  // clear counters
+  if (COUNTERS)
+    free(COUNTERS);
+  COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
+  if (COUNTERS==NULL)
+  {
+    printf("memory alloc, COUNTERS, failed\n");
+    exit(EXIT_FAILURE);
+  }
   // prepare hash history
   for(i=0;i<totalThreads;i++)
   {
@@ -1861,7 +1870,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   double start, end;
 
   ITERCOUNT   = 0;
-  EXNODECOUNT  = 0;
+  EXNODECOUNT = 0;
   ABNODECOUNT = 0;
   MOVECOUNT   = 0;
 
@@ -1877,8 +1886,17 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   NODES[0].child               = -1;
   NODES[0].lock                =  0; // assign root node to process 0   
 
-  // copy board
+  // init board
   memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
+  // clear counters
+  if (COUNTERS)
+    free(COUNTERS);
+  COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
+  if (COUNTERS==NULL)
+  {
+    printf("memory alloc, COUNTERS, failed\n");
+    exit(EXIT_FAILURE);
+  }
   // prepare hash history
   for(i=0;i<totalThreads;i++)
   {
@@ -1963,11 +1981,14 @@ s32 benchmarkWrapper(s32 benchsec)
   }
   if (!read_and_init_config("config.tmp"))
   {
+    release_gameinits();
     release_configinits();
     return -1;
   }
   if (!cl_init_device())
   {
+    release_gameinits();
+    release_configinits();
     cl_release_device();
     return -1;
   }
