@@ -105,7 +105,6 @@ static double time_left_computer = 0;
 static char time_string[128];
 static s32 max_nps_per_move     = 0;
 */
-double Elapsed;
 Score bestscore = 0;
 s32 plyreached = 0;
 s32 bestmoveply = 0;
@@ -1832,16 +1831,16 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   bestmoveply = COUNTERS[7];
   // timers
   end = get_time();
-  Elapsed = end-start;
-  Elapsed/=1000;
+  elapsed = end-start;
+  elapsed/=1000;
   // compute next nps value
-  nps_current =  (s32 )(ABNODECOUNT/(Elapsed));
+  nps_current =  (s32 )(ABNODECOUNT/(elapsed));
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
   // print xboard output
   if (xboard_post == true || xboard_mode == false) {
     if ( xboard_mode == false )
       printf("depth score time nodes bfdepth pv \n");
-    printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (s32 )(Elapsed*100), ABNODECOUNT, plyreached);          
+    printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
     printmovecan(bestmove);
     printf("\n");
   }
@@ -1944,7 +1943,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   MEMORYFULL = COUNTERS[6];
   bestmoveply = COUNTERS[7];
   // print cli output
-  printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/Elapsed), Elapsed, bestscore/10);
+  printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
   printf(" move ");
   printmovecan(bestmove);
   printf("\n");
@@ -1956,24 +1955,32 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
 s32 benchmarkWrapper(s32 benchsec)
 {
   s32 bench = 0;
-  // something went wrong...
-  if (!gameinits()||!read_and_init_config("config.tmp")||cl_init_device())
+  // inits
+  if (!gameinits())
   {
     release_gameinits();
-    cl_release_device();
+    return -1;
+  }
+  if (!read_and_init_config("config.tmp"))
+  {
     release_configinits();
     return -1;
   }
-  setboard(BOARD, (char *)"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq");
+  if (!cl_init_device())
+  {
+    cl_release_device();
+    return -1;
+  }
+  setboard(BOARD, (char *)"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
 //  setboard(BOARD, (char *)"r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
 //  setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
 
   printboard(BOARD);
-  Elapsed = 0;
-  max_nodes = 8192; // search 8k nodes
+  elapsed = 0;
+  MaxNodes = max_nodes = 8192; // search 8k nodes
   // run bench
-  while (Elapsed <= benchsec) {
-    if (Elapsed *2 >= benchsec)
+  while (elapsed <= benchsec) {
+    if (elapsed *2 >= benchsec)
       break;
     PLY = 0;
     bench = benchmark(BOARD, STM, SD);                
@@ -1981,22 +1988,22 @@ s32 benchmarkWrapper(s32 benchsec)
       break;
     if (MEMORYFULL == 1)
     {
-      printf("#> Lack of Device Memory, try to set memory_slots to 2\n");
+      printf("#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
       printf("#");
       printf("#");
       break;
     }
-    max_nodes*=2; // search double the nodes for next iteration
+    MaxNodes = max_nodes*=2; // search double the nodes for next iteration
     setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
   }
   // release inits
   cl_release_device();
   release_gameinits();
   release_configinits();
-  if (Elapsed <= 0 || ABNODECOUNT <= 0)
+  if (elapsed <= 0 || ABNODECOUNT <= 0)
     return -1;
 
-  return (ABNODECOUNT/(Elapsed));
+  return (ABNODECOUNT/(elapsed));
 }
 // Zeta, experimental chess engine written in OpenCL.
 int main(int argc, char* argv[])
