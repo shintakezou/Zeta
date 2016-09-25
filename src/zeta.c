@@ -1752,16 +1752,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 
   // init board
   memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
-  // reset counters
-  if (COUNTERS)
-    free(COUNTERS);
-  COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
   // prepare hash history
   for(i=0;i<totalThreads;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
   }
-
   // call GPU functions
 /*
   state = cl_init_device();
@@ -1883,21 +1878,15 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   NODES[0].child               = -1;
   NODES[0].lock                =  0; // assign root node to process 0   
 
-  // release game inits
-  release_gameinits();
   // copy board
   memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
-  // reset counters
-  if (COUNTERS)
-    free(COUNTERS);
-  COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
   // prepare hash history
   for(i=0;i<totalThreads;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY*sizeof(Hash));
   }
   // inits
-  if (!gameinits()||!cl_init_objects("bestfirst_gpu"))
+  if (!cl_init_objects("bestfirst_gpu"))
   {
     return -1;
   }
@@ -1967,15 +1956,11 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
 s32 benchmarkWrapper(s32 benchsec)
 {
   s32 bench = 0;
-  // releases and inits
-  cl_release_device();
-  release_gameinits();
-  release_configinits();
   // something went wrong...
   if (!gameinits()||!read_and_init_config("config.tmp")||cl_init_device())
   {
-    cl_release_device();
     release_gameinits();
+    cl_release_device();
     release_configinits();
     return -1;
   }
@@ -2077,21 +2062,23 @@ int main(int argc, char* argv[])
         break;
       case 4:
         /* init engine and game memory */
-        if (!engineinits()||!gameinits())
+        if (!engineinits())
         {
-          quitengine(EXIT_FAILURE);
+            exit(EXIT_FAILURE);
         }
         cl_guess_config(false);
-        quitengine(EXIT_SUCCESS);
+        release_engineinits();
+        exit(EXIT_SUCCESS);
         break;
       case 5:
         /* init engine and game memory */
-        if (!engineinits()||!gameinits())
+        if (!engineinits())
         {
-          quitengine(EXIT_FAILURE);
+          exit(EXIT_FAILURE);
         }
         cl_guess_config(true);
-        quitengine(EXIT_SUCCESS);
+        release_engineinits();
+        exit(EXIT_SUCCESS);
         break;
     }
   }
