@@ -22,15 +22,13 @@
 #include <stdio.h>      // for file io
 #include <string.h>     // for string comparing functions
 
+#include "timer.h"
 #include "zeta.h"       // for global vars
 
 extern s32 benchmarkWrapper();
 extern void read_config();
 extern s32 load_file_to_string(const char *filename, char **result);
 extern const char filename[];
-
-extern const char *zeta_cl;
-extern const size_t zeta_cl_len;
 
 // guess minimal and optimal setup for given cl device
 bool cl_guess_config(bool extreme)
@@ -50,7 +48,6 @@ bool cl_guess_config(bool extreme)
   s32 npstmp = 0;
   s32 devicecounter = 0;
   s32 benchsec = 10;
-  const char *content = zeta_cl;
     
   printf("#> ### Query the OpenCL Platforms on Host...\n");
 
@@ -315,8 +312,9 @@ bool cl_guess_config(bool extreme)
         else
           printf("#> OK, Creating Command Queue\n");
         // create program
+        const char *content = zeta_cl;
         program = clCreateProgramWithSource(
-                                            context, 
+                                	          context, 
                                             1, 
                                             &content,
                                   		      &zeta_cl_len,
@@ -336,7 +334,7 @@ bool cl_guess_config(bool extreme)
           size_t log_size=0;
           FILE 	*temp=0;
 
-          printf("#> Error: Building Program, see file zeta.debug for build log (clBuildProgram)\n");
+          printf("#> Error: Building Program, see file zeta.log for build log (clBuildProgram)\n");
 
           // shows the log
           // first call to know the proper size
@@ -357,7 +355,8 @@ bool cl_guess_config(bool extreme)
             printf("#> Error: Building Log (clGetProgramBuildInfo)\n");
           }
 
-          temp = fopen("zeta.debug", "a");
+          temp = fopen("zeta.log", "a");
+          fprintdate(temp);
           fprintf(temp, "buildlog: %s \n", build_log);
           fclose(temp);
 
@@ -446,7 +445,7 @@ bool cl_guess_config(bool extreme)
         if (npstmp<=0)
         {
           printf("#\n");
-          printf("#> ### Benchmark FAILED, see zeta.debug file for more info... \n");
+          printf("#> ### Benchmark FAILED, see zeta.log file for more info... \n");
           printf("#\n");
           continue;
         }

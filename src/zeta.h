@@ -39,10 +39,12 @@ extern s32 max_nodes_to_expand;
 extern s32 memory_slots;
 extern u64 max_nodes;
 extern s32 max_depth;
-extern s32 max_leaf_depth;
+extern s32 max_ab_depth;
 extern s64 MaxNodes;
 // globals
+extern FILE *LogFile;
 extern s32 PLY;
+extern s32 SD;
 extern u64 max_mem_mb;
 extern s32 BOARD_STACK_TOP;
 extern Bitboard *GLOBAL_INIT_BOARD;
@@ -73,16 +75,14 @@ cl_device_id        *devices;
 cl_command_queue    commandQueue;
 cl_program          program;
 cl_kernel           kernel;
-// for files
-const char *content;
-const size_t *contentSize;
-extern char *source;
-extern size_t sourceSize;
 // for OpenCL config
 cl_uint numPlatforms;
 cl_platform_id platform;
 cl_uint deviceListSize;
 cl_context_properties cps[3];
+// zeta.cl as zetacl.h
+extern const char zeta_cl[];
+extern const size_t zeta_cl_len;
 
 #endif // ZETA_H_INCLUDED
 

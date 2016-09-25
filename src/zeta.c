@@ -27,6 +27,7 @@
 #include "bitboard.h"   // bit functions
 #include "timer.h"
 #include "types.h"
+#include "zetacl.h"     // OpenCL source file
 #include "zobrist.h"
 
 /* global variables */
