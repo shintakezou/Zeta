@@ -1977,7 +1977,7 @@ s32 benchmarkWrapper(s32 benchsec)
 
   printboard(BOARD);
   elapsed = 0;
-  MaxNodes = max_nodes = 8192; // search 8k nodes
+  MaxNodes = max_nodes = 8192; // search n nodes initial
   // run bench
   while (elapsed <= benchsec) {
     if (elapsed *2 >= benchsec)
@@ -1993,7 +1993,8 @@ s32 benchmarkWrapper(s32 benchsec)
       printf("#");
       break;
     }
-    MaxNodes = max_nodes*=2; // search double the nodes for next iteration
+    max_nodes*=2; // search double the nodes for next iteration
+    MaxNodes = max_nodes;
     setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
   }
   // release inits
