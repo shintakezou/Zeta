@@ -2036,8 +2036,6 @@ __kernel void bestfirst_gpu(
         ply--;
         // switch site to move
         som = !som;
-//        updateHash(board, move);
-//        board[QBBHASH] = computeHash(board, som);
       }
       mode = MOVEUP;
       // on root, set score of current node block and backup score
@@ -2087,8 +2085,6 @@ __kernel void bestfirst_gpu(
       global_pid_movehistory[pid*max_depth+sd]=move;
       global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
       domove(board, move);
-//      updateHash(board, move);
-//      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
       // switch site to move
       som = !som;
@@ -2098,7 +2094,7 @@ __kernel void bestfirst_gpu(
       // set values for next depth
       global_pid_movecounter[pid*max_depth+sd] = 0;
       global_pid_todoindex[pid*max_depth+sd] = 0;
-      global_pid_depths[pid*max_depth+sd] = depth;
+//      global_pid_depths[pid*max_depth+sd] = depth;
       // set alpha beta values for next depth
       global_pid_ab_score[pid*max_depth*2+sd*2+ALPHA] = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+BETA];
       global_pid_ab_score[pid*max_depth*2+sd*2+BETA]  = -global_pid_ab_score[pid*max_depth*2+(sd-1)*2+ALPHA];
