@@ -1479,7 +1479,7 @@ __kernel void perft_gpu(
   global_pid_movecounter[pid*max_depth+sd] = 0;
 
   global_pid_movehistory[pid*max_depth+0] = board[QBBLAST];
-  global_pid_crhistory[pid*MAXGAMEPLY+0] = board[QBBPMVD];
+  global_pid_crhistory[pid*max_depth+0] = board[QBBPMVD];
 
   // ################################
   // ####       main loop        ####
@@ -1558,7 +1558,7 @@ __kernel void perft_gpu(
         undomove(board, 
                   global_pid_movehistory[pid*max_depth+sd],
                   global_pid_movehistory[pid*max_depth+sd-1],
-                  global_pid_crhistory[pid*MAXGAMEPLY+sd], 
+                  global_pid_crhistory[pid*max_depth+sd], 
                   global_hashhistory[pid*MAXGAMEPLY+ply+ply_init]
                 );
         ply--;
@@ -1606,7 +1606,7 @@ __kernel void perft_gpu(
       domove(board, move);
       // set history
       global_pid_movehistory[pid*max_depth+sd]=move;
-      global_pid_crhistory[pid*MAXGAMEPLY+sd] = board[QBBPMVD];
+      global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
 //      updateHash(board, move);
 //      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
@@ -2038,7 +2038,7 @@ __kernel void bestfirst_gpu(
         undomove(board, 
                   global_pid_movehistory[pid*max_depth+sd],
                   global_pid_movehistory[pid*max_depth+sd-1],
-                  global_pid_crhistory[pid*MAXGAMEPLY+sd], 
+                  global_pid_crhistory[pid*max_depth+sd], 
                   global_hashhistory[pid*MAXGAMEPLY+ply+ply_init]
                 );
         ply--;
@@ -2094,7 +2094,7 @@ __kernel void bestfirst_gpu(
       domove(board, move);
       // set history
       global_pid_movehistory[pid*max_depth+sd]=move;
-      global_pid_crhistory[pid*MAXGAMEPLY+sd] = board[QBBPMVD];
+      global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
 //      updateHash(board, move);
 //      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
