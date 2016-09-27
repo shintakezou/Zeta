@@ -1167,12 +1167,13 @@ void gen_moves(
       {
         // handle pawn promo: knight
         pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(KNIGHT, GETCOLOR(pfrom)):PNONE;
-        // get score, non captures via static values, capture via MVV-LVA
         // pack move into 64 bits, considering castle rights and halfmovecounter and score
         move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (Move)0x0);
         move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
+          // get move score
+          score = EvalMove(move);
           // get move score
           score = EvalMove(move);
           move = SETSCORE(move,(Move)score);
@@ -1190,6 +1191,8 @@ void gen_moves(
         {
           // get move score
           score = EvalMove(move);
+          // get move score
+          score = EvalMove(move);
           move = SETSCORE(move,(Move)score);
           // copy move to global
           global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
@@ -1203,6 +1206,8 @@ void gen_moves(
         move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
+          // get move score
+          score = EvalMove(move);
           // get move score
           score = EvalMove(move);
           move = SETSCORE(move,(Move)score);
@@ -1268,7 +1273,7 @@ void gen_moves(
     }
   }
   // gen castle moves
-  if (!qs&&board[QBBPMVD]&SMCRALL)
+  if (!qs&&(board[QBBPMVD]&SMCRALL))
   { 
     // get king square
     sqfrom  = sqking;
@@ -1306,7 +1311,7 @@ void gen_moves(
     // make move
     move    = MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (u64)score);
     move    = (bbTemp&&!bbTempO&&!bbMoves)?move:MOVENONE;
-    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRQ:BBEMPTY;
+    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRK:BBEMPTY;
     // store move
     if (move)
     {
