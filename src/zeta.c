@@ -1627,7 +1627,8 @@ static void print_help(void)
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"You will need an config.ini file to run the engine,\n");
-  fprintf(stdout,"start engine from command line with --guessconfig option.\n");
+  fprintf(stdout,"start engine from command line with --guessconfig option,\n");
+  fprintf(stdout,"to create config files for all OpenCL devices.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Options:\n");
   fprintf(stdout," -l, --log          Write output/debug to file zeta.log\n");
@@ -1648,6 +1649,8 @@ static void print_help(void)
   fprintf(stdout,"usermove d7d5  // let engine apply usermove in coordinate algebraic\n");
   fprintf(stdout,"               // notation and optionally start thinking\n");
   fprintf(stdout,"\n");
+  fprintf(stdout,"The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes.\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"Not supported Xboard commands:\n");
   fprintf(stdout,"analyze        // enter analyze mode\n");
   fprintf(stdout,"?              // move now\n");
@@ -1663,6 +1666,15 @@ static void print_help(void)
   fprintf(stdout,"log            // turn log on\n");
 //  fprintf(stdout,"guessconfig    // guess minimal config for OpenCL devices\n");
 //  fprintf(stdout,"guessconfigx   // guess best config for OpenCL devices\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"WARNING:\n");
+  fprintf(stdout,"It is recommended to run the engine on an discrete GPU,\n");
+  fprintf(stdout,"without display connected,\n");
+  fprintf(stdout,"otherwise system and display can freeze during computation.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Windows OS have an internal gpu timeout, double click the .reg file \n");
+  fprintf(stdout,"\"SetWindowsGPUTimeoutTo20s.reg\"\n");
+  fprintf(stdout,"and reboot the OS to set the timeout to 20 seconds.\n");
   fprintf(stdout,"\n");
 }
 /* ############################# */
@@ -1992,9 +2004,7 @@ s32 benchmarkWrapper(s32 benchsec)
     cl_release_device();
     return -1;
   }
-  setboard(BOARD, (char *)"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
-//  setboard(BOARD, (char *)"r3kb1r/pbpp1ppp/1p2Pn2/7q/2P1PB2/2Nn2P1/PP2NP1P/R2QK2R b KQkq -");
-//  setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
+  setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
   printboard(BOARD);
   elapsed = 0;
@@ -2016,7 +2026,7 @@ s32 benchmarkWrapper(s32 benchsec)
     }
     max_nodes*=2; // search double the nodes for next iteration
     MaxNodes = max_nodes;
-    setboard(BOARD, (char *)"1rbqk2r/1p3p1p/p3pbp1/2N1n3/5Q2/2P1B1P1/P3PPBP/3R1RK1 b k -");
+    setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
   }
   // release inits
   cl_release_device();
@@ -2125,10 +2135,12 @@ int main(int argc, char* argv[])
     fprintf(LogFile, "\n");
   }
   /* print engine info to console */
-  fprintf(stdout,"Zeta %s\n",VERSION);
-  fprintf(stdout,"Experimental chess engine written in OpenCL.\n");
-  fprintf(stdout,"Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
-  fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
+  fprintf(stdout,"#> Zeta %s\n",VERSION);
+  fprintf(stdout,"#> Experimental chess engine written in OpenCL.\n");
+  fprintf(stdout,"#> Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
+  fprintf(stdout,"#> This is free software, licensed under GPL >= v2\n");
+  fprintf(stdout,"#> eninge is initialising...\n");  
+  fprintf(stdout,"feature done=0\n");  
 
   /* init engine and game memory, read config ini file and init OpenCL device */
   if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
