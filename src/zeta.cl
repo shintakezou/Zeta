@@ -1143,6 +1143,7 @@ void gen_moves(
         // movecounters
         n[0]++;
 
+/*
         Move tmpmove;
         s32 j;
         // sort moves, obsolete by move picker
@@ -1158,22 +1159,21 @@ void gen_moves(
            else
             break;
         }
+*/
       }
       // undomove
       undomovequick(board, move);
       
       // all pawn promotions
-      if (fullpromo)
+      if (fullpromo&&!kic)
       {
         // handle pawn promo: knight
-        pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(KNIGHT, GETCOLOR(pfrom)):PNONE;
+        pto = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(KNIGHT, GETCOLOR(pfrom)):PNONE;
         // pack move into 64 bits, considering castle rights and halfmovecounter and score
         move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (Move)0x0);
         move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
-          // get move score
-          score = EvalMove(move);
           // get move score
           score = EvalMove(move);
           move = SETSCORE(move,(Move)score);
@@ -1183,14 +1183,12 @@ void gen_moves(
           n[0]++;
         }
         // handle pawn promo: bishop
-        pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(BISHOP, GETCOLOR(pfrom)):PNONE;
+        pto = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(BISHOP, GETCOLOR(pfrom)):PNONE;
         // pack move into 64 bits, considering castle rights and halfmovecounter and score
         move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (Move)0x0);
         move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
-          // get move score
-          score = EvalMove(move);
           // get move score
           score = EvalMove(move);
           move = SETSCORE(move,(Move)score);
@@ -1200,14 +1198,12 @@ void gen_moves(
           n[0]++;
         }
         // handle pawn promo: rook
-        pto = (!kic&&GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(ROOK, GETCOLOR(pfrom)):PNONE;
+        pto = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(ROOK, GETCOLOR(pfrom)):PNONE;
         // pack move into 64 bits, considering castle rights and halfmovecounter and score
         move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (Move)0x0);
         move = (pto==PNONE)?MOVENONE:move;
         if (move)
         {
-          // get move score
-          score = EvalMove(move);
           // get move score
           score = EvalMove(move);
           move = SETSCORE(move,(Move)score);
@@ -1290,10 +1286,9 @@ void gen_moves(
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom-1)|squareunderattack(board,!stm,sqfrom-2));
     // make move
     move    = MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (u64)score);
-    move    = (bbTemp&&!bbTempO&&!bbMoves)?move:MOVENONE;
-    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRQ:BBEMPTY;
+    move   |= MOVEISCRQ;
     // store move
-    if (move)
+    if (bbTemp&&!bbTempO&&!bbMoves)
     {
       // copy move to global
       global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
@@ -1309,11 +1304,10 @@ void gen_moves(
     // check for king and empty squares in check
     bbMoves  =  (squareunderattack(board,!stm,sqfrom)|squareunderattack(board,!stm,sqfrom+1)|squareunderattack(board,!stm,sqfrom+2));
     // make move
-    move    = MAKEMOVE((Move)sqfrom, (Move)(sqfrom-2), (Move)(sqfrom-2), (Move)pfrom, (Move)pfrom, (Move)PNONE, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (u64)score);
-    move    = (bbTemp&&!bbTempO&&!bbMoves)?move:MOVENONE;
-    move   |= (bbTemp&&!bbTempO&&!bbMoves)?MOVEISCRK:BBEMPTY;
+    move    = MAKEMOVE((Move)sqfrom, (Move)(sqfrom+2), (Move)(sqfrom+2), (Move)pfrom, (Move)pfrom, (Move)PNONE, (Move)0x0, (u64)GETHMC(board[QBBLAST]), (u64)score);
+    move   |= MOVEISCRK;
     // store move
-    if (move)
+    if (bbTemp&&!bbTempO&&!bbMoves)
     {
       // copy move to global
       global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+n[0]] = move;
@@ -1603,10 +1597,10 @@ __kernel void perft_gpu(
       }
       global_pid_moves[i+current] = MOVENONE; // reset move
 //      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
+      global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
       domove(board, move);
       // set history
       global_pid_movehistory[pid*max_depth+sd]=move;
-      global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
 //      updateHash(board, move);
 //      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
