@@ -609,7 +609,7 @@ bool cl_guess_config(bool extreme)
         printf("nodes_per_second: %i;\n", nps);
         printf("max_nodes: 0;\n");
         printf("max_memory: %i;\n", (s32)devicememalloc/1024/1024);
-        printf("memory_slots: %i;\n", memory_slots);
+        printf("memory_slots: %i; // max 3\n", memory_slots);
         printf("max_ab_depth: 1; // min 1\n");
         printf("max_depth: 32;\n");
         printf("opencl_platform_id: %i;\n",i);
