@@ -1436,7 +1436,7 @@ __kernel void perft_gpu(
                             __global s32 *global_pid_depths,
                             __global Move *global_pid_moves,
                             __global Move *global_pid_movehistory,
-                            __global Move *global_pid_crhistory,
+                            __global Cr *global_pid_crhistory,
                             __global Hash *global_hashhistory,
                                const s32 som_init,
                                const s32 ply_init,
@@ -1479,7 +1479,7 @@ __kernel void perft_gpu(
   global_pid_movecounter[pid*max_depth+sd] = 0;
 
   global_pid_movehistory[pid*max_depth+0] = board[QBBLAST];
-  global_pid_crhistory[pid*max_depth+0] = board[QBBPMVD];
+  global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
 
   // ################################
   // ####       main loop        ####
@@ -1645,7 +1645,7 @@ __kernel void bestfirst_gpu(
                             __global s32 *global_pid_depths,
                             __global Move *global_pid_moves,
                             __global Move *global_pid_movehistory,
-                            __global Move *global_pid_crhistory,
+                            __global Cr *global_pid_crhistory,
                             __global Hash *global_hashhistory,
                                const s32 som_init,
                                const s32 ply_init,
