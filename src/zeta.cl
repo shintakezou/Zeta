@@ -1473,7 +1473,7 @@ __kernel void perft_gpu(
   global_pid_movecounter[pid*max_depth+sd] = 0;
 
   global_pid_movehistory[pid*max_depth+0] = board[QBBLAST];
-  global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
+  global_pid_crhistory[pid*max_depth+0] = board[QBBPMVD];
 
   // ################################
   // ####       main loop        ####
@@ -1597,10 +1597,10 @@ __kernel void perft_gpu(
       }
       global_pid_moves[i+current] = MOVENONE; // reset move
 //      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
-      global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
-      domove(board, move);
       // set history
       global_pid_movehistory[pid*max_depth+sd]=move;
+      global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
+      domove(board, move);
 //      updateHash(board, move);
 //      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
@@ -1992,8 +1992,9 @@ __kernel void bestfirst_gpu(
       depth = (INCHECKEXT&&rootkic)?search_depth+1:search_depth;
       depth = (SINGLEEXT&&n==1)?search_depth+1:depth;
       depth = (PROMOEXT&&(((board[QBBLAST]>>18)&0xF)>>1)==PAWN&&(GETRRANK(((board[QBBLAST]>>6)&0x3F),(((board[QBBLAST]>>18)&0xF)&0x1))>=RANK_7))?search_depth+1:depth;
-      // set move history
-      global_pid_movehistory[pid*max_depth+0]=board[QBBLAST];
+      // set history
+      global_pid_movehistory[pid*max_depth+0] = board[QBBLAST];
+      global_pid_crhistory[pid*max_depth+0] = board[QBBPMVD];
       // set move todo index
       global_pid_movecounter[pid*max_depth+0] = 0;
       global_pid_todoindex[pid*max_depth+0] = 0;
@@ -2082,10 +2083,10 @@ __kernel void bestfirst_gpu(
       }
       global_pid_moves[i+current] = MOVENONE; // reset move
 //      move = global_pid_moves[pid*max_depth*MAXMOVES+sd*MAXMOVES+global_pid_todoindex[pid*max_depth+sd]];
-      domove(board, move);
       // set history
       global_pid_movehistory[pid*max_depth+sd]=move;
       global_pid_crhistory[pid*max_depth+sd] = board[QBBPMVD];
+      domove(board, move);
 //      updateHash(board, move);
 //      board[QBBHASH] = computeHash(board, som);
       global_pid_todoindex[pid*max_depth+sd]++;
