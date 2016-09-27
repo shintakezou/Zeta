@@ -1896,9 +1896,7 @@ __kernel void bestfirst_gpu(
     // stalemate
     score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
     // draw by 3 fold repetition
-//    for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
-/*
-    for (s32 i=ply+ply_init-2;i>=0&&!qs&&index>0;i-=2)
+    for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
     {
       if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
       {
@@ -1907,7 +1905,6 @@ __kernel void bestfirst_gpu(
         break;
       }
     }
-*/
     // #################################
     // ####     alphabeta stuff      ###
     // #################################
