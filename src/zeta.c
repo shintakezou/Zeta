@@ -563,7 +563,7 @@ Hash computehash(Bitboard *board, bool stm)
       hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
     }
   }
-  /* castle rights
+  /* castle rights */
   if (((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
       hash ^= Zobrist[12];
   if (((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
@@ -572,15 +572,15 @@ Hash computehash(Bitboard *board, bool stm)
       hash ^= Zobrist[14];
   if (((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
       hash ^= Zobrist[15];
- */
-  /* file en passant
+ 
+  /* file en passant */
   if (GETSQEP(board[QBBLAST]))
   {
     sq = GETFILE(GETSQEP(board[QBBLAST]));
     zobrist = Zobrist[16];
     hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
   }
- */
+ 
   /* site to move */
   if (!stm)
     hash ^= 0x1ULL;
@@ -684,7 +684,7 @@ void domove(Bitboard *board, Move move)
   hmc++;
 
   // do hash increment , clear old
-  /* castle rights 
+  /* castle rights */
   if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
     board[QBBHASH] ^= Zobrist[12];
   if(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
@@ -693,14 +693,14 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= Zobrist[14];
   if(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
     board[QBBHASH] ^= Zobrist[15];
-*/
-  /* file en passant
+
+  /* file en passant */
   if (GETSQEP(board[QBBLAST]))
   {
     zobrist = Zobrist[16];
     board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(board[QBBLAST])))|(zobrist>>(64-GETFILE(GETSQEP(board[QBBLAST])))));; // rotate left 64
   }
-*/
+
   // unset square from, square capture and square to
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
   board[QBBBLACK] &= bbTemp;
@@ -778,7 +778,7 @@ void domove(Bitboard *board, Move move)
   // do hash increment, clear piece capture
   zobrist = Zobrist[GETCOLOR(pcpt)*6+GETPTYPE(pcpt)-1];
   board[QBBHASH] ^= (pcpt)?((zobrist<<(sqcpt))|(zobrist>>(64-(sqcpt)))):BBEMPTY;
-  /* castle rights
+  /* castle rights */
   if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
     board[QBBHASH] ^= Zobrist[12];
   if(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
@@ -787,14 +787,13 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= Zobrist[14];
   if(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
     board[QBBHASH] ^= Zobrist[15];
- */
-  /* file en passant 
+ 
+  /* file en passant */
   if (GETSQEP(move))
   {
     zobrist = Zobrist[16];
     board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(move)))|(zobrist>>(64-GETFILE(GETSQEP(move)))));; // rotate left 64
   }
-*/
   // color flipping
   board[QBBHASH] ^= 0x1;
 
