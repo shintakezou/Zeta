@@ -1842,8 +1842,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
   // xboard mate scores
   xboard_score = bestscore/10;
-  xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
-  xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
+  xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore-PLY):xboard_score;
+  xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore+PLY):xboard_score;
   // print xboard output
   if (xboard_post==true||xboard_mode == false)
   {
