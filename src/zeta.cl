@@ -1738,7 +1738,7 @@ __kernel void bestfirst_gpu(
       // check bounds
       if (ply>=MAXBFPLY||ply+ply_init>=MAXGAMEPLY)
         n=0;
-      tmpscorea = -1000000000;
+      tmpscorea = -1000000000000;
       current = 0;
       // selecta best move from stored node tree
       for (s32 i=0;i<n;i++)
@@ -1762,7 +1762,7 @@ __kernel void bestfirst_gpu(
         if (ROOTSEARCH&&index==0)
         {
           tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
-          tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+//          tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
         }
         // most threads go to breadth, some go to depth
         else if (BROADWELL&&(pid%DEPTHWELL>0))
