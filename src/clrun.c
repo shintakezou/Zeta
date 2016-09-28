@@ -1300,13 +1300,14 @@ bool cl_release_device() {
 	return true;
 }
 // debug printing
-void print_debug(char *debug) {
-    FILE 	*Stats;
-    Stats = fopen("zeta.log", "a");
-    fprintdate(Stats);
-    fprintf(Stats, "%s, status:%i", debug, status);
-    if (status == CL_DEVICE_NOT_AVAILABLE)
-        fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE");
-    fclose(Stats);
+void print_debug(char *debug)
+{
+  FILE 	*Stats;
+  Stats = fopen("zeta.log", "a");
+  fprintdate(Stats);
+  fprintf(Stats, "%s, status:%i", debug, status);
+  if (status == CL_DEVICE_NOT_AVAILABLE)
+      fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE");
+  fclose(Stats);
 }
 

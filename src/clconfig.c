@@ -560,7 +560,6 @@ bool cl_guess_config(bool extreme)
               nps = npstmp;
             }
           }
-
           remove("config.tmp");
         }
 

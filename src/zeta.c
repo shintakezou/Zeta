@@ -2152,7 +2152,7 @@ int main(int argc, char* argv[])
   fprintf(stdout,"#> Experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"#> Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
   fprintf(stdout,"#> This is free software, licensed under GPL >= v2\n");
-  fprintf(stdout,"#> eninge is initialising...\n");  
+  fprintf(stdout,"#> engine is initialising...\n");  
   fprintf(stdout,"feature done=0\n");  
   if (LogFile) 
   {
@@ -2196,7 +2196,7 @@ int main(int argc, char* argv[])
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile, "%s",Line);
+      fprintf(LogFile, ">> %s",Line);
     }
     // get command
     sscanf (Line, "%s", Command);
