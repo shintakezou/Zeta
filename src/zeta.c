@@ -24,10 +24,10 @@
 #include <string.h>     /* for string compare */ 
 #include <getopt.h>     /* for getopt_long */
 
-#include "bitboard.h"   // bit functions
+#include "bitboard.h"   /* bit functions */
 #include "timer.h"
 #include "types.h"
-#include "zetacl.h"     // OpenCL source file
+#include "zetacl.h"     /* OpenCL source file zeta.cl as string */
 #include "zobrist.h"
 
 /* global variables */
@@ -42,7 +42,7 @@ u64 EXNODECOUNT = 0;
 u64 ABNODECOUNT = 0;
 u64 MOVECOUNT = 0;
 u64 MEMORYFULL = 0;
-// config file
+/* config file */
 s32 threadsX            =  0;
 s32 threadsY            =  0;
 s32 threadsZ            =  0;
@@ -57,7 +57,7 @@ s32 max_ab_depth        =  0;
 s32 max_depth           = 99;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
-// further config
+/* further config */
 s32 max_nps_per_move= 0;
 s32 search_depth    = 0;
 u64 max_mem_mb      = MAXDEVICEMB;
@@ -70,7 +70,7 @@ bool xboard_post    = false;  /* post search thinking output */
 bool xboard_san     = false;  /* use san move notation instead of can */
 bool xboard_time    = false;  /* use xboards time command for time management */
 bool xboard_debug   = false;  /* print debug information */
-s32 xboardmb        = 64;     /* mega bytes for hash table */
+s32 xboard_mb       = 64;     /* mega bytes for hash table */
 /* timers */
 double start        = 0;
 double end          = 0;
@@ -93,21 +93,6 @@ s32 PLY         = 0;      /* engine specifix ply counter */
 Move *MoveHistory;
 Hash *HashHistory;
 Hash *CRHistory;
-// time management
-/*
-static double max_time_per_move = 0;
-static double time_per_move     = 0;
-static s32 max_moves            = 0;
-static s32 time_seconds         = 0;
-static s32 time_minutes         = 0;
-static double time_left_opponent = 0;  
-static double time_left_computer = 0;  
-static char time_string[128];
-static s32 max_nps_per_move     = 0;
-*/
-Score bestscore = 0;
-s32 plyreached = 0;
-s32 bestmoveply = 0;
 /* Quad Bitboard */
 /* based on http://chessprogramming.wikispaces.com/Quad-Bitboards */
 /* by Gerd Isenberg */
@@ -120,16 +105,13 @@ Bitboard BOARD[7];
   4   hash
   5   lastmove
 */
-// for exchange with OpenCL Device
+/* for exchange with OpenCL device */
 Bitboard *GLOBAL_INIT_BOARD = NULL;
 NodeBlock *NODES = NULL;
 u64 *COUNTERS = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
 s32 BOARD_STACK_TOP;
-Move Bestmove = 0;
-Move Lastmove = 0;
-Cr  CR = 0;
-// functions
+/* functions */ 
 Score perft(Bitboard *board, bool stm, s32 depth);
 static void print_help(void);
 static void print_version(void);
@@ -142,7 +124,7 @@ void printboard(Bitboard *board);
 void printbitboard(Bitboard board);
 bool read_and_init_config();
 s32 load_file_to_string(const char *filename, char **result);
-// cl functions
+/* cl functions */
 extern bool cl_init_device();
 extern bool cl_init_objects();
 extern bool cl_run_search(bool stm, s32 depth);
@@ -150,7 +132,7 @@ extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
 extern bool cl_guess_config(bool extreme);
-// precomputed attack tables for move generation and square in check
+/* precomputed attack tables for move generation and square in check */
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
   /* white pawn pushes */
@@ -381,7 +363,7 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
 Square getkingpos(Bitboard *board, bool side)
 {
   Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
-  bbTemp &= board[1]&board[2]&~board[3]; // get king
+  bbTemp &= board[1]&board[2]&~board[3]; /* get king */
   return first1(bbTemp);
 }
 /* is square attacked by an enemy piece, via superpiece approach */
@@ -513,7 +495,7 @@ void release_gameinits()
 }
 void release_configinits()
 {
-  // opencl relatred
+  /* opencl related */
   free(GLOBAL_INIT_BOARD);
   free(COUNTERS);
   free(NODES);
@@ -560,7 +542,7 @@ Hash computehash(Bitboard *board, bool stm)
       sq    = popfirst1(&bbWork);
       piece = GETPIECE(board,sq);
       zobrist = Zobrist[GETCOLOR(piece)*6+GETPTYPE(piece)-1];
-      hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
+      hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; /* rotate left 64 */
     }
   }
   /* castle rights */
@@ -578,7 +560,7 @@ Hash computehash(Bitboard *board, bool stm)
   {
     sq = GETFILE(GETSQEP(board[QBBLAST]));
     zobrist = Zobrist[16];
-    hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
+    hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; /* rotate left 64 */
   }
  
   /* site to move */
@@ -662,7 +644,7 @@ void undomovequick(Bitboard *board, Move move)
   board[QBBP2]    |= ((pfrom>>2)&0x1)<<sqfrom;
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 }
-// apply move on board
+/* apply move on board */
 void domove(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -802,7 +784,7 @@ void domove(Bitboard *board, Move move)
   // store lastmove in board
   board[QBBLAST] = move;
 }
-// restore board again
+/* restore board again */
 void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -1446,7 +1428,7 @@ bool read_and_init_config(char configfile[])
 
   totalThreads = threadsX*threadsY*threadsZ;
 
-  // allocate memory
+  /* allocate memory */
   GLOBAL_INIT_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
   if (GLOBAL_INIT_BOARD==NULL)
   {
@@ -1659,12 +1641,12 @@ static void print_help(void)
   fprintf(stdout,"bk             // book Lines\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Non-Xboard commands:\n");
-//  fprintf(stdout,"perft          // perform a performance test, depth set by sd command\n");
+/*
+  fprintf(stdout,"perft          // perform a performance test, depth set by sd command\n");
+*/
   fprintf(stdout,"selftest       // run an internal test\n");
   fprintf(stdout,"help           // print usage info\n");
   fprintf(stdout,"log            // turn log on\n");
-//  fprintf(stdout,"guessconfig    // guess minimal config for OpenCL devices\n");
-//  fprintf(stdout,"guessconfigx   // guess best config for OpenCL devices\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"WARNING:\n");
   fprintf(stdout,"It is recommended to run the engine on an discrete GPU,\n");
@@ -1736,10 +1718,13 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   s32 i,j;
   Score score;
   Score tmpscore;
+  Score xboard_score;
   s32 visits = 0;
   s32 tmpvisits = 0;
-
   Move bestmove = MOVENONE;
+  Score bestscore = 0;
+  s32 plyreached = 0;
+  s32 bestmoveply = 0;
   double start, end;
 
   ITERCOUNT   = 0;
@@ -1837,7 +1822,6 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     }
   }
   bestscore = ISINF(score)?DRAWSCORE:score;
-  Bestmove = bestmove;
   // collect counters
   for (i=0; i < totalThreads; i++) {
     ITERCOUNT+=     COUNTERS[i*10+0];
@@ -1856,14 +1840,29 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   // compute next nps value
   nps_current =  (s32 )(ABNODECOUNT/(elapsed));
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
+  /* xboard mate scores */
+  xboard_score = bestscore/10;
+  xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
+  xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
   // print xboard output
   if (xboard_post == true || xboard_mode == false) {
     if ( xboard_mode == false )
       printf("depth score time nodes bfdepth pv \n");
-    printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, bestscore/10, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
+    printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, xboard_score, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
     printmovecan(bestmove);
     printf("\n");
   }
+  if ((!xboard_mode)||xboard_debug)
+  {
+    printboard(BOARD);
+    fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, xboard_score, (u64)(ABNODECOUNT/elapsed), elapsed);
+  }
+  if (LogFile)
+  {
+    fprintdate(LogFile);
+    fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, xboard_score, (u64)(ABNODECOUNT/elapsed), elapsed);
+  }
+
   fflush(stdout);
 
   return bestmove;
@@ -1876,8 +1875,9 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   Score tmpscore;
   s32 tmpvisits = 0;
   s32 visits = 0;
-
   Move bestmove = MOVENONE;
+  Score bestscore = 0;
+  s32 plyreached = 0;
   double start, end;
 
   ITERCOUNT   = 0;
@@ -1959,7 +1959,6 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     }
   }
   bestscore = ISINF(score)?DRAWSCORE:score;
-  Bestmove = bestmove;
   // collect counters
   for (i=0; i < totalThreads; i++) {
     ITERCOUNT+=     COUNTERS[i*10+0];
@@ -1970,7 +1969,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];
   MEMORYFULL = COUNTERS[6];
-  bestmoveply = COUNTERS[7];
+//  bestmoveply = COUNTERS[7];
   // print cli output
   printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
   printf(" move ");
@@ -2034,7 +2033,7 @@ s32 benchmarkWrapper(s32 benchsec)
   if (elapsed <= 0 || ABNODECOUNT <= 0)
     return -1;
 
-  return (ABNODECOUNT/(elapsed));
+  return (ABNODECOUNT/elapsed);
 }
 // Zeta, experimental chess engine written in OpenCL.
 int main(int argc, char* argv[])
@@ -2386,17 +2385,6 @@ int main(int argc, char* argv[])
             end = get_time();   
             elapsed = end-start;
 
-            if ((!xboard_mode)||xboard_debug)
-            {
-              printboard(BOARD);
-              fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
-            }
-            if (LogFile)
-            {
-              fprintdate(LogFile);
-              fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
-            }
-
             PLY++;
             STM = !STM;
 
@@ -2511,7 +2499,7 @@ int main(int argc, char* argv[])
     /* memory for hash size  */
 		if (!strcmp(Command, "memory"))
     {
-      sscanf(Line, "memory %d", &xboardmb);
+      sscanf(Line, "memory %d", &xboard_mb);
       continue;
     }
     if (!strcmp(Command, "usermove"))
@@ -2621,17 +2609,6 @@ int main(int argc, char* argv[])
 
             end = get_time();   
             elapsed = end-start;
-
-            if ((!xboard_mode)||xboard_debug)
-            {
-              printboard(BOARD);
-              fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
-            }
-            if (LogFile)
-            {
-              fprintdate(LogFile);
-              fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, bestscore/10, (u64)(ABNODECOUNT/(elapsed/1000)), elapsed/1000);
-            }
 
             PLY++;
             STM = !STM;
@@ -2788,14 +2765,15 @@ int main(int argc, char* argv[])
 
       end = get_time();   
       elapsed = end-start;
+      elapsed/=1000;
 
       fprintf(stdout,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
-              ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+              ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
       if (LogFile)
       {
         fprintdate(LogFile);
         fprintf(LogFile,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
-              ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+              ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
       }
 
       fflush(stdout);
