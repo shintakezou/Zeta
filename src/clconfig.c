@@ -203,11 +203,11 @@ bool cl_guess_config(bool extreme)
         } 
         // check for min 64 mb memory
         if (devicememalloc < 67108864 ) {
-          printf("#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %lu < %d MB\n", devicememalloc/1024/1024, MINDEVICEMB);
+          printf("#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %d MB\n", devicememalloc/1024/1024, MINDEVICEMB);
           continue;
         }
         else
-          printf("#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %lu MB > %d MB \n", devicememalloc/1024/1024, MINDEVICEMB);
+          printf("#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %d MB \n", devicememalloc/1024/1024, MINDEVICEMB);
         // set memory to default max
         // get max memory allocation size
         status = clGetDeviceInfo (devices[j],
@@ -223,7 +223,7 @@ bool cl_guess_config(bool extreme)
           continue;
         } 
         else
-          printf("#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %lu MB\n", devicememalloc/1024/1024);
+          printf("#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememalloc/1024/1024);
         devicememalloc/=4;
 
         if (devicememalloc > max_mem_mb*1024*1024 )
@@ -566,9 +566,11 @@ bool cl_guess_config(bool extreme)
         devicecounter++;
 
         // print config to file
-        char confignamefile[256] = "config.ini";
+        char confignamefile[256] = "config";
         k = strlen(confignamefile);
-        sprintf(confignamefile + k , "_%i_%i", i,j );
+        sprintf(confignamefile + k , "_%d_%d_", i,j );
+        k = strlen(confignamefile);
+        sprintf(confignamefile + k , ".ini");
         remove(confignamefile);
 
         Cfg = fopen(confignamefile, "w");
