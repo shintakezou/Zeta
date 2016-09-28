@@ -36,20 +36,21 @@ void get_date_string(char *string)
   time_t t;
   struct tm *local;
   char *ptr;
-  char *tempstring;
+  char tempstring[256];
 
   t = time(NULL);
   local = localtime (&t);
-  tempstring = asctime (local);
+  strftime(tempstring, sizeof(tempstring), "%Y-%m-%d %H:%M:%S", local);
+
   if ((ptr = strchr (tempstring, '\n')) != NULL)
     *ptr = '\0';
 
-  memcpy (string, tempstring, sizeof(char)*255);
+  memcpy (string, tempstring, sizeof(char)*256);
 }
 void fprintdate(FILE *file)
 {
   char timestring[256];
   get_date_string (timestring);
-  fprintf(file, "%s, ", timestring);
+  fprintf(file, "[%s] ", timestring);
 }
 
