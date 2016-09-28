@@ -1845,12 +1845,27 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
   xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
   // print xboard output
-  if (xboard_post == true || xboard_mode == false) {
-    if ( xboard_mode == false )
-      printf("depth score time nodes bfdepth pv \n");
-    printf("%i %i %i %" PRIu64 " %i 	", bestmoveply, xboard_score, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
+  if (xboard_post==true||xboard_mode == false)
+  {
+    if (xboard_mode==false)
+    { 
+      fprintf(stdout, "depth score time nodes bfdepth pv \n");
+    }
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "depth score time nodes bfdepth pv \n");
+    }
+    fprintf(stdout,"%i %i %i %" PRIu64 " %i 	", bestmoveply, xboard_score, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile,"%i %i %i %" PRIu64 " %i 	", bestmoveply, xboard_score, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
+    }
     printmovecan(bestmove);
-    printf("\n");
+    fprintf(stdout,"\n");
+    if (LogFile)
+      fprintf(LogFile, "\n");
   }
   if ((!xboard_mode)||xboard_debug)
   {
@@ -2139,13 +2154,32 @@ int main(int argc, char* argv[])
   fprintf(stdout,"#> This is free software, licensed under GPL >= v2\n");
   fprintf(stdout,"#> eninge is initialising...\n");  
   fprintf(stdout,"feature done=0\n");  
-
+  if (LogFile) 
+  {
+    fprintdate(LogFile);
+    fprintf(LogFile,"#> Zeta %s\n",VERSION);
+    fprintdate(LogFile);
+    fprintf(LogFile,"#> Experimental chess engine written in OpenCL.\n");
+    fprintdate(LogFile);
+    fprintf(LogFile,"#> Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
+    fprintdate(LogFile);
+    fprintf(LogFile,"#> This is free software, licensed under GPL >= v2\n");
+    fprintdate(LogFile);
+    fprintf(LogFile,"#> eninge is initialising...\n");  
+    fprintdate(LogFile);
+    fprintf(LogFile,"feature done=0\n");  
+  }
   // init engine and game memory, read config ini file and init OpenCL device
   if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
   {
     quitengine(EXIT_FAILURE);
   }
-
+  fprintf(stdout,"#> ...finished basic inits.\n");  
+  if (LogFile) 
+  {
+    fprintdate(LogFile);
+    fprintf(LogFile,"#> ...finished basic inits.\n");  
+  }
   // xboard command loop
   for (;;)
   {
@@ -2162,7 +2196,7 @@ int main(int argc, char* argv[])
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile, "%s\n",Line);
+      fprintf(LogFile, "%s",Line);
     }
     // get command
     sscanf (Line, "%s", Command);
