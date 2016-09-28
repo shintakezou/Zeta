@@ -19,30 +19,30 @@
   GNU General Public License for more details.
 */
 
-#include <stdio.h>      /* for print and scan */
-#include <stdlib.h>     /* for malloc free */
-#include <string.h>     /* for string compare */ 
-#include <getopt.h>     /* for getopt_long */
+#include <stdio.h>      // for print and scan
+#include <stdlib.h>     // for malloc free
+#include <string.h>     // for string compare 
+#include <getopt.h>     // for getopt_long
 
-#include "bitboard.h"   /* bit functions */
+#include "bitboard.h"   // bit functions
 #include "timer.h"
 #include "types.h"
-#include "zetacl.h"     /* OpenCL source file zeta.cl as string */
+#include "zetacl.h"     // OpenCL source file zeta.cl as string
 #include "zobrist.h"
 
-/* global variables */
-FILE *LogFile = NULL;         /* logfile for debug */
-char *Line;                   /* for fgetting the input on stdin */
-char *Command;                /* for pasring the xboard command */
-char *Fen;                    /* for storing the fen chess baord string */
+// global variables
+FILE *LogFile = NULL;         // logfile for debug
+char *Line;                   // for fgetting the input on stdin
+char *Command;                // for pasring the xboard command
+char *Fen;                    // for storing the fen chess baord string
 const char filename[]  = "zeta.cl";
-/* counters */
+// counters
 u64 ITERCOUNT = 0;
 u64 EXNODECOUNT = 0;
 u64 ABNODECOUNT = 0;
 u64 MOVECOUNT = 0;
 u64 MEMORYFULL = 0;
-/* config file */
+// config file
 s32 threadsX            =  0;
 s32 threadsY            =  0;
 s32 threadsZ            =  0;
@@ -57,45 +57,45 @@ s32 max_ab_depth        =  0;
 s32 max_depth           = 99;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
-/* further config */
+// further config
 s32 max_nps_per_move= 0;
 s32 search_depth    = 0;
 u64 max_mem_mb      = MAXDEVICEMB;
 s32 max_cores       = 1;
 s32 time_management = false;
-/* xboard flags */
-bool xboard_mode    = false;  /* chess GUI sets to true */
-bool xboard_force   = false;  /* if true aplly only moves, do not think */
-bool xboard_post    = false;  /* post search thinking output */
-bool xboard_san     = false;  /* use san move notation instead of can */
-bool xboard_time    = false;  /* use xboards time command for time management */
-bool xboard_debug   = false;  /* print debug information */
-s32 xboard_mb       = 64;     /* mega bytes for hash table */
-/* timers */
+// xboard flags
+bool xboard_mode    = false;  // chess GUI sets to true
+bool xboard_force   = false;  // if true aplly only moves, do not think
+bool xboard_post    = false;  // post search thinking output
+bool xboard_san     = false;  // use san move notation instead of can
+bool xboard_time    = false;  // use xboards time command for time management
+bool xboard_debug   = false;  // print debug information
+s32 xboard_mb       = 64;     // mega bytes for hash table
+// timers
 double start        = 0;
 double end          = 0;
 double elapsed      = 0;
-bool TIMEOUT        = false;  /* global value for time control*/
-/* time control in milli-seconds */
-s32 timemode    = 0;      /* 0 = single move, 1 = conventional clock, 2 = ics clock */
-s32 MovesLeft   = 1;      /* moves left unit nex time increase */
-s32 MaxMoves    = 1;      /* moves to play in time frame */
-double TimeInc  = 0;      /* time increase */
-double TimeBase = 5*1000; /* time base for conventional inc, 5s default */
-double TimeLeft = 5*1000; /* overall time on clock, 5s default */
-double MaxTime  = 5*1000; /* max time per move */
+bool TIMEOUT        = false;  // global value for time control*/
+// time control in milli-seconds
+s32 timemode    = 0;      // 0 = single move, 1 = conventional clock, 2 = ics clock
+s32 MovesLeft   = 1;      // moves left unit nex time increase
+s32 MaxMoves    = 1;      // moves to play in time frame
+double TimeInc  = 0;      // time increase
+double TimeBase = 5*1000; // time base for conventional inc, 5s default
+double TimeLeft = 5*1000; // overall time on clock, 5s default
+double MaxTime  = 5*1000; // max time per move
 s64 MaxNodes    = 1;
-/* game state */
-bool STM        = WHITE;  /* site to move */
-s32 SD          = 0;      /* max search depth*/
-s32 GAMEPLY     = 0;      /* total ply, considering depth via fen string */
-s32 PLY         = 0;      /* engine specifix ply counter */
+// game state
+bool STM        = WHITE;  // site to move
+s32 SD          = 0;      // max search depth*/
+s32 GAMEPLY     = 0;      // total ply, considering depth via fen string
+s32 PLY         = 0;      // engine specifix ply counter
 Move *MoveHistory;
 Hash *HashHistory;
 Hash *CRHistory;
-/* Quad Bitboard */
-/* based on http://chessprogramming.wikispaces.com/Quad-Bitboards */
-/* by Gerd Isenberg */
+// Quad Bitboard
+// based on http://chessprogramming.wikispaces.com/Quad-Bitboards
+// by Gerd Isenberg
 Bitboard BOARD[7];
 /* quad bitboard array index definition
   0   pieces white
@@ -105,13 +105,13 @@ Bitboard BOARD[7];
   4   hash
   5   lastmove
 */
-/* for exchange with OpenCL device */
+// for exchange with OpenCL device
 Bitboard *GLOBAL_INIT_BOARD = NULL;
 NodeBlock *NODES = NULL;
 u64 *COUNTERS = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
 s32 BOARD_STACK_TOP;
-/* functions */ 
+// functions 
 Score perft(Bitboard *board, bool stm, s32 depth);
 static void print_help(void);
 static void print_version(void);
@@ -124,7 +124,7 @@ void printboard(Bitboard *board);
 void printbitboard(Bitboard board);
 bool read_and_init_config();
 s32 load_file_to_string(const char *filename, char **result);
-/* cl functions */
+// cl functions
 extern bool cl_init_device();
 extern bool cl_init_objects();
 extern bool cl_run_search(bool stm, s32 depth);
@@ -132,33 +132,33 @@ extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
 extern bool cl_guess_config(bool extreme);
-/* precomputed attack tables for move generation and square in check */
+// precomputed attack tables for move generation and square in check
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
-  /* white pawn pushes */
+  // white pawn pushes
   0x100,0x200,0x400,0x800,0x1000,0x2000,0x4000,0x8000,0x1010000,0x2020000,0x4040000,0x8080000,0x10100000,0x20200000,0x40400000,0x80800000,0x1000000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000,0x80000000,0x100000000,0x200000000,0x400000000,0x800000000,0x1000000000,0x2000000000,0x4000000000,0x8000000000,0x10000000000,0x20000000000,0x40000000000,0x80000000000,0x100000000000,0x200000000000,0x400000000000,0x800000000000,0x1000000000000,0x2000000000000,0x4000000000000,0x8000000000000,0x10000000000000,0x20000000000000,0x40000000000000,0x80000000000000,0x100000000000000,0x200000000000000,0x400000000000000,0x800000000000000,0x1000000000000000,0x2000000000000000,0x4000000000000000,0x8000000000000000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-  /* black pawn pushes */
+  // black pawn pushes
   0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80,0x100,0x200,0x400,0x800,0x1000,0x2000,0x4000,0x8000,0x10000,0x20000,0x40000,0x80000,0x100000,0x200000,0x400000,0x800000,0x1000000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000,0x80000000,0x100000000,0x200000000,0x400000000,0x800000000,0x1000000000,0x2000000000,0x4000000000,0x8000000000,0x10100000000,0x20200000000,0x40400000000,0x80800000000,0x101000000000,0x202000000000,0x404000000000,0x808000000000,0x1000000000000,0x2000000000000,0x4000000000000,0x8000000000000,0x10000000000000,0x20000000000000,0x40000000000000,0x80000000000000
 };
-/* piece attack tables */
+// piece attack tables
 const Bitboard AttackTables[7*64] = 
 {
-  /* white pawn */
+  // white pawn
   0x200,0x500,0xa00,0x1400,0x2800,0x5000,0xa000,0x4000,0x20000,0x50000,0xa0000,0x140000,0x280000,0x500000,0xa00000,0x400000,0x2000000,0x5000000,0xa000000,0x14000000,0x28000000,0x50000000,0xa0000000,0x40000000,0x200000000,0x500000000,0xa00000000,0x1400000000,0x2800000000,0x5000000000,0xa000000000,0x4000000000,0x20000000000,0x50000000000,0xa0000000000,0x140000000000,0x280000000000,0x500000000000,0xa00000000000,0x400000000000,0x2000000000000,0x5000000000000,0xa000000000000,0x14000000000000,0x28000000000000,0x50000000000000,0xa0000000000000,0x40000000000000,0x200000000000000,0x500000000000000,0xa00000000000000,0x1400000000000000,0x2800000000000000,0x5000000000000000,0xa000000000000000,0x4000000000000000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-  /* black pawn */
+  // black pawn
   0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2,0x5,0xa,0x14,0x28,0x50,0xa0,0x40,0x200,0x500,0xa00,0x1400,0x2800,0x5000,0xa000,0x4000,0x20000,0x50000,0xa0000,0x140000,0x280000,0x500000,0xa00000,0x400000,0x2000000,0x5000000,0xa000000,0x14000000,0x28000000,0x50000000,0xa0000000,0x40000000,0x200000000,0x500000000,0xa00000000,0x1400000000,0x2800000000,0x5000000000,0xa000000000,0x4000000000,0x20000000000,0x50000000000,0xa0000000000,0x140000000000,0x280000000000,0x500000000000,0xa00000000000,0x400000000000,0x2000000000000,0x5000000000000,0xa000000000000,0x14000000000000,0x28000000000000,0x50000000000000,0xa0000000000000,0x40000000000000,
-  /* knight */
+  // knight
   0x20400,0x50800,0xa1100,0x142200,0x284400,0x508800,0xa01000,0x402000,0x2040004,0x5080008,0xa110011,0x14220022,0x28440044,0x50880088,0xa0100010,0x40200020,0x204000402,0x508000805,0xa1100110a,0x1422002214,0x2844004428,0x5088008850,0xa0100010a0,0x4020002040,0x20400040200,0x50800080500,0xa1100110a00,0x142200221400,0x284400442800,0x508800885000,0xa0100010a000,0x402000204000,0x2040004020000,0x5080008050000,0xa1100110a0000,0x14220022140000,0x28440044280000,0x50880088500000,0xa0100010a00000,0x40200020400000,0x204000402000000,0x508000805000000,0xa1100110a000000,0x1422002214000000,0x2844004428000000,0x5088008850000000,0xa0100010a0000000,0x4020002040000000,0x400040200000000,0x800080500000000,0x1100110a00000000,0x2200221400000000,0x4400442800000000,0x8800885000000000,0x100010a000000000,0x2000204000000000,0x4020000000000,0x8050000000000,0x110a0000000000,0x22140000000000,0x44280000000000,0x88500000000000,0x10a00000000000,0x20400000000000,
-  /* king */
+  // king
   0x302,0x705,0xe0a,0x1c14,0x3828,0x7050,0xe0a0,0xc040,0x30203,0x70507,0xe0a0e,0x1c141c,0x382838,0x705070,0xe0a0e0,0xc040c0,0x3020300,0x7050700,0xe0a0e00,0x1c141c00,0x38283800,0x70507000,0xe0a0e000,0xc040c000,0x302030000,0x705070000,0xe0a0e0000,0x1c141c0000,0x3828380000,0x7050700000,0xe0a0e00000,0xc040c00000,0x30203000000,0x70507000000,0xe0a0e000000,0x1c141c000000,0x382838000000,0x705070000000,0xe0a0e0000000,0xc040c0000000,0x3020300000000,0x7050700000000,0xe0a0e00000000,0x1c141c00000000,0x38283800000000,0x70507000000000,0xe0a0e000000000,0xc040c000000000,0x302030000000000,0x705070000000000,0xe0a0e0000000000,0x1c141c0000000000,0x3828380000000000,0x7050700000000000,0xe0a0e00000000000,0xc040c00000000000,0x203000000000000,0x507000000000000,0xa0e000000000000,0x141c000000000000,0x2838000000000000,0x5070000000000000,0xa0e0000000000000,0x40c0000000000000,
-  /* bishop */
+  // bishop
   0x8040201008040200,0x80402010080500,0x804020110a00,0x8041221400,0x182442800,0x10204885000,0x102040810a000,0x102040810204000,0x4020100804020002,0x8040201008050005,0x804020110a000a,0x804122140014,0x18244280028,0x1020488500050,0x102040810a000a0,0x204081020400040,0x2010080402000204,0x4020100805000508,0x804020110a000a11,0x80412214001422,0x1824428002844,0x102048850005088,0x2040810a000a010,0x408102040004020,0x1008040200020408,0x2010080500050810,0x4020110a000a1120,0x8041221400142241,0x182442800284482,0x204885000508804,0x40810a000a01008,0x810204000402010,0x804020002040810,0x1008050005081020,0x20110a000a112040,0x4122140014224180,0x8244280028448201,0x488500050880402,0x810a000a0100804,0x1020400040201008,0x402000204081020,0x805000508102040,0x110a000a11204080,0x2214001422418000,0x4428002844820100,0x8850005088040201,0x10a000a010080402,0x2040004020100804,0x200020408102040,0x500050810204080,0xa000a1120408000,0x1400142241800000,0x2800284482010000,0x5000508804020100,0xa000a01008040201,0x4000402010080402,0x2040810204080,0x5081020408000,0xa112040800000,0x14224180000000,0x28448201000000,0x50880402010000,0xa0100804020100,0x40201008040201,
-  /* rook */
+  // rook
   0x1010101010101fe,0x2020202020202fd,0x4040404040404fb,0x8080808080808f7,0x10101010101010ef,0x20202020202020df,0x40404040404040bf,0x808080808080807f,0x10101010101fe01,0x20202020202fd02,0x40404040404fb04,0x80808080808f708,0x101010101010ef10,0x202020202020df20,0x404040404040bf40,0x8080808080807f80,0x101010101fe0101,0x202020202fd0202,0x404040404fb0404,0x808080808f70808,0x1010101010ef1010,0x2020202020df2020,0x4040404040bf4040,0x80808080807f8080,0x1010101fe010101,0x2020202fd020202,0x4040404fb040404,0x8080808f7080808,0x10101010ef101010,0x20202020df202020,0x40404040bf404040,0x808080807f808080,0x10101fe01010101,0x20202fd02020202,0x40404fb04040404,0x80808f708080808,0x101010ef10101010,0x202020df20202020,0x404040bf40404040,0x8080807f80808080,0x101fe0101010101,0x202fd0202020202,0x404fb0404040404,0x808f70808080808,0x1010ef1010101010,0x2020df2020202020,0x4040bf4040404040,0x80807f8080808080,0x1fe010101010101,0x2fd020202020202,0x4fb040404040404,0x8f7080808080808,0x10ef101010101010,0x20df202020202020,0x40bf404040404040,0x807f808080808080,0xfe01010101010101,0xfd02020202020202,0xfb04040404040404,0xf708080808080808,0xef10101010101010,0xdf20202020202020,0xbf40404040404040,0x7f80808080808080,
-  /* queen */
+  // queen
   0x81412111090503fe,0x2824222120a07fd,0x404844424150efb,0x8080888492a1cf7,0x10101011925438ef,0x2020212224a870df,0x404142444850e0bf,0x8182848890a0c07f,0x412111090503fe03,0x824222120a07fd07,0x4844424150efb0e,0x80888492a1cf71c,0x101011925438ef38,0x20212224a870df70,0x4142444850e0bfe0,0x82848890a0c07fc0,0x2111090503fe0305,0x4222120a07fd070a,0x844424150efb0e15,0x888492a1cf71c2a,0x1011925438ef3854,0x212224a870df70a8,0x42444850e0bfe050,0x848890a0c07fc0a0,0x11090503fe030509,0x22120a07fd070a12,0x4424150efb0e1524,0x88492a1cf71c2a49,0x11925438ef385492,0x2224a870df70a824,0x444850e0bfe05048,0x8890a0c07fc0a090,0x90503fe03050911,0x120a07fd070a1222,0x24150efb0e152444,0x492a1cf71c2a4988,0x925438ef38549211,0x24a870df70a82422,0x4850e0bfe0504844,0x90a0c07fc0a09088,0x503fe0305091121,0xa07fd070a122242,0x150efb0e15244484,0x2a1cf71c2a498808,0x5438ef3854921110,0xa870df70a8242221,0x50e0bfe050484442,0xa0c07fc0a0908884,0x3fe030509112141,0x7fd070a12224282,0xefb0e1524448404,0x1cf71c2a49880808,0x38ef385492111010,0x70df70a824222120,0xe0bfe05048444241,0xc07fc0a090888482,0xfe03050911214181,0xfd070a1222428202,0xfb0e152444840404,0xf71c2a4988080808,0xef38549211101010,0xdf70a82422212020,0xbfe0504844424140,0x7fc0a09088848281,
 };
-/* generate rook moves via koggestone shifts */
+// generate rook moves via koggestone shifts
 Bitboard ks_attacks_ls1(Bitboard bbBlockers, Square sq)
 {
   Bitboard bbWrap;
@@ -166,18 +166,18 @@ Bitboard ks_attacks_ls1(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions left shifting <<1 ROOK */
+  // directions left shifting <<1 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbWrap  = BBNOTAFILE;
   bbPro  &= bbWrap;
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen << 1);
   bbPro  &=           (bbPro << 1);
   bbGen  |= bbPro &   (bbGen << 2*1);
   bbPro  &=           (bbPro << 2*1);
   bbGen  |= bbPro &   (bbGen << 4*1);
-  /* shift one further */
+  // shift one further
   bbGen   = bbWrap &  (bbGen << 1);
   bbMoves|= bbGen;
 
@@ -189,16 +189,16 @@ Bitboard ks_attacks_ls8(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions left shifting <<8 ROOK */
+  // directions left shifting <<8 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen << 8);
   bbPro  &=           (bbPro << 8);
   bbGen  |= bbPro &   (bbGen << 2*8);
   bbPro  &=           (bbPro << 2*8);
   bbGen  |= bbPro &   (bbGen << 4*8);
-  /* shift one further */
+  // shift one further
   bbGen   =           (bbGen << 8);
   bbMoves|= bbGen;
   
@@ -211,18 +211,18 @@ Bitboard ks_attacks_rs1(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions right shifting >>1 ROOK */
+  // directions right shifting >>1 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbWrap  = BBNOTHFILE;
   bbPro  &= bbWrap;
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen >> 1);
   bbPro  &=           (bbPro >> 1);
   bbGen  |= bbPro &   (bbGen >> 2*1);
   bbPro  &=           (bbPro >> 2*1);
   bbGen  |= bbPro &   (bbGen >> 4*1);
-  /* shift one further */
+  // shift one further
   bbGen   = bbWrap &  (bbGen >> 1);
   bbMoves|= bbGen;
 
@@ -234,16 +234,16 @@ Bitboard ks_attacks_rs8(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions right shifting >>8 ROOK */
+  // directions right shifting >>8 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen >> 8);
   bbPro  &=           (bbPro >> 8);
   bbGen  |= bbPro &   (bbGen >> 2*8);
   bbPro  &=           (bbPro >> 2*8);
   bbGen  |= bbPro &   (bbGen >> 4*8);
-  /* shift one further */
+  // shift one further
   bbGen   =           (bbGen >> 8);
   bbMoves|= bbGen;  
 
@@ -256,7 +256,7 @@ Bitboard rook_attacks(Bitboard bbBlockers, Square sq)
          ks_attacks_rs1(bbBlockers, sq) |
          ks_attacks_rs8(bbBlockers, sq);
 }
-/* generate bishop moves via koggestone shifts */
+// generate bishop moves via koggestone shifts
 Bitboard ks_attacks_ls9(Bitboard bbBlockers, Square sq)
 {
   Bitboard bbWrap;
@@ -264,18 +264,18 @@ Bitboard ks_attacks_ls9(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions left shifting <<9 BISHOP */
+  // directions left shifting <<9 BISHOP
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbWrap  = BBNOTAFILE;
   bbPro  &= bbWrap;
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen << 9);
   bbPro  &=           (bbPro << 9);
   bbGen  |= bbPro &   (bbGen << 2*9);
   bbPro  &=           (bbPro << 2*9);
   bbGen  |= bbPro &   (bbGen << 4*9);
-  /* shift one further */
+  // shift one further
   bbGen   = bbWrap &  (bbGen << 9);
   bbMoves|= bbGen;
 
@@ -288,18 +288,18 @@ Bitboard ks_attacks_ls7(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions left shifting <<7 BISHOP */
+  // directions left shifting <<7 BISHOP
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbWrap  = BBNOTHFILE;
   bbPro  &= bbWrap;
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen << 7);
   bbPro  &=           (bbPro << 7);
   bbGen  |= bbPro &   (bbGen << 2*7);
   bbPro  &=           (bbPro << 2*7);
   bbGen  |= bbPro &   (bbGen << 4*7);
-  /* shift one further */
+  // shift one further
   bbGen   = bbWrap &  (bbGen << 7);
   bbMoves|= bbGen;
 
@@ -312,18 +312,18 @@ Bitboard ks_attacks_rs9(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions right shifting >>9 ROOK */
+  // directions right shifting >>9 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbWrap  = BBNOTHFILE;
   bbPro  &= bbWrap;
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen >> 9);
   bbPro  &=           (bbPro >> 9);
   bbGen  |= bbPro &   (bbGen >> 2*9);
   bbPro  &=           (bbPro >> 2*9);
   bbGen  |= bbPro &   (bbGen >> 4*9);
-  /* shift one further */
+  // shift one further
   bbGen   = bbWrap &  (bbGen >> 9);
   bbMoves|= bbGen;
 
@@ -336,18 +336,18 @@ Bitboard ks_attacks_rs7(Bitboard bbBlockers, Square sq)
   Bitboard bbGen;
   Bitboard bbMoves = BBEMPTY;
 
-  /* directions right shifting <<7 ROOK */
+  // directions right shifting <<7 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbWrap  = BBNOTAFILE;
   bbPro  &= bbWrap;
-  /* do kogge stone */
+  // do kogge stone
   bbGen  |= bbPro &   (bbGen >> 7);
   bbPro  &=           (bbPro >> 7);
   bbGen  |= bbPro &   (bbGen >> 2*7);
   bbPro  &=           (bbPro >> 2*7);
   bbGen  |= bbPro &   (bbGen >> 4*7);
-  /* shift one further */
+  // shift one further
   bbGen   = bbWrap &  (bbGen >> 7);
   bbMoves|= bbGen;
 
@@ -363,10 +363,10 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
 Square getkingpos(Bitboard *board, bool side)
 {
   Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
-  bbTemp &= board[1]&board[2]&~board[3]; /* get king */
+  bbTemp &= board[1]&board[2]&~board[3]; // get king
   return first1(bbTemp);
 }
-/* is square attacked by an enemy piece, via superpiece approach */
+// is square attacked by an enemy piece, via superpiece approach
 bool squareunderattack(Bitboard *board, bool stm, Square sq) 
 {
   Bitboard bbWork;
@@ -377,7 +377,7 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
   bbBlockers = board[1]|board[2]|board[3];
   bbMe       = (stm)?board[0]:(board[0]^bbBlockers);
 
-  /* rooks and queens */
+  // rooks and queens
   bbMoves = rook_attacks(bbBlockers, sq);
   bbWork =    (bbMe&(board[1]&~board[2]&board[3])) 
             | (bbMe&(~board[1]&board[2]&board[3]));
@@ -386,28 +386,28 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
     return true;
   }
   bbMoves = bishop_attacks(bbBlockers, sq);
-  /* bishops and queens */
+  // bishops and queens
   bbWork =  (bbMe&(~board[1]&~board[2]&board[3])) 
           | (bbMe&(~board[1]&board[2]&board[3]));
   if (bbMoves&bbWork)
   {
     return true;
   }
-  /* knights */
+  // knights
   bbWork = bbMe&(~board[1]&board[2]&~board[3]);
   bbMoves = AttackTables[128+sq] ;
   if (bbMoves&bbWork) 
   {
     return true;
   }
-  /* pawns */
+  // pawns
   bbWork = bbMe&(board[1]&~board[2]&~board[3]);
   bbMoves = AttackTables[!stm*64+sq];
   if (bbMoves&bbWork)
   {
     return true;
   }
-  /* king */
+  // king
   bbWork = bbMe&(board[1]&board[2]&~board[3]);
   bbMoves = AttackTables[192+sq];
   if (bbMoves&bbWork)
@@ -417,7 +417,7 @@ bool squareunderattack(Bitboard *board, bool stm, Square sq)
 
   return false;
 }
-/* check for two opposite kings */
+// check for two opposite kings
 bool isvalid(Bitboard *board)
 {
   if ( (popcount(board[QBBBLACK]&(board[QBBP1]&board[QBBP2]&~board[QBBP3]))==1) 
@@ -430,13 +430,13 @@ bool isvalid(Bitboard *board)
 
   return false;
 }
-/* ############################# */
-/* ###        inits          ### */
-/* ############################# */
-/* innitialize engine memory */
+// #############################
+// ###        inits          ###
+// #############################
+// innitialize engine memory
 static bool engineinits(void)
 {
-  /* memory allocation */
+  // memory allocation
   Line         = (char *)calloc(1024       , sizeof (char));
   Command      = (char *)calloc(1024       , sizeof (char));
   Fen          = (char *)calloc(1024       , sizeof (char));
@@ -459,7 +459,7 @@ static bool engineinits(void)
 
   return true;
 }
-/* innitialize game memory */
+// innitialize game memory
 static bool gameinits(void)
 {
   MoveHistory = (Move*)calloc(MAXGAMEPLY, sizeof(Move));
@@ -488,14 +488,14 @@ static bool gameinits(void)
 }
 void release_gameinits()
 {
-  /* release memory */
+  // release memory
   free(MoveHistory);
   free(HashHistory);
   free(CRHistory);
 }
 void release_configinits()
 {
-  /* opencl related */
+  // opencl related
   free(GLOBAL_INIT_BOARD);
   free(COUNTERS);
   free(NODES);
@@ -503,10 +503,10 @@ void release_configinits()
 }
 void release_engineinits()
 {
-  /* close log file */
+  // close log file
   if (LogFile)
     fclose (LogFile);
-  /* release memory */
+  // release memory
   free(Line);
   free(Command);
   free(Fen);
@@ -519,10 +519,10 @@ void quitengine(s32 flag)
   release_engineinits();
   exit(flag);
 }
-/* ############################# */
-/* ###         Hash          ### */
-/* ############################# */
-/* compute zobrist hash from position */
+// #############################
+// ###         Hash          ###
+// #############################
+// compute zobrist hash from position
 Hash computehash(Bitboard *board, bool stm)
 {
   Piece piece;
@@ -532,20 +532,20 @@ Hash computehash(Bitboard *board, bool stm)
   Hash zobrist;
   u8 side;
 
-  /* for each color */
+  // for each color
   for (side=WHITE;side<=BLACK;side++)
   {
     bbWork = (side==BLACK)?board[QBBBLACK]:(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
-    /* for each piece */
+    // for each piece
     while(bbWork)
     {
       sq    = popfirst1(&bbWork);
       piece = GETPIECE(board,sq);
       zobrist = Zobrist[GETCOLOR(piece)*6+GETPTYPE(piece)-1];
-      hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; /* rotate left 64 */
+      hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
     }
   }
-  /* castle rights */
+  // castle rights
   if (((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
       hash ^= Zobrist[12];
   if (((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
@@ -555,37 +555,37 @@ Hash computehash(Bitboard *board, bool stm)
   if (((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
       hash ^= Zobrist[15];
  
-  /* file en passant */
+  // file en passant
   if (GETSQEP(board[QBBLAST]))
   {
     sq = GETFILE(GETSQEP(board[QBBLAST]));
     zobrist = Zobrist[16];
-    hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; /* rotate left 64 */
+    hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
   }
  
-  /* site to move */
+  // site to move
   if (!stm)
     hash ^= 0x1ULL;
 
   return hash;
 }
-/* ############################# */
-/* ###     domove undomove   ### */
-/* ############################# */
-/* apply null-move on board */
+// #############################
+// ###     domove undomove   ###
+// #############################
+// apply null-move on board
 void donullmove(Bitboard *board)
 {
-  /* color flipping */
+  // color flipping
   board[QBBHASH] ^= 0x1ULL;
   board[QBBLAST] = MOVENONE|(CMMOVE&board[QBBLAST]);
 }
-/* restore board again after nullmove */
+// restore board again after nullmove
 void undonullmove(Bitboard *board, Move lastmove, Hash hash)
 {
   board[QBBHASH] = hash;
   board[QBBLAST] = lastmove;
 }
-/* apply move on board, quick during move generation */
+// apply move on board, quick during move generation
 void domovequick(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -594,24 +594,24 @@ void domovequick(Bitboard *board, Move move)
   Bitboard pto    = GETPTO(move);
   Bitboard bbTemp = BBEMPTY;
 
-  /* check for edges */
+  // check for edges
   if (move==MOVENONE)
     return;
 
-  /* unset square from, square capture and square to */
+  // unset square from, square capture and square to
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
 
-  /* set piece to */
+  // set piece to
   board[QBBBLACK] |= (pto&0x1)<<sqto;
   board[QBBP1]    |= ((pto>>1)&0x1)<<sqto;
   board[QBBP2]    |= ((pto>>2)&0x1)<<sqto;
   board[QBBP3]    |= ((pto>>3)&0x1)<<sqto;
 }
-/* restore board again, quick during move generation */
+// restore board again, quick during move generation
 void undomovequick(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -621,30 +621,30 @@ void undomovequick(Bitboard *board, Move move)
   Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
 
-  /* check for edges */
+  // check for edges
   if (move==MOVENONE)
     return;
 
-  /* unset square capture, square to */
+  // unset square capture, square to
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
   board[QBBBLACK] &= bbTemp;
   board[QBBP1]    &= bbTemp;
   board[QBBP2]    &= bbTemp;
   board[QBBP3]    &= bbTemp;
 
-  /* restore piece capture */
+  // restore piece capture
   board[QBBBLACK] |= (pcpt&0x1)<<sqcpt;
   board[QBBP1]    |= ((pcpt>>1)&0x1)<<sqcpt;
   board[QBBP2]    |= ((pcpt>>2)&0x1)<<sqcpt;
   board[QBBP3]    |= ((pcpt>>3)&0x1)<<sqcpt;
 
-  /* restore piece from */
+  // restore piece from
   board[QBBBLACK] |= (pfrom&0x1)<<sqfrom;
   board[QBBP1]    |= ((pfrom>>1)&0x1)<<sqfrom;
   board[QBBP2]    |= ((pfrom>>2)&0x1)<<sqfrom;
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 }
-/* apply move on board */
+// apply move on board
 void domove(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -666,7 +666,7 @@ void domove(Bitboard *board, Move move)
   hmc++;
 
   // do hash increment , clear old
-  /* castle rights */
+  // castle rights
   if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
     board[QBBHASH] ^= Zobrist[12];
   if(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
@@ -676,7 +676,7 @@ void domove(Bitboard *board, Move move)
   if(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
     board[QBBHASH] ^= Zobrist[15];
 
-  /* file en passant */
+  // file en passant
   if (GETSQEP(board[QBBLAST]))
   {
     zobrist = Zobrist[16];
@@ -760,7 +760,7 @@ void domove(Bitboard *board, Move move)
   // do hash increment, clear piece capture
   zobrist = Zobrist[GETCOLOR(pcpt)*6+GETPTYPE(pcpt)-1];
   board[QBBHASH] ^= (pcpt)?((zobrist<<(sqcpt))|(zobrist>>(64-(sqcpt)))):BBEMPTY;
-  /* castle rights */
+  // castle rights
   if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
     board[QBBHASH] ^= Zobrist[12];
   if(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
@@ -770,7 +770,7 @@ void domove(Bitboard *board, Move move)
   if(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
     board[QBBHASH] ^= Zobrist[15];
  
-  /* file en passant */
+  // file en passant
   if (GETSQEP(move))
   {
     zobrist = Zobrist[16];
@@ -784,7 +784,7 @@ void domove(Bitboard *board, Move move)
   // store lastmove in board
   board[QBBLAST] = move;
 }
-/* restore board again */
+// restore board again
 void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
 {
   Square sqfrom   = GETSQFROM(move);
@@ -852,10 +852,10 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqfrom+3);
   board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom+3);
 }
-/* ############################# */
-/* ###        IO tools       ### */
-/* ############################# */
-/* print bitboard */
+// #############################
+// ###        IO tools       ###
+// #############################
+// print bitboard
 void printbitboard(Bitboard board)
 {
   s32 rank;
@@ -891,7 +891,7 @@ void printmove(Move move)
   fprintf(stdout,"#hmc:%u\n",(u32)GETHMC(move));
   fprintf(stdout,"#score:%i\n",(Score)GETSCORE(move));
 }
-/* move in algebraic notation, eg. e2e4, to internal packed move  */
+// move in algebraic notation, eg. e2e4, to internal packed move 
 static Move can2move(char *usermove, Bitboard *board, bool stm) 
 {
   File file;
@@ -918,7 +918,7 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
   sqcpt = sqto;
   pcpt = GETPIECE(board, sqcpt);
 
-  /* en passant move , set square capture */
+  // en passant move , set square capture
   sqcpt = ((pfrom>>1)==PAWN&&(!stm)&&GETRANK(sqfrom)==RANK_5  
             &&sqto-sqfrom!=8&&pcpt==PNONE)?sqto-8:sqcpt;
 
@@ -927,11 +927,11 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
 
   pcpt = GETPIECE(board, sqcpt);
 
-  /* pawn double square move, set en passant target square */
+  // pawn double square move, set en passant target square
   if ((pfrom>>1)==PAWN&&GETRRANK(sqfrom,stm)==1&&GETRRANK(sqto,stm)==3)
     sqep = sqto;
 
-  /* pawn promo piece */
+  // pawn promo piece
   promopiece = usermove[4];
   if (promopiece == 'q' || promopiece == 'Q' )
       pto = MAKEPIECE(QUEEN,stm);
@@ -942,13 +942,13 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
   else if (promopiece == 'r' || promopiece == 'R' )
       pto = MAKEPIECE(ROOK,stm);
 
-  /* pack move, considering hmc, cr and score */
+  // pack move, considering hmc, cr and score
   move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, 
                   (Move)pfrom, (Move)pto , (Move)pcpt, 
                   (Move)sqep,
                   GETHMC(board[QBBLAST]), (u64)0);
 
-  /* set castle move flag */
+  // set castle move flag
   if ((pfrom>>1)==KING&&!stm&&sqfrom==4&&sqto==2)
     move |= MOVEISCRQ;
   if ((pfrom>>1)==KING&&!stm&&sqfrom==4&&sqto==6)
@@ -981,7 +981,7 @@ static void move2can(Move move, char * movec)
   movec[3] = rankc[GETRANK(to)];
   movec[4] = '\0';
 
-  /* pawn promo */
+  // pawn promo
   if ( (pfrom>>1) == PAWN && (pto>>1) != PAWN)
   {
     if ( (pto>>1) == QUEEN)
@@ -1003,7 +1003,7 @@ void printmovecan(Move move)
   if (LogFile)
     fprintf(LogFile, "%s",movec);
 }
-/* print quadbitbooard */
+// print quadbitbooard
 void printboard(Bitboard *board)
 {
   s32 rank;
@@ -1065,7 +1065,7 @@ void printboard(Bitboard *board)
   }
   fflush (stdout);
 }
-/* create fen string from board state */
+// create fen string from board state
 static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
 {
   s32 rank;
@@ -1079,7 +1079,7 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
   char *stringptr = fenstring;
   s32 spaces = 0;
 
-  /* add pieces from board to string */
+  // add pieces from board to string
   for (rank = RANK_8; rank >= RANK_1; rank--)
   {
     spaces=0;
@@ -1087,13 +1087,13 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
     {
       sq = MAKESQ(file, rank);
       piece = GETPIECE(board, sq);
-      /* handle empty squares */
+      // handle empty squares
       if (spaces > 0 && piece != PNONE)
       {
         stringptr+=sprintf(stringptr, "%d", spaces);
         spaces=0;
       }
-      /* handle pieces, black and white */
+      // handle pieces, black and white
       if (piece != PNONE && (piece&BLACK))
         stringptr+=sprintf(stringptr, "%c", bpchars[piece>>1]);
       else if (piece != PNONE)
@@ -1101,20 +1101,20 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
       else
         spaces++;
     }
-    /* handle empty squares */
+    // handle empty squares
     if (spaces > 0)
     {
       stringptr+=sprintf(stringptr, "%d", spaces);
       spaces=0;
     }
-    /* handle rows delimeter */
+    // handle rows delimeter
     if (rank <= RANK_8 && rank > RANK_1)
       stringptr+=sprintf(stringptr, "/");
   }
 
   stringptr+=sprintf(stringptr, " ");
 
-  /* add site to move */
+  // add site to move
   if (stm&BLACK)
   {
     stringptr+=sprintf(stringptr, "b");
@@ -1126,28 +1126,28 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
 
   stringptr+=sprintf(stringptr, " ");
 
-  /* add castle rights */
+  // add castle rights
   if (((~board[QBBPMVD])&SMCRALL)==BBEMPTY)
     stringptr+=sprintf(stringptr, "-");
   else
   {
-    /* white kingside */
+    // white kingside
     if (((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
       stringptr+=sprintf(stringptr, "K");
-    /* white queenside */
+    // white queenside
     if (((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
       stringptr+=sprintf(stringptr, "Q");
-    /* black kingside */
+    // black kingside
     if (((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)
       stringptr+=sprintf(stringptr, "k");
-    /* black queenside */
+    // black queenside
     if (((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
       stringptr+=sprintf(stringptr, "q");
   }
 
   stringptr+=sprintf(stringptr," ");
 
-  /* add en passant target square */
+  // add en passant target square
   sq = GETSQEP(board[QBBLAST]);
   if (sq > 0)
   {
@@ -1163,33 +1163,33 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
 
   stringptr+=sprintf(stringptr," ");
 
-  /* add halpfmove clock  */
+  // add halpfmove clock 
   stringptr+=sprintf(stringptr, "%" PRIu64 "",GETHMC(board[QBBLAST]));
   stringptr+=sprintf(stringptr, " ");
 
   stringptr+=sprintf(stringptr, "%d", ((gameply+PLY)/2));
 }
-/* set internal chess board presentation to fen string */
+// set internal chess board presentation to fen string
 static bool setboard(Bitboard *board, char *fenstring)
 {
   char tempchar;
-  char *position; /* piece types and position, row_8, file_a, to row_1, file_h*/
-  char *cstm;     /* site to move */
-  char *castle;   /* castle rights */
-  char *cep;      /* en passant target square */
-  char fencharstring[24] = {" PNKBRQ pnkbrq/12345678"}; /* mapping */
+  char *position; // piece types and position, row_8, file_a, to row_1, file_h*/
+  char *cstm;     // site to move
+  char *castle;   // castle rights
+  char *cep;      // en passant target square
+  char fencharstring[24] = {" PNKBRQ pnkbrq/12345678"}; // mapping
   File file;
   Rank rank;
   Bitboard piece;
   Square sq;
   u64 i;
   u64 j;
-  u64 hmc = 0;        /* half move clock */
-  u64 fendepth = 1;   /* game depth */
+  u64 hmc = 0;        // half move clock
+  u64 fendepth = 1;   // game depth
   Move lastmove = MOVENONE;
   Bitboard bbCr = BBEMPTY;
 
-  /* memory, fen string ist max 1023 char in size */
+  // memory, fen string ist max 1023 char in size
   position  = malloc (1024 * sizeof (char));
   if (!position) 
   {
@@ -1212,7 +1212,7 @@ static bool setboard(Bitboard *board, char *fenstring)
   }
   if (!position||!cstm||!castle||!cep)
   {
-    /* release memory */
+    // release memory
     if (position) 
       free(position);
     if (cstm) 
@@ -1224,11 +1224,11 @@ static bool setboard(Bitboard *board, char *fenstring)
     return false;
   }
 
-  /* get data from fen string */
+  // get data from fen string
 	sscanf (fenstring, "%s %s %s %s %" PRIu64 " %" PRIu64 "", 
           position, cstm, castle, cep, &hmc, &fendepth);
 
-  /* empty the board */
+  // empty the board
   board[QBBBLACK] = 0x0ULL;
   board[QBBP1]    = 0x0ULL;
   board[QBBP2]    = 0x0ULL;
@@ -1237,25 +1237,25 @@ static bool setboard(Bitboard *board, char *fenstring)
   board[QBBHASH]  = 0x0ULL;
   board[QBBLAST]  = 0x0ULL;
 
-  /* parse piece types and position from fen string */
+  // parse piece types and position from fen string
   file = FILE_A;
   rank = RANK_8;
   i=  0;
   while (!(rank <= RANK_1 && file >= FILE_NONE))
   {
     tempchar = position[i++];
-    /* iterate through all characters */
+    // iterate through all characters
     for (j = 0; j <= 23; j++) 
     {
   		if (tempchar == fencharstring[j])
       {
-        /* delimeter / */
+        // delimeter /
         if (j == 14)
         {
             rank--;
             file = FILE_A;
         }
-        /* empty squares */
+        // empty squares
         else if (j >= 15)
         {
             file+=j-14;
@@ -1286,41 +1286,41 @@ static bool setboard(Bitboard *board, char *fenstring)
       } 
     }
   }
-  /* site to move */
+  // site to move
   STM = WHITE;
   if (cstm[0] == 'b' || cstm[0] == 'B')
   {
     STM = BLACK;
   }
-  /* castle rights */
+  // castle rights
   tempchar = castle[0];
   if (tempchar != '-')
   {
     i = 0;
     while (tempchar != '\0')
     {
-      /* white queenside */
+      // white queenside
       if (tempchar == 'Q')
         bbCr |= SMCRWHITEQ;
-      /* white kingside */
+      // white kingside
       if (tempchar == 'K')
         bbCr |= SMCRWHITEK;
-      /* black queenside */
+      // black queenside
       if (tempchar == 'q')
         bbCr |= SMCRBLACKQ;
-      /* black kingside */
+      // black kingside
       if (tempchar == 'k')
         bbCr |= SMCRBLACKK;
       i++;
       tempchar = castle[i];
     }
   }
-  /* store castle rights via piece moved flags in board */
+  // store castle rights via piece moved flags in board
   board[QBBPMVD]  ^= bbCr;
-  /* store halfmovecounter into lastmove */
+  // store halfmovecounter into lastmove
   lastmove = SETHMC(lastmove, hmc);
 
-  /* set en passant target square */
+  // set en passant target square
   tempchar = cep[0];
   file  = 0;
   rank  = 0;
@@ -1332,21 +1332,21 @@ static bool setboard(Bitboard *board, char *fenstring)
   sq    = MAKESQ(file, rank);
   lastmove = SETSQEP(lastmove, sq);
 
-  /* ply starts at zero */
+  // ply starts at zero
   PLY = 0;
-  /* game ply can be more */
+  // game ply can be more
   GAMEPLY = fendepth*2+STM;
 
-  /* compute zobrist hash */
+  // compute zobrist hash
   board[QBBHASH] = computehash(BOARD, STM);
   HashHistory[PLY] = board[QBBHASH];
 
-  /* store lastmove+ in board */
+  // store lastmove+ in board
   board[QBBLAST] = lastmove;
-  /* store lastmove+ in history */
+  // store lastmove+ in history
   MoveHistory[PLY] = lastmove;
 
-  /* release memory */
+  // release memory
   if (position) 
     free(position);
   if (cstm) 
@@ -1356,7 +1356,7 @@ static bool setboard(Bitboard *board, char *fenstring)
   if (cep) 
     free(cep);
 
-  /* board valid check */
+  // board valid check
   if (!isvalid(board))
   {
     fprintf(stdout,"Error (given fen position is illegal): setboard\n");        
@@ -1428,7 +1428,7 @@ bool read_and_init_config(char configfile[])
 
   totalThreads = threadsX*threadsY*threadsZ;
 
-  /* allocate memory */
+  // allocate memory
   GLOBAL_INIT_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
   if (GLOBAL_INIT_BOARD==NULL)
   {
@@ -1551,11 +1551,11 @@ static void selftest(void)
     else
       printboard(BOARD);
 
-    /* time measurement */
+    // time measurement
     start = get_time();
-    /* perfomance test, just leaf nodecount to given depth */
+    // perfomance test, just leaf nodecount to given depth
     perft(BOARD, STM, SD);
-    /* time measurement */
+    // time measurement
     end = get_time();   
     elapsed = end-start;
 
@@ -1594,7 +1594,7 @@ static void selftest(void)
     fprintf(LogFile,"###############################\n");
   }
 }
-/* print engine info to console */
+// print engine info to console
 static void print_version(void)
 {
   fprintf(stdout,"Zeta version: %s\n",VERSION);
@@ -1602,7 +1602,7 @@ static void print_version(void)
   fprintf(stdout,"Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
   fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
 }
-/* engine options and usage */
+// engine options and usage
 static void print_help(void)
 {
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
@@ -1658,9 +1658,9 @@ static void print_help(void)
   fprintf(stdout,"and reboot the OS to set the timeout to 20 seconds.\n");
   fprintf(stdout,"\n");
 }
-/* ############################# */
-/* ###      root search      ### */
-/* ############################# */
+// #############################
+// ###      root search      ###
+// #############################
 Score perft(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
@@ -1840,7 +1840,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   // compute next nps value
   nps_current =  (s32 )(ABNODECOUNT/(elapsed));
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
-  /* xboard mate scores */
+  // xboard mate scores
   xboard_score = bestscore/10;
   xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
   xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
@@ -2040,9 +2040,9 @@ int main(int argc, char* argv[])
 {
   // config file
   char configfile[256] = "config.ini";
-  /* xboard states */
-  s32 xboard_protover = 0;      /* Zeta works with protocoll version >= v2 */
-  /* for get opt */
+  // xboard states
+  s32 xboard_protover = 0;      // Zeta works with protocoll version >= v2
+  // for get opt
   s32 c;
   static struct option long_options[] = 
   {
@@ -2056,16 +2056,16 @@ int main(int argc, char* argv[])
   };
   s32 option_index = 0;
 
-  /* no buffers */
+  // no buffers
   setbuf (stdout, NULL);
   setbuf (stdin, NULL);
 
-  /* turn log on */
+  // turn log on
   for (c=1;c<argc;c++)
   {
     if (!strcmp(argv[c], "-l") || !strcmp(argv[c],"--log"))
     {
-      /* open/create log file */
+      // open/create log file
       LogFile = fopen("zeta.log", "a");
       if (LogFile==NULL) 
       {
@@ -2073,7 +2073,7 @@ int main(int argc, char* argv[])
       }
     }
   }
-  /* getopt loop, parsing for help, version and logging */
+  // getopt loop, parsing for help, version and logging
   while ((c = getopt_long_only (argc, argv, "",
                long_options, &option_index)) != -1) {
     switch (option_index) 
@@ -2087,7 +2087,7 @@ int main(int argc, char* argv[])
         exit(EXIT_SUCCESS);
         break;
       case 2:
-        /* init engine and game memory, read config ini file and init OpenCL device */
+        // init engine and game memory, read config ini file and init OpenCL device
         if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
         {
           quitengine(EXIT_FAILURE);
@@ -2098,7 +2098,7 @@ int main(int argc, char* argv[])
       case 3:
         break;
       case 4:
-        /* init engine and game memory */
+        // init engine and game memory
         if (!engineinits())
         {
             exit(EXIT_FAILURE);
@@ -2108,7 +2108,7 @@ int main(int argc, char* argv[])
         exit(EXIT_SUCCESS);
         break;
       case 5:
-        /* init engine and game memory */
+        // init engine and game memory
         if (!engineinits())
         {
           exit(EXIT_FAILURE);
@@ -2119,12 +2119,12 @@ int main(int argc, char* argv[])
         break;
     }
   }
-  /* open log file */
+  // open log file
   if (LogFile)
   {
-    /* no buffers */
+    // no buffers
     setbuf(LogFile, NULL);
-    /* print binary call to log */
+    // print binary call to log
     fprintdate(LogFile);
     for (c=0;c<argc;c++)
     {
@@ -2132,7 +2132,7 @@ int main(int argc, char* argv[])
     }
     fprintf(LogFile, "\n");
   }
-  /* print engine info to console */
+  // print engine info to console
   fprintf(stdout,"#> Zeta %s\n",VERSION);
   fprintf(stdout,"#> Experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"#> Copyright (C) 2011-2016 Srdja Matovic, Montenegro\n");
@@ -2140,45 +2140,45 @@ int main(int argc, char* argv[])
   fprintf(stdout,"#> eninge is initialising...\n");  
   fprintf(stdout,"feature done=0\n");  
 
-  /* init engine and game memory, read config ini file and init OpenCL device */
+  // init engine and game memory, read config ini file and init OpenCL device
   if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
   {
     quitengine(EXIT_FAILURE);
   }
 
-  /* xboard command loop */
+  // xboard command loop
   for (;;)
   {
-    /* just to be sure, flush the output...*/
+    // just to be sure, flush the output...*/
     fflush (stdout);
     if (LogFile)
       fflush (LogFile);
-    /* get Line */
+    // get Line
     if (!fgets (Line, 1023, stdin)) {}
-    /* ignore empty Lines */
+    // ignore empty Lines
     if (Line[0] == '\n')
       continue;
-    /* print io to log file */
+    // print io to log file
     if (LogFile)
     {
       fprintdate(LogFile);
       fprintf(LogFile, "%s\n",Line);
     }
-    /* get command */
+    // get command
     sscanf (Line, "%s", Command);
-    /* xboard commands */
-    /* set xboard mode */
+    // xboard commands
+    // set xboard mode
     if (!strcmp(Command, "xboard"))
     {
       fprintf(stdout,"feature done=0\n");  
       xboard_mode = true;
       continue;
     }
-    /* get xboard protocoll version */
+    // get xboard protocoll version
     if (!strcmp(Command, "protover")) 
     {
       sscanf (Line, "protover %d", &xboard_protover);
-      /* zeta supports only CECP >= v2 */
+      // zeta supports only CECP >= v2
       if (xboard_mode && xboard_protover<2)
       {
         fprintf(stdout,"Error (unsupported protocoll version,  < v2): protover\n");
@@ -2191,22 +2191,22 @@ int main(int argc, char* argv[])
       }
       else
       {
-        /* send feature list to xboard */
+        // send feature list to xboard
         fprintf(stdout,"feature myname=\"Zeta %s\"\n",VERSION);
         fprintf(stdout,"feature ping=0\n");
         fprintf(stdout,"feature setboard=1\n");
         fprintf(stdout,"feature playother=0\n");
         fprintf(stdout,"feature san=0\n");
-        /* check feature san accepted  */
+        // check feature san accepted 
         if (!fgets (Line, 1023, stdin)) {}
-        /* get command */
+        // get command
         sscanf (Line, "%s", Command);
         if (strstr(Command, "rejected"))
           xboard_san = true;
         fprintf(stdout,"feature usermove=1\n");
-        /* check feature usermove accepted  */
+        // check feature usermove accepted 
         if (!fgets (Line, 1023, stdin)) {}
-        /* get command */
+        // get command
         sscanf (Line, "%s", Command);
         if (strstr(Command, "rejected"))
         {
@@ -2220,9 +2220,9 @@ int main(int argc, char* argv[])
           quitengine(EXIT_FAILURE);
         }
         fprintf(stdout,"feature time=1\n");
-        /* check feature time accepted  */
+        // check feature time accepted 
         if (!fgets (Line, 1023, stdin)) {}
-        /* get command */
+        // get command
         sscanf (Line, "%s", Command);
         if (strstr(Command, "accepted"))
           xboard_time = true;
@@ -2237,9 +2237,9 @@ int main(int argc, char* argv[])
         fprintf(stdout,"feature pause=0\n");
         fprintf(stdout,"feature nps=0\n");
         fprintf(stdout,"feature debug=1\n");
-        /* check feature debug accepted  */
+        // check feature debug accepted 
         if (!fgets (Line, 1023, stdin)) {}
-        /* get command */
+        // get command
         sscanf (Line, "%s", Command);
         if (strstr(Command, "accepted"))
           xboard_debug = true;
@@ -2255,7 +2255,7 @@ int main(int argc, char* argv[])
       continue;
     if (!strcmp(Command, "rejected")) 
       continue;
-    /* initialize new game */
+    // initialize new game
 		if (!strcmp(Command, "new"))
     {
       release_gameinits();
@@ -2277,7 +2277,7 @@ int main(int argc, char* argv[])
       xboard_force  = false;
 			continue;
 		}
-    /* set board to position in FEN */
+    // set board to position in FEN
 		if (!strcmp(Command, "setboard"))
     {
       sscanf (Line, "setboard %1023[0-9a-zA-Z /-]", Fen);
@@ -2296,7 +2296,7 @@ int main(int argc, char* argv[])
 		}
     if (!strcmp(Command, "go"))
     {
-      /* zeta supports only CECP >= v2 */
+      // zeta supports only CECP >= v2
       if (xboard_mode && xboard_protover<2)
       {
         fprintf(stdout,"Error (unsupported protocoll version, < v2): go\n");
@@ -2318,7 +2318,7 @@ int main(int argc, char* argv[])
 
         HashHistory[PLY] = BOARD[QBBHASH];
 
-        /* check bounds */
+        // check bounds
         if (PLY>=MAXGAMEPLY)
         {
           if (STM)
@@ -2332,10 +2332,10 @@ int main(int argc, char* argv[])
         }
         else
         {
-          /* start thinking */
+          // start thinking
           move = rootsearch(BOARD, STM, SD);
 
-          /* check for root node expanded */
+          // check for root node expanded
           if (EXNODECOUNT==0)
           {
             if (STM)
@@ -2347,7 +2347,7 @@ int main(int argc, char* argv[])
               printf("result 0-1 { resign - internal error}\n");
             }
           }
-          /* checkmate */
+          // checkmate
           else if (kic&&move==MOVENONE)
           {
             if (STM)
@@ -2359,7 +2359,7 @@ int main(int argc, char* argv[])
               printf("result 0-1 { checkmate }\n");
             }
           }
-          /* stalemate */
+          // stalemate
           else if (!kic&&move==MOVENONE)
           {
               printf("result 1/2-1/2 { stalemate }\n");
@@ -2392,35 +2392,35 @@ int main(int argc, char* argv[])
             MoveHistory[PLY] = move;
             CRHistory[PLY] = BOARD[QBBPMVD];
 
-            /* time mngmt */
+            // time mngmt
             TimeLeft-=elapsed;
-            /* get moves left, one move as time spare */
+            // get moves left, one move as time spare
             if (timemode==1)
               MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
-            /* get new time inc */
+            // get new time inc
             if (timemode==0)
               TimeLeft = TimeBase;
             if (timemode==2)
               TimeLeft+= TimeInc;
-            /* set max time per move */
+            // set max time per move
             MaxTime = TimeLeft/MovesLeft+TimeInc;
-            /* get new time inc */
+            // get new time inc
             if (timemode==1&&MovesLeft==2)
               TimeLeft+= TimeBase;
-            /* get max nodes to search */
+            // get max nodes to search
             MaxNodes = MaxTime/1000*nodes_per_second;
           }
         }
       }
       continue;
     }
-    /* set xboard force mode, no thinking just apply moves */
+    // set xboard force mode, no thinking just apply moves
 		if (!strcmp(Command, "force"))
     {
       xboard_force = true;
       continue;
     }
-    /* set time control */
+    // set time control
 		if (!strcmp(Command, "level"))
     {
       s32 sec   = 0;
@@ -2437,66 +2437,66 @@ int main(int argc, char* argv[])
                &MaxMoves, &min, &sec, &TimeInc)!=4)
            continue;
 
-      /* from seconds to milli seconds */
+      // from seconds to milli seconds
       TimeBase  = 60*min + sec;
       TimeBase *= 1000;
       TimeInc  *= 1000;
       TimeLeft  = TimeBase;
 
       if (MaxMoves==0)
-        timemode = 2; /* ics clocks */
+        timemode = 2; // ics clocks
       else
-        timemode = 1; /* conventional clock mode */
+        timemode = 1; // conventional clock mode
 
-      /* set moves left to 40 in sudden death or ics time control */
+      // set moves left to 40 in sudden death or ics time control
       if (timemode==2)
         MovesLeft = 40;
 
-      /* get moves left */
+      // get moves left
       if (timemode==1)
         MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
-      /* set max time per move */
+      // set max time per move
       MaxTime = TimeLeft/MovesLeft+TimeInc;
-      /* get max nodes to search */
+      // get max nodes to search
       MaxNodes = MaxTime/1000*nodes_per_second;
 
       continue;
     }
-    /* set time control to n seconds per move */
+    // set time control to n seconds per move
 		if (!strcmp(Command, "st"))
     {
       sscanf(Line, "st %lf", &TimeBase);
       TimeBase *= 1000; 
       TimeLeft  = TimeBase; 
       TimeInc   = 0;
-      MovesLeft = MaxMoves = 1; /* just one move*/
+      MovesLeft = MaxMoves = 1; // just one move*/
       timemode  = 0;
-      /* set max time per move */
+      // set max time per move
       MaxTime   = TimeLeft/MovesLeft+TimeInc;
-      /* get max nodes to search */
+      // get max nodes to search
       MaxNodes = MaxTime/1000*nodes_per_second;
 
       continue;
     }
-    /* time left on clock */
+    // time left on clock
 		if (!strcmp(Command, "time"))
     {
       sscanf(Line, "time %lf", &TimeLeft);
-      TimeLeft *= 10;  /* centi-seconds to milliseconds */
-      /* get moves left, one move time spare */
+      TimeLeft *= 10;  // centi-seconds to milliseconds
+      // get moves left, one move time spare
       if (timemode==1)
         MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
-      /* set max time per move */
+      // set max time per move
       MaxTime = TimeLeft/MovesLeft+TimeInc;
-      /* get max nodes to search */
+      // get max nodes to search
       MaxNodes = MaxTime/1000*nodes_per_second;
 
       continue;
     }
-    /* opp time left, ignore */
+    // opp time left, ignore
 		if (!strcmp(Command, "otim"))
       continue;
-    /* memory for hash size  */
+    // memory for hash size 
 		if (!strcmp(Command, "memory"))
     {
       sscanf(Line, "memory %d", &xboard_mb);
@@ -2506,7 +2506,7 @@ int main(int argc, char* argv[])
     {
       char movec[6];
       Move move;
-      /* zeta supports only CECP >= v2 */
+      // zeta supports only CECP >= v2
       if (xboard_mode && xboard_protover<2)
       {
         fprintf(stdout,"Error (unsupported protocoll version, < v2): usermove\n");
@@ -2517,7 +2517,7 @@ int main(int argc, char* argv[])
           fprintf(LogFile,"Error (unsupported protocoll version, < v2): usermove\n");
         }
       }
-      /* apply given move */
+      // apply given move
       sscanf (Line, "usermove %s", movec);
       move = can2move(movec, BOARD,STM);
 
@@ -2533,7 +2533,7 @@ int main(int argc, char* argv[])
       if (!xboard_mode||xboard_debug)
           printboard(BOARD);
 
-      /* we are on move */
+      // we are on move
       if (!xboard_force)
       {
         bool kic = squareunderattack(BOARD, STM, getkingpos(BOARD,STM));
@@ -2543,7 +2543,7 @@ int main(int argc, char* argv[])
 
         HashHistory[PLY] = BOARD[QBBHASH];
 
-        /* check bounds */
+        // check bounds
         if (PLY>=MAXGAMEPLY)
         {
           if (STM)
@@ -2557,10 +2557,10 @@ int main(int argc, char* argv[])
         }
         else
         {
-          /* start thinking */
+          // start thinking
           move = rootsearch(BOARD, STM, SD);
 
-          /* check for root node expanded */
+          // check for root node expanded
           if (EXNODECOUNT==0)
           {
             if (STM)
@@ -2572,7 +2572,7 @@ int main(int argc, char* argv[])
               printf("result 0-1 { resign - internal error}\n");
             }
           }
-          /* checkmate */
+          // checkmate
           else if (kic&&move==MOVENONE)
           {
             if (STM)
@@ -2584,7 +2584,7 @@ int main(int argc, char* argv[])
               printf("result 0-1 { checkmate }\n");
             }
           }
-          /* stalemate */
+          // stalemate
           else if (!kic&&move==MOVENONE)
           {
               printf("result 1/2-1/2 { stalemate }\n");
@@ -2617,29 +2617,29 @@ int main(int argc, char* argv[])
             MoveHistory[PLY] = move;
             CRHistory[PLY] = BOARD[QBBPMVD];
 
-            /* time mngmt */
+            // time mngmt
             TimeLeft-=elapsed;
-            /* get moves left, one move as time spare */
+            // get moves left, one move as time spare
             if (timemode==1)
               MovesLeft = (MaxMoves-(((PLY+1)/2)%MaxMoves))+1;
-            /* get new time inc */
+            // get new time inc
             if (timemode==0)
               TimeLeft = TimeBase;
             if (timemode==2)
               TimeLeft+= TimeInc;
-            /* set max time per move */
+            // set max time per move
             MaxTime = TimeLeft/MovesLeft+TimeInc;
-            /* get new time inc */
+            // get new time inc
             if (timemode==1&&MovesLeft==2)
               TimeLeft+= TimeBase;
-            /* get max nodes to search */
+            // get max nodes to search
             MaxNodes = MaxTime/1000*nodes_per_second;
           }
         }
       }
       continue;
     }
-    /* back up one ply */
+    // back up one ply
 		if (!strcmp(Command, "undo"))
     {
       if (PLY>0)
@@ -2650,7 +2650,7 @@ int main(int argc, char* argv[])
       }
       continue;
     }
-    /* back up two plies */
+    // back up two plies
 		if (!strcmp(Command, "remove"))
     {
       if (PLY>=2)
@@ -2664,31 +2664,31 @@ int main(int argc, char* argv[])
       }
       continue;
     }
-    /* exit program */
+    // exit program
 		if (!strcmp(Command, "quit"))
     {
       break;
     }
-    /* set search depth */
+    // set search depth
     if (!strcmp(Command, "sd"))
     {
       sscanf (Line, "sd %d", &SD);
 //      SD = (SD>=max_ab_depth)?max_ab_depth:SD;
       continue;
     }
-    /* turn on thinking output */
+    // turn on thinking output
 		if (!strcmp(Command, "post"))
     {
       xboard_post = true;
       continue;
     }
-    /* turn off thinking output */
+    // turn off thinking output
 		if (!strcmp(Command, "nopost"))
     {
       xboard_post = false;
       continue;
     }
-    /* xboard commands to ignore */
+    // xboard commands to ignore
 		if (!strcmp(Command, "random"))
     {
       continue;
@@ -2745,8 +2745,8 @@ int main(int argc, char* argv[])
     {
       continue;
     }
-    /* non xboard commands */
-    /* do an node count to depth defined via sd  */
+    // non xboard commands
+    // do an node count to depth defined via sd 
     if (!xboard_mode && !strcmp(Command, "perft"))
     {
       ITERCOUNT = 0;
@@ -2781,22 +2781,22 @@ int main(int argc, char* argv[])
   
       continue;
     }
-    /* do an internal self test */
+    // do an internal self test
     if (!xboard_mode && !strcmp(Command, "selftest"))
     {
       selftest();
       continue;
     }
-    /* print help */
+    // print help
     if (!xboard_mode && !strcmp(Command, "help"))
     {
       print_help();
       continue;
     }
-    /* toggle log flag */
+    // toggle log flag
     if (!xboard_mode && !strcmp(Command, "log"))
     {
-      /* open/create log file */
+      // open/create log file
       if (LogFile==NULL ) 
       {
         LogFile = fopen("zeta.log", "a");
@@ -2807,7 +2807,7 @@ int main(int argc, char* argv[])
       }
       continue;
     }
-    /* not supported xboard commands...tell user */
+    // not supported xboard commands...tell user
 		if (!strcmp(Command, "edit"))
     {
       fprintf(stdout,"Error (unsupported command): %s\n",Command);
@@ -2835,7 +2835,7 @@ int main(int argc, char* argv[])
       }
       continue;
     }
-    /* unknown command...*/
+    // unknown command...*/
     fprintf(stdout,"Error (unsupported command): %s\n",Command);
     if (LogFile)
     {
@@ -2843,7 +2843,7 @@ int main(int argc, char* argv[])
       fprintf(LogFile,"Error (unsupported command): %s\n",Command);
     }
   }
-  /* release memory, files and tables */
+  // release memory, files and tables
   quitengine(EXIT_SUCCESS);
 }
 
