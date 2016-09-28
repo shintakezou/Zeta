@@ -1870,12 +1870,33 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   if ((!xboard_mode)||xboard_debug)
   {
     printboard(BOARD);
-    fprintf(stdout, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, xboard_score, (u64)(ABNODECOUNT/elapsed), elapsed);
+    fprintf(stdout, "#Runs: %" PRIu64 "\n", ITERCOUNT);
+    fprintf(stdout, "#Expaned-Nodes: %" PRIu64 "\n", EXNODECOUNT);
+    fprintf(stdout, "#AB-Nodes: %" PRIu64 "\n", ABNODECOUNT);
+    fprintf(stdout, "#BF-Depth: %d\n", plyreached);
+    fprintf(stdout, "#ScoreDepth: %d\n", bestmoveply);
+    fprintf(stdout, "#Score: %d\n", xboard_score);
+    fprintf(stdout, "#nps: %" PRIu64 "\n", (u64)(ABNODECOUNT/elapsed));
+    fprintf(stdout, "#sec: %lf\n", elapsed);
   }
   if (LogFile)
   {
     fprintdate(LogFile);
-    fprintf(LogFile, "#Runs: %" PRIu64 ";Expaned Nodes: %" PRIu64 "; MemoryFull: %" PRIu64 "; AB-Nodes: %" PRIu64 "; BF-Depth: %i; ScoreDepth: %i; Score: %i; nps:%" PRIu64 "; sec: %lf;\n", ITERCOUNT, EXNODECOUNT, MEMORYFULL, ABNODECOUNT, plyreached, bestmoveply, xboard_score, (u64)(ABNODECOUNT/elapsed), elapsed);
+    fprintf(LogFile, "#Runs: %" PRIu64 "\n", ITERCOUNT);
+    fprintdate(LogFile);
+    fprintf(LogFile, "#Expaned-Nodes: %" PRIu64 "\n", EXNODECOUNT);
+    fprintdate(LogFile);
+    fprintf(LogFile, "#AB-Nodes: %" PRIu64 "\n", ABNODECOUNT);
+    fprintdate(LogFile);
+    fprintf(LogFile, "#BF-Depth: %d\n", plyreached);
+    fprintdate(LogFile);
+    fprintf(LogFile, "#ScoreDepth: %d\n", bestmoveply);
+    fprintdate(LogFile);
+    fprintf(LogFile, "#Score: %d\n", xboard_score);
+    fprintdate(LogFile);
+    fprintf(LogFile, "#nps: %" PRIu64 "\n", (u64)(ABNODECOUNT/elapsed));
+    fprintdate(LogFile);
+    fprintf(LogFile, "#sec: %lf\n", elapsed);
   }
 
   fflush(stdout);
@@ -2419,6 +2440,9 @@ int main(int argc, char* argv[])
             end = get_time();   
             elapsed = end-start;
 
+            if (!xboard_mode||xboard_debug)
+              printboard(BOARD);
+
             PLY++;
             STM = !STM;
 
@@ -2643,6 +2667,9 @@ int main(int argc, char* argv[])
 
             end = get_time();   
             elapsed = end-start;
+
+            if (!xboard_mode||xboard_debug)
+              printboard(BOARD);
 
             PLY++;
             STM = !STM;
