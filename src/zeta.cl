@@ -230,14 +230,14 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
-#define MAXEVASIONSDEPTH     3               // max check evasions from qsearch
+#define MAXEVASIONSDEPTH     4               // max check evasions from qsearch
 #define SMOOTHUCT            1.00           // factor for uct params in select formula
 #define SKIPMATE             1             // 0 or 1
 #define SKIPDRAW             1            // 0 or 1
 #define INCHECKEXT           1           // 0 or 1
 #define SINGLEEXT            1          // 0 or 1
 #define PROMOEXT             1         // 0 or 1
-#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.33    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bf select formula
 #define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
@@ -1762,7 +1762,7 @@ __kernel void bestfirst_gpu(
         if (ROOTSEARCH&&index==0)
         {
           tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].visits;
-//          tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
+          tmpscoreb+= (((float)board_stack[(index%max_nodes_per_slot)].visits) / (SMOOTHUCT*(float)board_stack_tmp[(child%max_nodes_per_slot)].visits+1));
         }
         // most threads go to breadth, some go to depth
         else if (BROADWELL&&(pid%DEPTHWELL>0))
@@ -1877,7 +1877,7 @@ __kernel void bestfirst_gpu(
     // enter quiescence search?
     qs = (sd<=depth)?false:true;
     qs = (mode==EXPAND||mode==EVALLEAF)?false:qs;
-    qs = (rootkic&&sd<=search_depth+MAXEVASIONSDEPTH)?false:qs;
+    qs = (rootkic&&sd<=depth+MAXEVASIONSDEPTH)?false:qs;
 //    qs = (rootkic)?false:qs;
     // generate moves
     gen_moves(board, &n, som, qs, sd, pid, max_depth, global_pid_moves, rootkic, false);
@@ -1971,8 +1971,8 @@ __kernel void bestfirst_gpu(
         board_stack[(index%max_nodes_per_slot)].children = n;
         mode = BACKUPSCORE;
       }
-      // something went wrong, release lock
-      if (n<0)
+      // something went wrong, or root node, release lock
+      if (n<0||index==0)
       {
         // release lock
         board_stack[(index%max_nodes_per_slot)].score = -INF;
