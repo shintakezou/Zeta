@@ -1432,25 +1432,45 @@ bool read_and_init_config(char configfile[])
   GLOBAL_INIT_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
   if (GLOBAL_INIT_BOARD==NULL)
   {
-    printf("memory alloc, GLOBAL_INIT_BOARD, failed\n");
+    fprintf(stdout, "memory alloc, GLOBAL_INIT_BOARD, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, GLOBAL_INIT_BOARD, failed\n");
+    }
     return false;
   }
   NODES = (NodeBlock*)calloc((MAXMOVES+1), sizeof(NodeBlock));
   if (NODES==NULL)
   {
-    printf("memory alloc, NODES, failed\n");
+    fprintf(stdout, "memory alloc, NODES, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, NODES, failed\n");
+    }
     return false;
   }
   COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
   if (COUNTERS==NULL)
   {
-    printf("memory alloc, COUNTERS, failed\n");
+    fprintf(stdout, "memory alloc, COUNTERS, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, COUNTERS, failed\n");
+    }
     return false;
   }
   GLOBAL_HASHHISTORY = (Hash*)malloc((totalThreads*1024) * sizeof (Hash));
   if (GLOBAL_HASHHISTORY==NULL)
   {
-    printf("memory alloc, GLOBAL_HASHHISTORY, failed\n");
+    fprintf(stdout, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
+    }
     return false;
   }
 
@@ -1753,7 +1773,12 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
   if (COUNTERS==NULL)
   {
-    printf("memory alloc, COUNTERS, failed\n");
+    fprintf(stdout, "memory alloc, COUNTERS, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, COUNTERS, failed\n");
+    }
     exit(EXIT_FAILURE);
   }
   // prepare hash history
@@ -1941,7 +1966,12 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
   if (COUNTERS==NULL)
   {
-    printf("memory alloc, COUNTERS, failed\n");
+    fprintf(stdout, "memory alloc, COUNTERS, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, COUNTERS, failed\n");
+    }
     exit(EXIT_FAILURE);
   }
   // prepare hash history
@@ -2007,11 +2037,21 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   MEMORYFULL = COUNTERS[6];
 //  bestmoveply = COUNTERS[7];
   // print cli output
-  printf("depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
-  printf(" move ");
+  fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+  fprintf(stdout, " move ");
+  if (LogFile)
+  {
+    fprintdate(LogFile);
+    fprintf(LogFile, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+    fprintf(LogFile, " move ");
+  }
   printmovecan(bestmove);
-  printf("\n");
+  fprintf(stdout, "\n");
+  if (LogFile)
+    fprintf(LogFile, "\n");
   fflush(stdout);        
+  if (LogFile)
+    fflush(LogFile);        
 
   return 0;
 }
@@ -2053,9 +2093,18 @@ s32 benchmarkWrapper(s32 benchsec)
       break;
     if (MEMORYFULL == 1)
     {
-      printf("#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
-      printf("#");
-      printf("#");
+      fprintf(stdout, "#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
+      fprintf(stdout, "#");
+      fprintf(stdout, "#");
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile, "#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
+        fprintdate(LogFile);
+        fprintf(LogFile, "#");
+        fprintdate(LogFile);
+        fprintf(LogFile, "#");
+      }
       break;
     }
     max_nodes*=2; // search double the nodes for next iteration
@@ -2109,6 +2158,19 @@ int main(int argc, char* argv[])
       }
     }
   }
+  // open log file
+  if (LogFile)
+  {
+    // no buffers
+    setbuf(LogFile, NULL);
+    // print binary call to log
+    fprintdate(LogFile);
+    for (c=0;c<argc;c++)
+    {
+      fprintf(LogFile, "%s ",argv[c]);
+    }
+    fprintf(LogFile, "\n");
+  }
   // getopt loop, parsing for help, version and logging
   while ((c = getopt_long_only (argc, argv, "",
                long_options, &option_index)) != -1) {
@@ -2154,19 +2216,6 @@ int main(int argc, char* argv[])
         exit(EXIT_SUCCESS);
         break;
     }
-  }
-  // open log file
-  if (LogFile)
-  {
-    // no buffers
-    setbuf(LogFile, NULL);
-    // print binary call to log
-    fprintdate(LogFile);
-    for (c=0;c<argc;c++)
-    {
-      fprintf(LogFile, "%s ",argv[c]);
-    }
-    fprintf(LogFile, "\n");
   }
   // print engine info to console
   fprintf(stdout,"#> Zeta %s\n",VERSION);
@@ -2378,11 +2427,21 @@ int main(int argc, char* argv[])
         {
           if (STM)
           {
-            printf("result 1-0 { resign - max game ply reached }\n");
+            fprintf(stdout, "result 1-0 { resign - max game ply reached }\n");
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "result 1-0 { resign - max game ply reached }\n");
+            }
           }
           else if (!STM)
           {
-            printf("result 0-1 { resign - max game ply reached}\n");
+            fprintf(stdout, "result 0-1 { resign - max game ply reached}\n");
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "result 0-1 { resign - max game ply reached}\n");
+            }
           }
         }
         else
@@ -2395,11 +2454,21 @@ int main(int argc, char* argv[])
           {
             if (STM)
             {
-              printf("result 1-0 { resign - internal error }\n");
+              fprintf(stdout, "result 1-0 { resign - internal error }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 1-0 { resign - internal error }\n");
+              }
             }
             else if (!STM)
             {
-              printf("result 0-1 { resign - internal error}\n");
+              fprintf(stdout, "result 0-1 { resign - internal error}\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 0-1 { resign - internal error}\n");
+              }
             }
           }
           // checkmate
@@ -2407,17 +2476,32 @@ int main(int argc, char* argv[])
           {
             if (STM)
             {
-              printf("result 1-0 { checkmate }\n");
+              fprintf(stdout, "result 1-0 { checkmate }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 1-0 { checkmate }\n");
+              }
             }
             else if (!STM)
             {
-              printf("result 0-1 { checkmate }\n");
+              fprintf(stdout, "result 0-1 { checkmate }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 0-1 { checkmate }\n");
+              }
             }
           }
           // stalemate
           else if (!kic&&move==MOVENONE)
           {
-              printf("result 1/2-1/2 { stalemate }\n");
+              fprintf(stdout, "result 1/2-1/2 { stalemate }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 1/2-1/2 { stalemate }\n");
+              }
           }
           else 
           {
@@ -2606,11 +2690,21 @@ int main(int argc, char* argv[])
         {
           if (STM)
           {
-            printf("result 1-0 { resign - max game ply reached }\n");
+            fprintf(stdout, "result 1-0 { resign - max game ply reached }\n");
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "result 1-0 { resign - max game ply reached }\n");
+            }
           }
           else if (!STM)
           {
-            printf("result 0-1 { resign - max game ply reached}\n");
+            fprintf(stdout, "result 0-1 { resign - max game ply reached}\n");
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "result 0-1 { resign - max game ply reached}\n");
+            }
           }
         }
         else
@@ -2623,11 +2717,21 @@ int main(int argc, char* argv[])
           {
             if (STM)
             {
-              printf("result 1-0 { resign - internal error }\n");
+              fprintf(stdout, "result 1-0 { resign - internal error }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 1-0 { resign - internal error }\n");
+              }
             }
             else if (!STM)
             {
-              printf("result 0-1 { resign - internal error}\n");
+              fprintf(stdout, "result 0-1 { resign - internal error}\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 0-1 { resign - internal error}\n");
+              }
             }
           }
           // checkmate
@@ -2635,17 +2739,32 @@ int main(int argc, char* argv[])
           {
             if (STM)
             {
-              printf("result 1-0 { checkmate }\n");
+              fprintf(stdout, "result 1-0 { checkmate }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 1-0 { checkmate }\n");
+              }
             }
             else if (!STM)
             {
-              printf("result 0-1 { checkmate }\n");
+              fprintf(stdout, "result 0-1 { checkmate }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 0-1 { checkmate }\n");
+              }
             }
           }
           // stalemate
           else if (!kic&&move==MOVENONE)
           {
-              printf("result 1/2-1/2 { stalemate }\n");
+              fprintf(stdout, "result 1/2-1/2 { stalemate }\n");
+              if (LogFile)
+              {
+                fprintdate(LogFile);
+                fprintf(LogFile, "result 1/2-1/2 { stalemate }\n");
+              }
           }
           else 
           {
