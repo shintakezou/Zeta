@@ -2093,17 +2093,17 @@ s32 benchmarkWrapper(s32 benchsec)
       break;
     if (MEMORYFULL == 1)
     {
+      fprintf(stdout, "#\n");
       fprintf(stdout, "#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
-      fprintf(stdout, "#");
-      fprintf(stdout, "#");
+      fprintf(stdout, "#\n");
       if (LogFile)
       {
         fprintdate(LogFile);
+        fprintf(LogFile, "#\n");
+        fprintdate(LogFile);
         fprintf(LogFile, "#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
         fprintdate(LogFile);
-        fprintf(LogFile, "#");
-        fprintdate(LogFile);
-        fprintf(LogFile, "#");
+        fprintf(LogFile, "#\n");
       }
       break;
     }
