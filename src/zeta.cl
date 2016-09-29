@@ -86,22 +86,19 @@ typedef struct
   48  - 63  move score, signed 16 bit
 */
 // engine defaults
-#define MAXGAMEPLY  1024    // max ply a game can reach
-#define MAXMOVES    256     // max amount of legal moves per position
-#define TIMESPARE   100     // 100 milliseconds spare
-#define MINDEVICEMB 64
-#define MAXDEVICEMB 1024
+#define MAXGAMEPLY          1024    // max ply a game can reach
+#define MAXMOVES            256     // max amount of legal moves per position
 // colors
 #define BLACK               1
 #define WHITE               0
 // score indexing
-#define ALPHA   0
-#define BETA    1
+#define ALPHA               0
+#define BETA                1
 // scores
-#define INF             1000000
-#define MATESCORE        999000
-#define DRAWSCORE       0
-#define STALEMATESCORE  0
+#define INF                 1000000
+#define MATESCORE            999000
+#define DRAWSCORE           0
+#define STALEMATESCORE      0
 // piece type enumeration
 #define PNONE               0
 #define PAWN                1
@@ -111,40 +108,40 @@ typedef struct
 #define ROOK                5
 #define QUEEN               6
 // move is castle flag
-#define MOVEISCR            0x0000003000000000
-#define MOVEISCRK           0x0000001000000000
-#define MOVEISCRQ           0x0000002000000000
+#define MOVEISCR            0x0000003000000000UL
+#define MOVEISCRK           0x0000001000000000UL
+#define MOVEISCRQ           0x0000002000000000UL
 // bitboard masks, computation prefered over lookup
-#define SETMASKBB(sq)       ((ulong)1<<(sq))
-#define CLRMASKBB(sq)       (~((ulong)1<<(sq)))
+#define SETMASKBB(sq)       (1UL<<(sq))
+#define CLRMASKBB(sq)       (~(1UL<<(sq)))
 // u64 defaults
-#define BBEMPTY             0x0000000000000000
-#define BBFULL              0xFFFFFFFFFFFFFFFF
-#define MOVENONE            0x0000000000000000
-#define HASHNONE            0x0000000000000000
-#define CRNONE              0x0000000000000000
-#define SCORENONE           0x0000000000000000
+#define BBEMPTY             0x0000000000000000UL
+#define BBFULL              0xFFFFFFFFFFFFFFFFUL
+#define MOVENONE            0x0000000000000000UL
+#define HASHNONE            0x0000000000000000UL
+#define CRNONE              0x0000000000000000UL
+#define SCORENONE           0x0000000000000000UL
 // set masks
-#define SMMOVE              0x0000003FFFFFFFFF
-#define SMSQEP              0x0000000FC0000000
-#define SMHMC               0x0000FF0000000000
-#define SMCRALL             0x8900000000000091
-#define SMSCORE             0xFFFF000000000000
-#define SMTTMOVE            0x000000003FFFFFFF
+#define SMMOVE              0x0000003FFFFFFFFFUL
+#define SMSQEP              0x0000000FC0000000UL
+#define SMHMC               0x0000FF0000000000UL
+#define SMCRALL             0x8900000000000091UL
+#define SMSCORE             0xFFFF000000000000UL
+#define SMTTMOVE            0x000000003FFFFFFFUL
 // clear masks
-#define CMMOVE              0xFFFFFFC000000000
-#define CMSQEP              0xFFFFFFF03FFFFFFF
-#define CMHMC               0xFFFF00FFFFFFFFFF
-#define CMCRALL             0x76FFFFFFFFFFFF6E
-#define CMSCORE             0x0000FFFFFFFFFFFF
-#define CMTTMOVE            0xFFFFFFFFC0000000
+#define CMMOVE              0xFFFFFFC000000000UL
+#define CMSQEP              0xFFFFFFF03FFFFFFFUL
+#define CMHMC               0xFFFF00FFFFFFFFFFUL
+#define CMCRALL             0x76FFFFFFFFFFFF6EUL
+#define CMSCORE             0x0000FFFFFFFFFFFFUL
+#define CMTTMOVE            0xFFFFFFFFC0000000UL
 // castle right masks
-#define SMCRWHITE           0x0000000000000091
-#define SMCRWHITEQ          0x0000000000000011
-#define SMCRWHITEK          0x0000000000000090
-#define SMCRBLACK           0x9100000000000000
-#define SMCRBLACKQ          0x1100000000000000
-#define SMCRBLACKK          0x9000000000000000
+#define SMCRWHITE           0x0000000000000091UL
+#define SMCRWHITEQ          0x0000000000000011UL
+#define SMCRWHITEK          0x0000000000000090UL
+#define SMCRBLACK           0x9100000000000000UL
+#define SMCRBLACKQ          0x1100000000000000UL
+#define SMCRBLACKK          0x9000000000000000UL
 // move helpers
 #define MAKEPIECE(p,c)     ((((Piece)p)<<1)|(Piece)c)
 #define JUSTMOVE(move)     (move&SMMOVE)
@@ -194,25 +191,25 @@ enum Files
 {
   FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NONE
 };
-#define BBFILEA             0x0101010101010101
-#define BBFILEB             0x0202020202020202
-#define BBFILEC             0x0404040404040404
-#define BBFILED             0x0808080808080808
-#define BBFILEE             0x1010101010101010
-#define BBFILEF             0x2020202020202020
-#define BBFILEG             0x4040404040404040
-#define BBFILEH             0x8080808080808080
-#define BBNOTHFILE          0x7F7F7F7F7F7F7F7F
-#define BBNOTAFILE          0xFEFEFEFEFEFEFEFE
+#define BBFILEA             0x0101010101010101UL
+#define BBFILEB             0x0202020202020202UL
+#define BBFILEC             0x0404040404040404UL
+#define BBFILED             0x0808080808080808UL
+#define BBFILEE             0x1010101010101010UL
+#define BBFILEF             0x2020202020202020UL
+#define BBFILEG             0x4040404040404040UL
+#define BBFILEH             0x8080808080808080UL
+#define BBNOTHFILE          0x7F7F7F7F7F7F7F7FUL
+#define BBNOTAFILE          0xFEFEFEFEFEFEFEFEUL
 // rank enumeration
 enum Ranks
 {
   RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NONE
 };
-#define BBRANK7             0x00FF000000000000
-#define BBRANK5             0x000000FF00000000
-#define BBRANK4             0x00000000FF000000
-#define BBRANK2             0x000000000000FF00
+#define BBRANK7             0x00FF000000000000UL
+#define BBRANK5             0x000000FF00000000UL
+#define BBRANK4             0x00000000FF000000UL
+#define BBRANK2             0x000000000000FF00UL
 // square enumeration
 enum Squares
 {
@@ -237,7 +234,7 @@ enum Squares
 #define INCHECKEXT           1           // 0 or 1
 #define SINGLEEXT            1          // 0 or 1
 #define PROMOEXT             1         // 0 or 1
-#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.33    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bf select formula
 #define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
