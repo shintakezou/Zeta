@@ -93,10 +93,10 @@ typedef struct
 #define BLACK               1
 #define WHITE               0
 // scores
-#define INF             1000000
-#define MATESCORE        999000
-#define DRAWSCORE       0
-#define STALEMATESCORE  0
+#define INF                 1000000
+#define MATESCORE            999000
+#define DRAWSCORE           0
+#define STALEMATESCORE      0
 // piece type enumeration
 #define PNONE               0
 #define PAWN                1
