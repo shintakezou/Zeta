@@ -21,6 +21,9 @@
 
 Zeta, experimental chess engine written in OpenCL.
 
+Supported Platforms: 64 bit x86 little endian with
+working OpenCL Runtime Environment.
+
 You will need an config.ini file to run the engine,
 start engine from command line with --guessconfig option,
 to create config files for all OpenCL devices.
