@@ -47,11 +47,11 @@ u64 threadsX            =  0;
 u64 threadsY            =  0;
 u64 threadsZ            =  0;
 u64 totalThreads        =  0;
-u64 nodes_per_second    =  0;
-u64 max_nodes           =  0;
-u64 nps_current         =  0;
+s32 nodes_per_second    =  0;
+s32 max_nodes           =  0;
+s32 nps_current         =  0;
+s32 max_nodes_to_expand =  1;
 u64 max_memory          =  0;
-u64 max_nodes_to_expand =  1;
 u64 memory_slots        =  1;
 u64 max_ab_depth        =  0;
 u64 max_depth           = 99;
@@ -1393,8 +1393,8 @@ bool read_and_init_config(char configfile[])
     sscanf(line, "threadsX: %" PRIu64 ";", &threadsX);
     sscanf(line, "threadsY: %" PRIu64 ";", &threadsY);
     sscanf(line, "threadsZ: %" PRIu64 ";", &threadsZ);
-    sscanf(line, "nodes_per_second: %" PRIu64 ";", &nodes_per_second);
-    sscanf(line, "max_nodes: %" PRIu64 ";", &max_nodes);
+    sscanf(line, "nodes_per_second: %d;", &nodes_per_second);
+    sscanf(line, "max_nodes: %d;", &max_nodes);
     sscanf(line, "max_memory: %" PRIu64 ";", &max_memory);
     sscanf(line, "memory_slots: %" PRIu64 ";", &memory_slots);
     sscanf(line, "max_depth: %" PRIu64 ";", &max_depth);
@@ -1406,7 +1406,7 @@ bool read_and_init_config(char configfile[])
 
   SD = max_ab_depth;
 
-  max_nodes_to_expand = (s32)(((u64)max_memory*1024*1024)/sizeof(NodeBlock));
+  max_nodes_to_expand = (s32)(max_memory*1024*1024/sizeof(NodeBlock));
 
 /*
   FILE 	*Stats;
