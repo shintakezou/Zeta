@@ -1305,7 +1305,9 @@ void print_debug(char *debug)
   FILE 	*Stats;
   Stats = fopen("zeta.log", "a");
   fprintdate(Stats);
-  fprintf(Stats, "%s, status:%i", debug, status);
+  fprintf(Stats, "%s", debug);
+  fprintdate(Stats);
+  fprintf(Stats, "status:%i",status);
   if (status == CL_DEVICE_NOT_AVAILABLE)
       fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE");
   fclose(Stats);

@@ -308,24 +308,23 @@ bool cl_guess_config(bool extreme)
         } 
         // check for min 64 mb memory
         if (devicememalloc < MINDEVICEMB*1024*1024 ) {
-          fprintf(stdout, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %d MB\n", devicememalloc/1024/1024, MINDEVICEMB);
+          fprintf(stdout, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, MINDEVICEMB);
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %d MB\n", devicememalloc/1024/1024, MINDEVICEMB);
+            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, MINDEVICEMB);
           }
           continue;
         }
         else
         {
-          fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %d MB \n", devicememalloc/1024/1024, MINDEVICEMB);
+          fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, MINDEVICEMB);
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %d MB \n", devicememalloc/1024/1024, MINDEVICEMB);
+            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, MINDEVICEMB);
           }
         }
-        // set memory to default max
         // get max memory allocation size
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_GLOBAL_MEM_SIZE,
@@ -353,8 +352,9 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememalloc/1024/1024);
           }
         }
+        // use 1/4 of global memory
         devicememalloc/=4;
-
+        // set memory to default max
         if (devicememalloc > MAXDEVICEMB*1024*1024 )
           devicememalloc = MAXDEVICEMB*1024*1024; 
         // check for needed device extensions

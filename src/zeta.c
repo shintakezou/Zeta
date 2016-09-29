@@ -43,25 +43,23 @@ u64 ABNODECOUNT = 0;
 u64 MOVECOUNT = 0;
 u64 MEMORYFULL = 0;
 // config file
-s32 threadsX            =  0;
-s32 threadsY            =  0;
-s32 threadsZ            =  0;
-s32 totalThreads        =  0;
-s32 nodes_per_second    =  0;
+u64 threadsX            =  0;
+u64 threadsY            =  0;
+u64 threadsZ            =  0;
+u64 totalThreads        =  0;
+u64 nodes_per_second    =  0;
 u64 max_nodes           =  0;
-s32 nps_current         =  0;
-s32 max_memory          =  0;
-s32 max_nodes_to_expand =  0;
-s32 memory_slots        =  1;
-s32 max_ab_depth        =  0;
-s32 max_depth           = 99;
+u64 nps_current         =  0;
+u64 max_memory          =  0;
+u64 max_nodes_to_expand =  1;
+u64 memory_slots        =  1;
+u64 max_ab_depth        =  0;
+u64 max_depth           = 99;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 // further config
-s32 max_nps_per_move= 0;
+u64 max_nps_per_move= 0;
 s32 search_depth    = 0;
-s32 max_cores       = 1;
-s32 time_management = false;
 // xboard flags
 bool xboard_mode    = false;  // chess GUI sets to true
 bool xboard_force   = false;  // if true aplly only moves, do not think
@@ -1392,23 +1390,23 @@ bool read_and_init_config(char configfile[])
   }
   while (fgets(line, sizeof(line), fcfg))
   { 
-    sscanf(line, "threadsX: %i;", &threadsX);
-    sscanf(line, "threadsY: %i;", &threadsY);
-    sscanf(line, "threadsZ: %i;", &threadsZ);
-    sscanf(line, "nodes_per_second: %i;", &nodes_per_second);
+    sscanf(line, "threadsX: %" PRIu64 ";", &threadsX);
+    sscanf(line, "threadsY: %" PRIu64 ";", &threadsY);
+    sscanf(line, "threadsZ: %" PRIu64 ";", &threadsZ);
+    sscanf(line, "nodes_per_second: %" PRIu64 ";", &nodes_per_second);
     sscanf(line, "max_nodes: %" PRIu64 ";", &max_nodes);
-    sscanf(line, "max_memory: %d;", &max_memory);
-    sscanf(line, "memory_slots: %i;", &memory_slots);
-    sscanf(line, "max_depth: %i;", &max_depth);
-    sscanf(line, "max_ab_depth: %i;", &max_ab_depth);
-    sscanf(line, "opencl_platform_id: %i;", &opencl_platform_id);
-    sscanf(line, "opencl_device_id: %i;", &opencl_device_id);
+    sscanf(line, "max_memory: %" PRIu64 ";", &max_memory);
+    sscanf(line, "memory_slots: %" PRIu64 ";", &memory_slots);
+    sscanf(line, "max_depth: %" PRIu64 ";", &max_depth);
+    sscanf(line, "max_ab_depth: %" PRIu64 ";", &max_ab_depth);
+    sscanf(line, "opencl_platform_id: %d;", &opencl_platform_id);
+    sscanf(line, "opencl_device_id: %d;", &opencl_device_id);
   }
   fclose(fcfg);
 
   SD = max_ab_depth;
 
-  max_nodes_to_expand = max_memory*1024*1024/sizeof(NodeBlock);
+  max_nodes_to_expand = (s32)(((u64)max_memory*1024*1024)/sizeof(NodeBlock));
 
 /*
   FILE 	*Stats;
@@ -1418,7 +1416,6 @@ bool read_and_init_config(char configfile[])
 */
   if (max_nodes==0)
   {
-    time_management = true;
     MaxNodes = nodes_per_second; 
   }
   else
@@ -1625,6 +1622,9 @@ static void print_help(void)
 {
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"\n");
+  fprintf(stdout,"Supported Platforms: 64 bit x86 little endian with\n");
+  fprintf(stdout,"working OpenCL Runtime Environment.\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"You will need an config.ini file to run the engine,\n");
   fprintf(stdout,"start engine from command line with --guessconfig option,\n");
   fprintf(stdout,"to create config files for all OpenCL devices.\n");
@@ -1696,7 +1696,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
     free(COUNTERS);
   COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
   // prepare hash history
-  for(s32 i=0;i<totalThreads;i++)
+  for(u64 i=0;i<totalThreads;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
   }
@@ -1723,7 +1723,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   }
 
   // collect counters
-  for (s32 i=0;i<totalThreads;i++)
+  for (u64 i=0;i<totalThreads;i++)
   {
     ABNODECOUNT+=   COUNTERS[i*10+2];
   }
@@ -1733,10 +1733,10 @@ Score perft(Bitboard *board, bool stm, s32 depth)
 Move rootsearch(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
-  s32 i,j;
   Score score;
   Score tmpscore;
   Score xboard_score;
+  s32 j;
   s32 visits = 0;
   s32 tmpvisits = 0;
   Move bestmove = MOVENONE;
@@ -1780,7 +1780,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     exit(EXIT_FAILURE);
   }
   // prepare hash history
-  for(i=0;i<totalThreads;i++)
+  for(u64 i=0;i<totalThreads;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
   }
@@ -1823,7 +1823,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   score = -NODES[NODES[0].child].score;
   bestmove = NODES[NODES[0].child].move;
   // get best move from tree copied from cl device
-  for(i=0; i < NODES[0].children; i++)
+  for(s32 i=0; i < NODES[0].children; i++)
   {
     j = NODES[0].child + i;
     tmpscore = -NODES[j].score;
@@ -1846,7 +1846,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   }
   bestscore = ISINF(score)?DRAWSCORE:score;
   // collect counters
-  for (i=0; i < totalThreads; i++) {
+  for (u64 i=0; i < totalThreads; i++) {
     ITERCOUNT+=     COUNTERS[i*10+0];
     EXNODECOUNT+=    COUNTERS[i*10+1];
     ABNODECOUNT+=   COUNTERS[i*10+2];
@@ -1929,7 +1929,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 // run an benchmark for current set up
 s32 benchmark(Bitboard *board, bool stm, s32 depth)
 {
-  s32 i,j;
+  s32 j;
   Score score = -2147483647;
   Score tmpscore;
   s32 tmpvisits = 0;
@@ -1973,7 +1973,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     exit(EXIT_FAILURE);
   }
   // prepare hash history
-  for(i=0;i<totalThreads;i++)
+  for(u64 i=0;i<totalThreads;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY*sizeof(Hash));
   }
@@ -2001,7 +2001,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   score = -NODES[NODES[0].child].score;
   bestmove = NODES[NODES[0].child].move;
   // get best move from tree copied from cl device
-  for(i=0; i < NODES[0].children; i++)
+  for(s32 i=0; i < NODES[0].children; i++)
   {
     j = NODES[0].child + i;
     tmpscore = -NODES[j].score;
@@ -2024,7 +2024,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   }
   bestscore = ISINF(score)?DRAWSCORE:score;
   // collect counters
-  for (i=0; i < totalThreads; i++) {
+  for (u64 i=0; i < totalThreads; i++) {
     ITERCOUNT+=     COUNTERS[i*10+0];
     EXNODECOUNT+=    COUNTERS[i*10+1];
     ABNODECOUNT+=   COUNTERS[i*10+2];
