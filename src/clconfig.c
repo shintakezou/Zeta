@@ -307,7 +307,7 @@ bool cl_guess_config(bool extreme)
           continue;
         } 
         // check for min 64 mb memory
-        if (devicememalloc < 67108864 ) {
+        if (devicememalloc < MINDEVICEMB*1024*1024 ) {
           fprintf(stdout, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %d MB\n", devicememalloc/1024/1024, MINDEVICEMB);
           if (LogFile)
           {
@@ -355,8 +355,8 @@ bool cl_guess_config(bool extreme)
         }
         devicememalloc/=4;
 
-        if (devicememalloc > max_mem_mb*1024*1024 )
-          devicememalloc = max_mem_mb*1024*1024; 
+        if (devicememalloc > MAXDEVICEMB*1024*1024 )
+          devicememalloc = MAXDEVICEMB*1024*1024; 
         // check for needed device extensions
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_EXTENSIONS,

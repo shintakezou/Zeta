@@ -60,7 +60,6 @@ s32 opencl_platform_id  =  0;
 // further config
 s32 max_nps_per_move= 0;
 s32 search_depth    = 0;
-u64 max_mem_mb      = MAXDEVICEMB;
 s32 max_cores       = 1;
 s32 time_management = false;
 // xboard flags
@@ -70,7 +69,6 @@ bool xboard_post    = false;  // post search thinking output
 bool xboard_san     = false;  // use san move notation instead of can
 bool xboard_time    = false;  // use xboards time command for time management
 bool xboard_debug   = false;  // print debug information
-s32 xboard_mb       = 64;     // mega bytes for hash table
 // timers
 double start        = 0;
 double end          = 0;
@@ -2638,10 +2636,9 @@ int main(int argc, char* argv[])
     // opp time left, ignore
 		if (!strcmp(Command, "otim"))
       continue;
-    // memory for hash size 
+    // xboard memory in mb, ignore, use config.ini file
 		if (!strcmp(Command, "memory"))
     {
-      sscanf(Line, "memory %d", &xboard_mb);
       continue;
     }
     if (!strcmp(Command, "usermove"))
