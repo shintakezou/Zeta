@@ -308,21 +308,21 @@ bool cl_guess_config(bool extreme)
         } 
         // check for min 64 mb memory
         if (devicememalloc < MINDEVICEMB*1024*1024 ) {
-          fprintf(stdout, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, MINDEVICEMB);
+          fprintf(stdout, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, MINDEVICEMB);
+            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
           }
           continue;
         }
         else
         {
-          fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, MINDEVICEMB);
+          fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, MINDEVICEMB);
+            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
           }
         }
         // get max memory allocation size
