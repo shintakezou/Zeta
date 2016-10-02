@@ -248,12 +248,14 @@ bool cl_guess_config(bool extreme)
           continue;
         }
         if (endianlittle == CL_TRUE)
+        {
           fprintf(stdout, "#> OK, Device Endianness is little\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#> OK, Device Endianness is little\n");
           }
+        }
         else
         {
           fprintf(stdout, "#> Error: Device Endianness is not little\n");
