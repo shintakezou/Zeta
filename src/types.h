@@ -88,7 +88,7 @@ typedef struct
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 64UL    // min memory of OpenCl device in MB
-#define MAXDEVICEMB 2048UL  // max memory for OpenCL devices in MB
+#define MAXDEVICEMB 1024UL  // max memory for OpenCL devices in MB
 // colors
 #define BLACK               1
 #define WHITE               0
