@@ -47,7 +47,7 @@ bool cl_guess_config(bool extreme)
   s32 nps = 0;
   s32 npstmp = 0;
   s32 devicecounter = 0;
-  s32 benchsec = 10;
+  s32 benchsec = 4;
     
   fprintf(stdout,"#> ### Query the OpenCL Platforms on Host...\n");
   if (LogFile)
