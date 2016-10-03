@@ -87,8 +87,8 @@ typedef struct
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
-#define MINDEVICEMB 64UL    // min memory of OpenCl device in MB
-#define MAXDEVICEMB 1024UL  // max memory for OpenCL devices in MB
+#define MINDEVICEMB 64ULL    // min memory of OpenCl device in MB
+#define MAXDEVICEMB 2048ULL  // max memory for OpenCL devices in MB
 // colors
 #define BLACK               1
 #define WHITE               0
@@ -106,40 +106,40 @@ typedef struct
 #define ROOK                5
 #define QUEEN               6
 // move is castle flag
-#define MOVEISCR            0x0000003000000000UL
-#define MOVEISCRK           0x0000001000000000UL
-#define MOVEISCRQ           0x0000002000000000UL
+#define MOVEISCR            0x0000003000000000ULL
+#define MOVEISCRK           0x0000001000000000ULL
+#define MOVEISCRQ           0x0000002000000000ULL
 // bitboard masks, computation prefered over lookup
-#define SETMASKBB(sq)       (1UL<<(sq))
-#define CLRMASKBB(sq)       (~(1UL<<(sq)))
+#define SETMASKBB(sq)       (1ULL<<(sq))
+#define CLRMASKBB(sq)       (~(1ULL<<(sq)))
 // u64 defaults
-#define BBEMPTY             0x0000000000000000UL
-#define BBFULL              0xFFFFFFFFFFFFFFFFUL
-#define MOVENONE            0x0000000000000000UL
-#define HASHNONE            0x0000000000000000UL
-#define CRNONE              0x0000000000000000UL
-#define SCORENONE           0x0000000000000000UL
+#define BBEMPTY             0x0000000000000000ULL
+#define BBFULL              0xFFFFFFFFFFFFFFFFULL
+#define MOVENONE            0x0000000000000000ULL
+#define HASHNONE            0x0000000000000000ULL
+#define CRNONE              0x0000000000000000ULL
+#define SCORENONE           0x0000000000000000ULL
 // set masks
-#define SMMOVE              0x0000003FFFFFFFFFUL
-#define SMSQEP              0x0000000FC0000000UL
-#define SMHMC               0x0000FF0000000000UL
-#define SMCRALL             0x8900000000000091UL
-#define SMSCORE             0xFFFF000000000000UL
-#define SMTTMOVE            0x000000003FFFFFFFUL
+#define SMMOVE              0x0000003FFFFFFFFFULL
+#define SMSQEP              0x0000000FC0000000ULL
+#define SMHMC               0x0000FF0000000000ULL
+#define SMCRALL             0x8900000000000091ULL
+#define SMSCORE             0xFFFF000000000000ULL
+#define SMTTMOVE            0x000000003FFFFFFFULL
 // clear masks
-#define CMMOVE              0xFFFFFFC000000000UL
-#define CMSQEP              0xFFFFFFF03FFFFFFFUL
-#define CMHMC               0xFFFF00FFFFFFFFFFUL
-#define CMCRALL             0x76FFFFFFFFFFFF6EUL
-#define CMSCORE             0x0000FFFFFFFFFFFFUL
-#define CMTTMOVE            0xFFFFFFFFC0000000UL
+#define CMMOVE              0xFFFFFFC000000000ULL
+#define CMSQEP              0xFFFFFFF03FFFFFFFULL
+#define CMHMC               0xFFFF00FFFFFFFFFFULL
+#define CMCRALL             0x76FFFFFFFFFFFF6EULL
+#define CMSCORE             0x0000FFFFFFFFFFFFULL
+#define CMTTMOVE            0xFFFFFFFFC0000000ULL
 // castle right masks
-#define SMCRWHITE           0x0000000000000091UL
-#define SMCRWHITEQ          0x0000000000000011UL
-#define SMCRWHITEK          0x0000000000000090UL
-#define SMCRBLACK           0x9100000000000000UL
-#define SMCRBLACKQ          0x1100000000000000UL
-#define SMCRBLACKK          0x9000000000000000UL
+#define SMCRWHITE           0x0000000000000091ULL
+#define SMCRWHITEQ          0x0000000000000011ULL
+#define SMCRWHITEK          0x0000000000000090ULL
+#define SMCRBLACK           0x9100000000000000ULL
+#define SMCRBLACKQ          0x1100000000000000ULL
+#define SMCRBLACKK          0x9000000000000000ULL
 // move helpers
 #define MAKEPIECE(p,c)     ((((Piece)p)<<1)|(Piece)c)
 #define JUSTMOVE(move)     (move&SMMOVE)
@@ -189,25 +189,25 @@ enum Files
 {
   FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NONE
 };
-#define BBFILEA             0x0101010101010101UL
-#define BBFILEB             0x0202020202020202UL
-#define BBFILEC             0x0404040404040404UL
-#define BBFILED             0x0808080808080808UL
-#define BBFILEE             0x1010101010101010UL
-#define BBFILEF             0x2020202020202020UL
-#define BBFILEG             0x4040404040404040UL
-#define BBFILEH             0x8080808080808080UL
-#define BBNOTHFILE          0x7F7F7F7F7F7F7F7FUL
-#define BBNOTAFILE          0xFEFEFEFEFEFEFEFEUL
+#define BBFILEA             0x0101010101010101ULL
+#define BBFILEB             0x0202020202020202ULL
+#define BBFILEC             0x0404040404040404ULL
+#define BBFILED             0x0808080808080808ULL
+#define BBFILEE             0x1010101010101010ULL
+#define BBFILEF             0x2020202020202020ULL
+#define BBFILEG             0x4040404040404040ULL
+#define BBFILEH             0x8080808080808080ULL
+#define BBNOTHFILE          0x7F7F7F7F7F7F7F7FULL
+#define BBNOTAFILE          0xFEFEFEFEFEFEFEFEULL
 // rank enumeration
 enum Ranks
 {
   RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NONE
 };
-#define BBRANK7             0x00FF000000000000UL
-#define BBRANK5             0x000000FF00000000UL
-#define BBRANK4             0x00000000FF000000UL
-#define BBRANK2             0x000000000000FF00UL
+#define BBRANK7             0x00FF000000000000ULL
+#define BBRANK5             0x000000FF00000000ULL
+#define BBRANK4             0x00000000FF000000ULL
+#define BBRANK2             0x000000000000FF00ULL
 // square enumeration
 enum Squares
 {
