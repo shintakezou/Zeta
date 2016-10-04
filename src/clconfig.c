@@ -678,7 +678,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
-        fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
         fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
         fprintf(Cfg, "max_depth: 32;\n");
@@ -761,7 +761,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsZ: %i;\n\n", warpsize*2);
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
-            fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
             fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
             fprintf(Cfg, "max_depth: 32;\n");
@@ -821,7 +821,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
-            fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
             fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
             fprintf(Cfg, "max_depth: 32;\n");
@@ -890,7 +890,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
-        fprintf(Cfg, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
         fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
         fprintf(Cfg, "max_depth: 32;\n");
@@ -919,7 +919,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "threadsZ: %i;\n", warpsize);
         fprintf(stdout, "nodes_per_second: %i;\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
-        fprintf(stdout, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+        fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(stdout, "memory_slots: %i; // max 3\n", memory_slots);
         fprintf(stdout, "max_ab_depth: 1; // min 1\n");
         fprintf(stdout, "max_depth: 32;\n");
@@ -936,7 +936,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "threadsZ: %i;\n", warpsize);
           fprintf(LogFile, "nodes_per_second: %i;\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
-          fprintf(LogFile, "max_memory: %i;\n", (s32)devicememalloc/1024/1024);
+          fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
           fprintf(LogFile, "memory_slots: %i; // max 3\n", memory_slots);
           fprintf(LogFile, "max_ab_depth: 1; // min 1\n");
           fprintf(LogFile, "max_depth: 32;\n");
