@@ -87,8 +87,8 @@ typedef struct
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
-#define MINDEVICEMB 64ULL    // min memory of OpenCl device in MB
-#define MAXDEVICEMB 2048ULL  // max memory for OpenCL devices in MB
+#define MINDEVICEMB 64ULL   // min memory of OpenCl device in MB
+#define MAXDEVICEMB 1024ULL // max memory for OpenCL devices in MB
 // colors
 #define BLACK               1
 #define WHITE               0
