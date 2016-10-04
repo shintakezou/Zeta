@@ -1894,6 +1894,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     fprintf(stdout, "#AB-Nodes: %" PRIu64 "\n", ABNODECOUNT);
     fprintf(stdout, "#BF-Depth: %d\n", plyreached);
     fprintf(stdout, "#ScoreDepth: %d\n", bestmoveply);
+    fprintf(stdout, "#Memory full: %" PRIu64 "\n", COUNTERS[6]);
     fprintf(stdout, "#Score: %d\n", xboard_score);
     fprintf(stdout, "#nps: %" PRIu64 "\n", (u64)(ABNODECOUNT/elapsed));
     fprintf(stdout, "#sec: %lf\n", elapsed);
@@ -1910,6 +1911,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     fprintf(LogFile, "#BF-Depth: %d\n", plyreached);
     fprintdate(LogFile);
     fprintf(LogFile, "#ScoreDepth: %d\n", bestmoveply);
+    fprintdate(LogFile);
+    fprintf(LogFile, "#Memory full: %" PRIu64 "\n", COUNTERS[6]);
     fprintdate(LogFile);
     fprintf(LogFile, "#Score: %d\n", xboard_score);
     fprintdate(LogFile);

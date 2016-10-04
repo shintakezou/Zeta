@@ -1477,8 +1477,8 @@ __kernel void perft_gpu(
   // ################################
   while(mode!=EXIT)
   {
-    // iterations counter
-    COUNTERS[0]++;
+    // iterations counter 
+    atom_inc(global_finished);
     // ################################
     // ####     nove generator     ####
     // ################################
@@ -1521,8 +1521,8 @@ __kernel void perft_gpu(
     // terminal node
     if (sd>search_depth)
     {
-      // perft node counter
-      COUNTERS[2]++;
+      // terminal node counter
+      atom_inc(total_nodes_visited);
       n = 0;
     }
 
@@ -1611,6 +1611,8 @@ __kernel void perft_gpu(
       global_pid_todoindex[pid*max_depth+sd] = 0;
     }
   } // end main loop
+  COUNTERS[0] = (u64)*global_finished; // iterations counter
+  COUNTERS[2] = (u64)*total_nodes_visited; // terminal node counter
 }
 // bestfirst minimax search on gpu
 /*
@@ -1695,8 +1697,6 @@ __kernel void bestfirst_gpu(
          && *total_nodes_visited<max_nodes
       )
   {
-    // iterations counter
-    COUNTERS[0]++;
     // single reply and mate hack
     if (board_stack_1[0].children==1||board_stack_1[0].children==0||ISMATE(board_stack_1[0].score))
       break;
@@ -1803,8 +1803,8 @@ __kernel void bestfirst_gpu(
         move = board_stack_tmp[(current%max_nodes_per_slot)].move;
         ply++;
         // remember bf depth for xboard output
-        if (ply>COUNTERS[5])
-          COUNTERS[5] = ply;
+        if ((u64)ply>COUNTERS[5])
+          COUNTERS[5] = (u64)ply;
         domove(board, move);
         global_hashhistory[pid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
         som = !som;
@@ -1814,13 +1814,14 @@ __kernel void bestfirst_gpu(
         index = current;
       }
     }
+    // iterations counter 
+    atom_inc(global_finished);
+    // repeat selection
     if (mode==INIT||mode==SELECT)
     {
-      atom_inc(global_finished);
       continue;
     }
-    // termination counter 
-    atom_add(global_finished, 8);
+//    atom_add(global_finished, 8);
     // ################################
     // ####       updatescore      ####
     // ################################
@@ -1936,8 +1937,6 @@ __kernel void bestfirst_gpu(
     {
       s32 parent  = 0;
 
-      // expand node counter
-      COUNTERS[1]++;
       // create child nodes
       current = atom_add(board_stack_top,n);
       // check bounds
@@ -2054,7 +2053,6 @@ __kernel void bestfirst_gpu(
       s32 i = 0;
 
       // alphabeta search node counter
-      COUNTERS[2]++;
       atom_inc(total_nodes_visited);
       // movepicker
       move = MOVENONE;
@@ -2149,6 +2147,10 @@ __kernel void bestfirst_gpu(
       board_stack[(index%max_nodes_per_slot)].lock = -1;
     }
   } // end main loop
+  // set counters
+  COUNTERS[0] = (u64)*global_finished; // iterations counter
+  COUNTERS[1] = (u64)*board_stack_top;  // expanded nodes
+  COUNTERS[2] = (u64)*total_nodes_visited; // computed alphabeta nodes
   COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0; // memory full flag
 }
 
