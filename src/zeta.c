@@ -1446,7 +1446,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
+  COUNTERS = (u64*)calloc(10, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -1694,7 +1694,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   // reset counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(totalThreads*10, sizeof(u64));
+  COUNTERS = (u64*)calloc(10, sizeof(u64));
   // prepare hash history
   for(u64 i=0;i<totalThreads;i++)
   {
@@ -1723,10 +1723,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   }
 
   // collect counters
-  for (u64 i=0;i<totalThreads;i++)
-  {
-    ABNODECOUNT+=   COUNTERS[i*10+2];
-  }
+  ABNODECOUNT+=   COUNTERS[2];
 
   return 0;
 }
@@ -1768,7 +1765,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   // clear counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
+  COUNTERS = (u64*)calloc(10, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -1846,11 +1843,10 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   }
   bestscore = ISINF(score)?DRAWSCORE:score;
   // collect counters
-  for (u64 i=0; i < totalThreads; i++) {
-    ITERCOUNT+=     COUNTERS[i*10+0];
-    EXNODECOUNT+=    COUNTERS[i*10+1];
-    ABNODECOUNT+=   COUNTERS[i*10+2];
-  }
+  ITERCOUNT+=     COUNTERS[0];
+  EXNODECOUNT+=   COUNTERS[1];
+  ABNODECOUNT+=   COUNTERS[2];
+
 //  bestscore = (s32)COUNTERS[totalThreads*4+0];
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];
@@ -1961,7 +1957,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   // clear counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(10*totalThreads, sizeof(u64));
+  COUNTERS = (u64*)calloc(10, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -2023,12 +2019,11 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     }
   }
   bestscore = ISINF(score)?DRAWSCORE:score;
-  // collect counters
-  for (u64 i=0; i < totalThreads; i++) {
-    ITERCOUNT+=     COUNTERS[i*10+0];
-    EXNODECOUNT+=    COUNTERS[i*10+1];
-    ABNODECOUNT+=   COUNTERS[i*10+2];
-  }
+
+  ITERCOUNT+=     COUNTERS[0];
+  EXNODECOUNT+=   COUNTERS[1];
+  ABNODECOUNT+=   COUNTERS[2];
+
 //  bestscore = (s32)COUNTERS[totalThreads*4+0];
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];

@@ -1478,7 +1478,7 @@ __kernel void perft_gpu(
   while(mode!=EXIT)
   {
     // iterations counter
-    COUNTERS[pid*10+0]++;
+    COUNTERS[0]++;
     // ################################
     // ####     nove generator     ####
     // ################################
@@ -1522,7 +1522,7 @@ __kernel void perft_gpu(
     if (sd>search_depth)
     {
       // perft node counter
-      COUNTERS[pid*10+2]++;
+      COUNTERS[2]++;
       n = 0;
     }
 
@@ -1696,7 +1696,7 @@ __kernel void bestfirst_gpu(
       )
   {
     // iterations counter
-    COUNTERS[pid*10+0]++;
+    COUNTERS[0]++;
     // single reply and mate hack
     if (board_stack_1[0].children==1||board_stack_1[0].children==0||ISMATE(board_stack_1[0].score))
       break;
@@ -1937,7 +1937,7 @@ __kernel void bestfirst_gpu(
       s32 parent  = 0;
 
       // expand node counter
-      COUNTERS[pid*10+1]++;
+      COUNTERS[1]++;
       // create child nodes
       current = atom_add(board_stack_top,n);
       // check bounds
@@ -2054,7 +2054,7 @@ __kernel void bestfirst_gpu(
       s32 i = 0;
 
       // alphabeta search node counter
-      COUNTERS[pid*10+2]++;
+      COUNTERS[2]++;
       atom_inc(total_nodes_visited);
       // movepicker
       move = MOVENONE;

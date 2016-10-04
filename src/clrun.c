@@ -175,7 +175,7 @@ bool cl_init_objects(char *kernelname) {
   GLOBAL_INIT_BOARD_Buffer = clCreateBuffer(
                           			      context, 
                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                      sizeof(cl_ulong) * 7,
+                                      sizeof(Bitboard) * 7,
                                       GLOBAL_INIT_BOARD, 
                                       &status);
   if(status!=CL_SUCCESS) 
@@ -256,7 +256,7 @@ bool cl_init_objects(char *kernelname) {
   COUNTERS_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl_ulong) * totalThreads * 10,
+                                    sizeof(u64) * 10,
                                     COUNTERS, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -1079,7 +1079,7 @@ bool cl_get_and_release_memory()
                                 COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                10*totalThreads * sizeof(u64),
+                                10 * sizeof(u64),
                                 COUNTERS,
                                 0,
                                 NULL,
