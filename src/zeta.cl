@@ -1937,6 +1937,8 @@ __kernel void bestfirst_gpu(
     {
       s32 parent  = 0;
 
+      // expanded noded counter
+      COUNTERS[1]++;
       // create child nodes
       current = atom_add(board_stack_top,n);
       // check bounds
@@ -2149,7 +2151,6 @@ __kernel void bestfirst_gpu(
   } // end main loop
   // set counters
   COUNTERS[0] = (u64)*global_finished; // iterations counter
-  COUNTERS[1] = (u64)*board_stack_top;  // expanded nodes
   COUNTERS[2] = (u64)*total_nodes_visited; // computed alphabeta nodes
   COUNTERS[6] = (*board_stack_top>=max_nodes_to_expand)?1:0; // memory full flag
 }
