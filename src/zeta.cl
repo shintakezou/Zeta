@@ -227,7 +227,7 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
-#define MAXEVASIONSDEPTH     0               // max check evasions from qsearch
+#define MAXEVASIONSDEPTH     3               // max check evasions from qsearch
 #define SMOOTHUCT            1.00           // factor for uct params in select formula
 #define SKIPMATE             1             // 0 or 1
 #define SKIPDRAW             1            // 0 or 1
