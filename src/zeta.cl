@@ -234,8 +234,8 @@ enum Squares
 #define INCHECKEXT           1           // 0 or 1
 #define SINGLEEXT            1          // 0 or 1
 #define PROMOEXT             1         // 0 or 1
-#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
-#define SCOREWEIGHT          0.33    // factor for board score in select formula
+#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
+#define SCOREWEIGHT          0.42    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bf select formula
 #define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
 #define MAXBFPLY             128  // max ply of bf search tree
