@@ -227,14 +227,14 @@ enum Squares
 // is score default inf
 #define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
 // tuneable search parameter
-#define MAXEVASIONSDEPTH     3               // max check evasions from qsearch
+#define MAXEVASIONSDEPTH     0               // max check evasions from qsearch
 #define SMOOTHUCT            1.00           // factor for uct params in select formula
 #define SKIPMATE             1             // 0 or 1
 #define SKIPDRAW             1            // 0 or 1
 #define INCHECKEXT           1           // 0 or 1
 #define SINGLEEXT            1          // 0 or 1
 #define PROMOEXT             1         // 0 or 1
-#define ROOTSEARCH           1        // 0 or 1, distribute root nodes equaly in select phase
+#define ROOTSEARCH           0        // 0 or 1, distribute root nodes equaly in select phase
 #define SCOREWEIGHT          0.33    // factor for board score in select formula
 #define BROADWELL            1      // 0 or 1, will apply bf select formula
 #define DEPTHWELL            32    // 0 to totalThreads, every nth thread will search depth wise
@@ -1748,13 +1748,13 @@ __kernel void bestfirst_gpu(
           continue;
         // get node block score
         tmpscoreb = (float)-board_stack_tmp[(child%max_nodes_per_slot)].score;
-        tmpscoreb/=10; // back to centipawn based scores
         // skip draw score
         if (SKIPDRAW&&tmpscoreb==DRAWSCORE)
             continue;
         // skip check mate
         if (SKIPMATE&&index>0&&ISMATE(tmpscoreb))
             continue;
+        tmpscoreb/=10; // back to centipawn based scores
         // on root node deliver work via visit counter
         if (ROOTSEARCH&&index==0)
         {
