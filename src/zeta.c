@@ -1739,7 +1739,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   Move bestmove = MOVENONE;
   Score bestscore = 0;
   s32 plyreached = 0;
-  s32 bestmoveply = 0;
+  s32 scoreply = 0;
   double start, end;
 
   ITERCOUNT   = 0;
@@ -1851,7 +1851,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];
   MEMORYFULL = COUNTERS[6];
-  bestmoveply = COUNTERS[7];
+  scoreply = COUNTERS[7];
   // timers
   end = get_time();
   elapsed = end-start;
@@ -1868,18 +1868,18 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   {
     if (xboard_mode==false)
     { 
-      fprintf(stdout, "depth score time nodes bfdepth pv \n");
+      fprintf(stdout, "depth score time nodes pv \n");
     }
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile, "depth score time nodes bfdepth pv \n");
+      fprintf(LogFile, "depth score time nodes pv \n");
     }
-    fprintf(stdout,"%i %i %i %" PRIu64 " %i 	", bestmoveply, xboard_score, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
+    fprintf(stdout,"%i %i %i %" PRIu64, plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile,"%i %i %i %" PRIu64 " %i 	", bestmoveply, xboard_score, (s32 )(elapsed*100), ABNODECOUNT, plyreached);          
+      fprintf(LogFile,"%i %i %i %" PRIu64, plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
     }
     printmovecan(bestmove);
     fprintf(stdout,"\n");
@@ -1893,7 +1893,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     fprintf(stdout, "#Expaned-Nodes: %" PRIu64 "\n", EXNODECOUNT);
     fprintf(stdout, "#AB-Nodes: %" PRIu64 "\n", ABNODECOUNT);
     fprintf(stdout, "#BF-Depth: %d\n", plyreached);
-    fprintf(stdout, "#ScoreDepth: %d\n", bestmoveply);
+    fprintf(stdout, "#ScoreDepth: %d\n", scoreply);
     fprintf(stdout, "#Memory full: %" PRIu64 "\n", COUNTERS[6]);
     fprintf(stdout, "#Score: %d\n", xboard_score);
     fprintf(stdout, "#nps: %" PRIu64 "\n", (u64)(ABNODECOUNT/elapsed));
@@ -1910,7 +1910,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     fprintdate(LogFile);
     fprintf(LogFile, "#BF-Depth: %d\n", plyreached);
     fprintdate(LogFile);
-    fprintf(LogFile, "#ScoreDepth: %d\n", bestmoveply);
+    fprintf(LogFile, "#ScoreDepth: %d\n", scoreply);
     fprintdate(LogFile);
     fprintf(LogFile, "#Memory full: %" PRIu64 "\n", COUNTERS[6]);
     fprintdate(LogFile);
@@ -2031,7 +2031,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];
   MEMORYFULL = COUNTERS[6];
-//  bestmoveply = COUNTERS[7];
+//  scoreply = COUNTERS[7];
   // print cli output
   fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
   fprintf(stdout, " move ");
