@@ -208,7 +208,7 @@ bool cl_init_objects(char *kernelname) {
     return false;
   }
 
-  COUNTERS_Buffer = clCreateBuffer(
+  GLOBAL_COUNTERS_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                     sizeof(u64) * 64,
@@ -216,7 +216,7 @@ bool cl_init_objects(char *kernelname) {
                                     &status);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: clCreateBuffer (COUNTERS_Buffer)\n");
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
 
@@ -286,10 +286,10 @@ bool cl_run_alphabeta(bool stm, s32 depth)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&COUNTERS_Buffer);
+                          (void *)&GLOBAL_COUNTERS_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (COUNTERS_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
   i++;
@@ -389,7 +389,7 @@ bool cl_run_alphabeta(bool stm, s32 depth)
     return false;
   }
 
-  // wair for kernel to finish execution
+  // wait for kernel to finish execution
   status = clFinish(commandQueue);
   if(status!=CL_SUCCESS) 
   { 
@@ -408,7 +408,7 @@ bool cl_get_and_release_memory()
   // copy counters buffer
   status = clEnqueueReadBuffer(
                                 commandQueue,
-                                COUNTERS_Buffer,
+                                GLOBAL_COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
                                 64 * sizeof(u64),
@@ -419,20 +419,20 @@ bool cl_get_and_release_memory()
 
   if(status!=CL_SUCCESS)
   {
-    print_debug((char *)"Error: clEnqueueReadBuffer failed. (COUNTERS_Buffer)\n");
+    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
   // wait for the read buffer to finish execution
   status = clWaitForEvents(1, &events[1]);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Waiting for read buffer call to finish. (COUNTERS_Buffer)\n");
+    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
   status = clReleaseEvent(events[1]);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Release event object.(COUNTERS_Buffer)\n");
+    print_debug((char *)"Error: Release event object.(GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
 
@@ -543,10 +543,10 @@ bool cl_get_and_release_memory()
     return false; 
   }
 
-  status = clReleaseMemObject(COUNTERS_Buffer);
+  status = clReleaseMemObject(GLOBAL_COUNTERS_Buffer);
   if(status!=CL_SUCCESS)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (COUNTERS_Buffer)\n");
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_COUNTERS_Buffer)\n");
     return false; 
   }
 

@@ -54,7 +54,7 @@ extern Move *GLOBAL_HASHHISTORY;
 cl_mem   GLOBAL_BOARD_Buffer;
 cl_mem	 GLOBAL_RETURN_SCORE_Buffer;
 cl_mem   GLOBAL_NODECOUNT_Buffer;
-cl_mem	 COUNTERS_Buffer;
+cl_mem	 GLOBAL_COUNTERS_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 // OpenCL runtime objects
 cl_context          context;
