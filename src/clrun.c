@@ -32,6 +32,7 @@ size_t globalThreads[3];
 size_t localThreads[3];
 
 s32 temp = 0;
+u64 templong = 0;
 
 extern s32 load_file_to_string(const char *filename, char **result);
 void print_debug(char *debug);
@@ -158,8 +159,6 @@ bool cl_init_device()
 // initialize OpenCL objects, called every search run
 bool cl_init_objects(char *kernelname) {
 
-  cl_event events[2];
-
   // create command queue
   commandQueue = clCreateCommandQueue(
 		                                   context, 
@@ -172,91 +171,47 @@ bool cl_init_objects(char *kernelname) {
 	  return false;
 	}
   // create memory buffers
-  GLOBAL_INIT_BOARD_Buffer = clCreateBuffer(
+  GLOBAL_BOARD_Buffer = clCreateBuffer(
                           			      context, 
                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                      sizeof(Bitboard) * 7,
-                                      GLOBAL_INIT_BOARD, 
+                                      sizeof(cl_ulong) * 7,
+                                      GLOBAL_BOARD, 
                                       &status);
   if(status!=CL_SUCCESS) 
 	{ 
-		print_debug((char *)"Error: clCreateBuffer (GLOBAL_INIT_BOARD_Buffer)\n");
+		print_debug((char *)"Error: clCreateBuffer (GLOBAL_BOARD_Buffer)\n");
 		return false;
 	}
 
-  GLOBAL_BOARD_STACK_1_Buffer = clCreateBuffer(
+  GLOBAL_RETURN_SCORE_Buffer = clCreateBuffer(
                         	              context, 
                                         CL_MEM_READ_WRITE,
-                                        sizeof(NodeBlock) * max_nodes_to_expand,
+                                        sizeof(Score) * 1,
                                         NULL, 
                                         &status);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_RETURN_SCORE_Buffer)\n");
     return false;
   }
 
-  // write first node to node tree buffer
-  status = clEnqueueWriteBuffer(
-                                commandQueue,
-                                GLOBAL_BOARD_STACK_1_Buffer,
-                                CL_TRUE,
-                                0,
-                                sizeof(NodeBlock) * 1,
-                                NODES,
-                                0,
-                                NULL,
-                                &events[1]);
-        
+  templong = 0ULL;
+  GLOBAL_NODECOUNT_Buffer = clCreateBuffer(
+                        	              context, 
+                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                        sizeof(u64) * 1,
+                                        &templong, 
+                                        &status);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_NODECOUNT_Buffer)\n");
     return false;
   }
-  // wait for the write buffer to finish execution
-  status = clWaitForEvents(1, &events[1]);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Waiting for write buffer call to finish. (GLOBAL_BOARD_STACK_1_Buffer)\n");
-    return false;
-  }
-  status = clReleaseEvent(events[1]);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Release event object.(GLOBAL_BOARD_STACK_1_Buffer)\n");
-    return false;
-  }
-
-  temp = (memory_slots >= 2)? max_nodes_to_expand : 1;
-  GLOBAL_BOARD_STACK_2_Buffer = clCreateBuffer(
-                                                context, 
-                                                CL_MEM_READ_WRITE,
-                                                sizeof(NodeBlock) * temp,
-                                                NULL, 
-                                                &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_BOARD_STACK_2_Buffer)\n");
-    return false;
-  }   
-
-  temp = (memory_slots >= 3)? max_nodes_to_expand : 1;
-  GLOBAL_BOARD_STACK_3_Buffer = clCreateBuffer(
-                                                context, 
-                                                CL_MEM_READ_WRITE,
-                                                sizeof(NodeBlock) * temp,
-                                                NULL, 
-                                                &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_BOARD_STACK_3_Buffer)\n");
-    return false;
-  }   
 
   COUNTERS_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(u64) * 10,
+                                    sizeof(u64) * 64,
                                     COUNTERS, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -265,135 +220,10 @@ bool cl_init_objects(char *kernelname) {
     return false;
   }
 
-  temp = BOARD_STACK_TOP;
-  GLOBAL_BOARD_STAK_TOP_Buffer = clCreateBuffer(
-                            			     context, 
-                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(cl_int) *  1,
-                                       &temp, 
-                                       &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_BOARD_STAK_TOP_Buffer)\n");
-    return false;
-  }
-
-  temp = 0;
-  GLOBAL_TOTAL_NODES_Buffer = clCreateBuffer(
-                            			     context, 
-                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(cl_int) *  1,
-                                       &temp, 
-                                       &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_TOTAL_NODES_Buffer)\n");
-    return false;
-  }
-
-  temp = 0;
-  GLOBAL_FINISHED_Buffer = clCreateBuffer(
-                            			     context, 
-                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(cl_int) * 1,
-                                       &temp, 
-                                       &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_FINISHED_Buffer)\n");
-    return false;
-  }
-
-
-  GLOBAL_PID_MOVECOUNTER_Buffer = clCreateBuffer(
-	                          		     context, 
-                                     CL_MEM_READ_WRITE,
-                                     sizeof(cl_int) * totalThreads * max_depth,
-                                     NULL, 
-                                     &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_MOVECOUNTER_Buffer)\n");
-    return false;
-  }
-
-  GLOBAL_PID_TODOINDEX_Buffer = clCreateBuffer(
-                        			       context, 
-                                     CL_MEM_READ_WRITE,
-                                     sizeof(cl_int) * totalThreads * max_depth,
-                                     NULL, 
-                                     &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_TODOINDEX_Buffer)\n");
-    return false;
-  }
-
-  GLOBAL_PID_AB_SCORES_Buffer = clCreateBuffer(
-                      			     context, 
-                                 CL_MEM_READ_WRITE,
-                                 sizeof(cl_int) * totalThreads * max_depth * 2,
-                                 NULL, 
-                                 &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_AB_SCORES_Buffer)\n");
-    return false;
-  }
-
-
-  GLOBAL_PID_DEPTHS_Buffer = clCreateBuffer(
-                        		     context, 
-                                 CL_MEM_READ_WRITE,
-                                 sizeof(cl_int) * totalThreads * max_depth,
-                                 NULL, 
-                                 &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_DEPTHS_Buffer)\n");
-    return false;
-  }
-
-  GLOBAL_PID_MOVES_Buffer = clCreateBuffer(
-                  			     context, 
-                             CL_MEM_READ_WRITE,
-                             sizeof(Move) * totalThreads * max_depth * MAXMOVES,
-                             NULL, 
-                             &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_MOVES_Buffer)\n");
-    return false;
-  }
-
-  GLOBAL_PID_MOVE_HISTORY_Buffer = clCreateBuffer(
-                              		     context, 
-                                       CL_MEM_READ_WRITE,
-                                       sizeof(Move) * totalThreads * max_depth,
-                                       NULL, 
-                                       &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_MOVE_HISTORY_Buffer)\n");
-    return false;
-  }
-
-  GLOBAL_PID_CR_HISTORY_Buffer = clCreateBuffer(
-                              		     context, 
-                                       CL_MEM_READ_WRITE,
-                                       sizeof(Move) * totalThreads * max_depth,
-                                       NULL, 
-                                       &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL__PID_CR_HISTORY_Buffer)\n");
-    return false;
-  }
-
   GLOBAL_HASHHISTORY_Buffer = clCreateBuffer(
                             			     context, 
                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(Hash) * totalThreads*1024,
+                                       sizeof(Hash) * totalThreads*MAXGAMEPLY,
                                        GLOBAL_HASHHISTORY, 
                                        &status);
   if(status!=CL_SUCCESS) 
@@ -406,13 +236,13 @@ bool cl_init_objects(char *kernelname) {
   kernel = clCreateKernel(program, kernelname, &status);
   if(status!=CL_SUCCESS) 
   {  
-    print_debug((char *)"Error: Creating Kernel for bestfirst_gpu. (clCreateKernel)\n");
+    print_debug((char *)"Error: Creating Kernel for gpu. (clCreateKernel)\n");
     return false;
   }
 	return true;
 }
 // run OpenCL bestfirst kernel, every search
-bool cl_run_search(bool stm, s32 depth)
+bool cl_run_alphabeta(bool stm, s32 depth)
 {
   s32 i = 0;
   // set kernel arguments
@@ -420,10 +250,10 @@ bool cl_run_search(bool stm, s32 depth)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_INIT_BOARD_Buffer);
+                          (void *)&GLOBAL_BOARD_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_INIT_BOARD_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_Buffer)\n");
     return false;
   }
   i++;
@@ -432,10 +262,10 @@ bool cl_run_search(bool stm, s32 depth)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STACK_1_Buffer);
+                          (void *)&GLOBAL_RETURN_SCORE_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_RETURN_SCORE_Buffer)\n");
     return false;
   }
   i++;
@@ -444,22 +274,10 @@ bool cl_run_search(bool stm, s32 depth)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STACK_2_Buffer);
+                          (void *)&GLOBAL_NODECOUNT_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_2_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STACK_3_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_3_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_NODECOUNT_Buffer)\n");
     return false;
   }
   i++;
@@ -472,127 +290,6 @@ bool cl_run_search(bool stm, s32 depth)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (COUNTERS_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STAK_TOP_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. ( GLOBAL_BOARD_STAK_TOP_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_TOTAL_NODES_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. ( GLOBAL_TOTAL_NODES_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_FINISHED_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_FINISHED_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_MOVECOUNTER_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVECOUNTER_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_TODOINDEX_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_TODOINDEX_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_AB_SCORES_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_AB_SCORES_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_DEPTHS_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_DEPTHS_Buffer)\n");
-    return false;
-  }
-  i++;
-
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_MOVES_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVES_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_MOVE_HISTORY_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVE_HISTORY_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_CR_HISTORY_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_CR_HISTORY_Buffer)\n");
     return false;
   }
   i++;
@@ -641,36 +338,11 @@ bool cl_run_search(bool stm, s32 depth)
                           (void *)&depth);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (max_ab_depth)\n");
+    print_debug((char *)"Error: Setting kernel argument. (search_depth)\n");
     return false;
   }
   i++;
 
-  temp = max_nodes_to_expand*memory_slots;
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&temp);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (max_nodes_to_expand)\n");
-    return false;
-  }
-  i++;
-
-  temp = max_nodes_to_expand;
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&temp);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. ( max_nodes_per_slot)\n");
-    return false;
-  }
-  i++;
 
   status = clSetKernelArg(
                           kernel, 
@@ -679,19 +351,7 @@ bool cl_run_search(bool stm, s32 depth)
                           (void *)&MaxNodes);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (MaxNodes)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&max_depth);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (max_depth)\n");
+    print_debug((char *)"Error: Setting kernel argument. (max_nodes)\n");
     return false;
   }
   i++;
@@ -699,339 +359,11 @@ bool cl_run_search(bool stm, s32 depth)
   // enqueue a kernel run call.
   globalThreads[0] = threadsX;
   globalThreads[1] = threadsY;
-  globalThreads[2] = threadsZ;
+  globalThreads[2] = 64;
 
   localThreads[0]  = 1;
   localThreads[1]  = 1;
-  localThreads[2]  = threadsZ;
-
-  status = clEnqueueNDRangeKernel(
-	                                 commandQueue,
-                                   kernel,
-                                   maxDims,
-                                   NULL,
-                                   globalThreads,
-                                   localThreads,
-                                   0,
-                                   NULL,
-                                   NULL);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)\n");
-    return false;
-  }
-
-  // flush command queueu
-  status = clFlush(commandQueue);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: flushing the Kernel. (clFlush)\n");
-    return false;
-  }
-
-  // wair for kernel to finish execution
-  status = clFinish(commandQueue);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Waiting for kernel run to finish. (clFinish)\n");
-    return false;
-  }
-
-  return true;
-}
-// run OpenCL bestfirst kernel, every search
-bool cl_run_perft(bool stm, s32 depth)
-{
-  s32 i = 0;
-  // set kernel arguments
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_INIT_BOARD_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_INIT_BOARD_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STACK_1_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_1_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STACK_2_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_2_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STACK_3_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_STACK_3_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&COUNTERS_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (COUNTERS_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_BOARD_STAK_TOP_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. ( GLOBAL_BOARD_STAK_TOP_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_TOTAL_NODES_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. ( GLOBAL_TOTAL_NODES_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_FINISHED_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_FINISHED_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_MOVECOUNTER_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVECOUNTER_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_TODOINDEX_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_TODOINDEX_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_AB_SCORES_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_AB_SCORES_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_DEPTHS_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_DEPTHS_Buffer)\n");
-    return false;
-  }
-  i++;
-
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_MOVES_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVES_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_MOVE_HISTORY_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_MOVE_HISTORY_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_PID_CR_HISTORY_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PID_CR_HISTORY_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_HASHHISTORY_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_HASHHISTORY_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  temp = (s32)stm;
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&temp);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (stm)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&PLY);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (PLY)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&depth);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (max_ab_depth)\n");
-    return false;
-  }
-  i++;
-
-  temp = max_nodes_to_expand*memory_slots;
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&temp);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (max_nodes_to_expand)\n");
-    return false;
-  }
-  i++;
-
-  temp = max_nodes_to_expand;
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&temp);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. ( max_nodes_per_slot)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_long), 
-                          (void *)&MaxNodes);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (MaxNodes)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_int), 
-                          (void *)&max_depth);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (max_depth)\n");
-    return false;
-  }
-  i++;
-
-  // enqueue a kernel run call.
-  globalThreads[0] = 1;
-  globalThreads[1] = 1;
-  globalThreads[2] = 1;
-
-  localThreads[0]  = 1;
-  localThreads[1]  = 1;
-  localThreads[2]  = 1;
+  localThreads[2]  = 64;
 
   status = clEnqueueNDRangeKernel(
 	                                 commandQueue,
@@ -1079,7 +411,7 @@ bool cl_get_and_release_memory()
                                 COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                10 * sizeof(u64),
+                                64 * sizeof(u64),
                                 COUNTERS,
                                 0,
                                 NULL,
@@ -1087,51 +419,82 @@ bool cl_get_and_release_memory()
 
   if(status!=CL_SUCCESS)
   {
-    print_debug((char *)"Error: clEnqueueReadBuffer failed. (CountersBuffer)\n");
+    print_debug((char *)"Error: clEnqueueReadBuffer failed. (COUNTERS_Buffer)\n");
     return false;
   }
   // wait for the read buffer to finish execution
   status = clWaitForEvents(1, &events[1]);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Waiting for read buffer call to finish. (CountersBuffer)\n");
+    print_debug((char *)"Error: Waiting for read buffer call to finish. (COUNTERS_Buffer)\n");
     return false;
   }
   status = clReleaseEvent(events[1]);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Release event object.(CountersBuffer)\n");
+    print_debug((char *)"Error: Release event object.(COUNTERS_Buffer)\n");
     return false;
   }
 
-  // copy first 256+1 nodes from tree, for bestmove selection
+  // copy computed score 
   status = clEnqueueReadBuffer(
                                 commandQueue,
-                                GLOBAL_BOARD_STACK_1_Buffer,
+                                GLOBAL_RETURN_SCORE_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(NodeBlock) * MAXMOVES+1,
-                                NODES,
+                                sizeof(Score) * 1,
+                                &GPUSCORE,
                                 0,
                                 NULL,
                                 &events[1]);
 
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_RETURN_SCORE_Buffer)\n");
     return false;
   }
   // wait for the read buffer to finish execution
   status = clWaitForEvents(1, &events[1]);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_RETURN_SCORE_Buffer)\n");
     return false;
   }
   status = clReleaseEvent(events[1]);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Release event object.(GLOBAL_BOARD_STACK_1_Buffer)\n");
+    print_debug((char *)"Error: Release event object.(GLOBAL_RETURN_SCORE_Buffer)\n");
+    return false;
+  }
+
+  // copy alpha beta nodecount
+  status = clEnqueueReadBuffer(
+                                commandQueue,
+                                GLOBAL_NODECOUNT_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(u64) * 1,
+                                &ABNODECOUNT,
+                                0,
+                                NULL,
+                                &events[1]);
+
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_NODECOUNT_Buffer)\n");
+    return false;
+  }
+  // wait for the read buffer to finish execution
+  status = clWaitForEvents(1, &events[1]);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_NODECOUNT_Buffer)\n");
+    return false;
+  }
+  status = clReleaseEvent(events[1]);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Release event object.(GLOBAL_NODECOUNT_Buffer)\n");
     return false;
   }
 
@@ -1151,6 +514,7 @@ bool cl_get_and_release_memory()
     return false; 
   }
 */
+  // TODO: keep command queue and buffers across game play?
   status = clReleaseCommandQueue(commandQueue);
   if(status!=CL_SUCCESS)
   {
@@ -1158,31 +522,24 @@ bool cl_get_and_release_memory()
     return false;
   }
 
-  status = clReleaseMemObject(GLOBAL_INIT_BOARD_Buffer);
+  status = clReleaseMemObject(GLOBAL_BOARD_Buffer);
   if(status!=CL_SUCCESS)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_INIT_BOARD_Buffer)\n");
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_Buffer)\n");
     return false; 
   }
 
-  status = clReleaseMemObject(GLOBAL_BOARD_STACK_1_Buffer);
+  status = clReleaseMemObject(GLOBAL_RETURN_SCORE_Buffer);
   if(status!=CL_SUCCESS)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_STACK_1_Buffer)\n");
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RETURN_SCORE_Buffer)\n");
     return false; 
   }
 
-  status = clReleaseMemObject(GLOBAL_BOARD_STACK_2_Buffer);
+  status = clReleaseMemObject(GLOBAL_NODECOUNT_Buffer);
   if(status!=CL_SUCCESS)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_STACK_2_Buffer)\n");
-    return false; 
-  }
-
-  status = clReleaseMemObject(GLOBAL_BOARD_STACK_3_Buffer);
-  if(status!=CL_SUCCESS)
-  {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_STACK_3_Buffer)\n");
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_NODECOUNT_Buffer)\n");
     return false; 
   }
 
@@ -1192,76 +549,6 @@ bool cl_get_and_release_memory()
     print_debug((char *)"Error: In clReleaseMemObject (COUNTERS_Buffer)\n");
     return false; 
   }
-
-	status = clReleaseMemObject(GLOBAL_BOARD_STAK_TOP_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_STAK_TOP_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_TOTAL_NODES_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TOTAL_NODES_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_FINISHED_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_FINISHED_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PID_MOVECOUNTER_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PID_MOVECOUNTER_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PID_TODOINDEX_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TODOINDEX_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PID_AB_SCORES_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_AB_SCORES_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PID_DEPTHS_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_DEPTHS_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PID_MOVES_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PID_MOVES_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PID_MOVE_HISTORY_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PID_MOVE_HISTORY_Buffer)\n");
-		return false; 
-	}
-
-	status = clReleaseMemObject(GLOBAL_PID_CR_HISTORY_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PID_CR_HISTORY_Buffer)\n");
-		return false; 
-	}
 
 	status = clReleaseMemObject(GLOBAL_HASHHISTORY_Buffer);
   if(status!=CL_SUCCESS)

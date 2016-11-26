@@ -15,5 +15,6 @@ zeta:
 
 
 clean:
+	rm -f zetacl.h
 	rm -f ${TARGETS}
 

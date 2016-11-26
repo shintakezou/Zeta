@@ -42,6 +42,7 @@ u64 EXNODECOUNT = 0;
 u64 ABNODECOUNT = 0;
 u64 MOVECOUNT = 0;
 u64 MEMORYFULL = 0;
+Score GPUSCORE;
 // config file
 u64 threadsX            =  0;
 u64 threadsY            =  0;
@@ -102,7 +103,7 @@ Bitboard BOARD[7];
   5   lastmove
 */
 // for exchange with OpenCL device
-Bitboard *GLOBAL_INIT_BOARD = NULL;
+Bitboard *GLOBAL_BOARD = NULL;
 NodeBlock *NODES = NULL;
 u64 *COUNTERS = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
@@ -123,7 +124,7 @@ s32 load_file_to_string(const char *filename, char **result);
 // cl functions
 extern bool cl_init_device();
 extern bool cl_init_objects();
-extern bool cl_run_search(bool stm, s32 depth);
+extern bool cl_run_alphabeta(bool stm, s32 depth);
 extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
@@ -492,7 +493,7 @@ void release_gameinits()
 void release_configinits()
 {
   // opencl related
-  free(GLOBAL_INIT_BOARD);
+  free(GLOBAL_BOARD);
   free(COUNTERS);
   free(NODES);
   free(GLOBAL_HASHHISTORY);
@@ -1421,20 +1422,21 @@ bool read_and_init_config(char configfile[])
   else
     MaxNodes = max_nodes;
 
-  totalThreads = threadsX*threadsY*threadsZ;
+  totalThreads = threadsX*threadsY;
 
   // allocate memory
-  GLOBAL_INIT_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
-  if (GLOBAL_INIT_BOARD==NULL)
+  GLOBAL_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
+  if (GLOBAL_BOARD==NULL)
   {
-    fprintf(stdout, "memory alloc, GLOBAL_INIT_BOARD, failed\n");
+    fprintf(stdout, "memory alloc, GLOBAL_BOARD, failed\n");
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, GLOBAL_INIT_BOARD, failed\n");
+      fprintf(LogFile, "memory alloc, GLOBAL_BOARD, failed\n");
     }
     return false;
   }
+/*
   NODES = (NodeBlock*)calloc((MAXMOVES+1), sizeof(NodeBlock));
   if (NODES==NULL)
   {
@@ -1446,7 +1448,8 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  COUNTERS = (u64*)calloc(10, sizeof(u64));
+*/
+  COUNTERS = (u64*)calloc(64, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -1457,7 +1460,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  GLOBAL_HASHHISTORY = (Hash*)malloc((totalThreads*1024) * sizeof (Hash));
+  GLOBAL_HASHHISTORY = (Hash*)malloc((totalThreads*MAXGAMEPLY) * sizeof (Hash));
   if (GLOBAL_HASHHISTORY==NULL)
   {
     fprintf(stdout, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
@@ -1588,11 +1591,11 @@ static void selftest(void)
     }
     else
     {
-      fprintf(stdout,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
+      fprintf(stdout,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d. in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, nodecounts[done], SD, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
       if (LogFile)
       {
         fprintdate(LogFile);
-        fprintf(LogFile,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d.\n", ABNODECOUNT, nodecounts[done], SD);
+        fprintf(LogFile,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d. in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, nodecounts[done], SD, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
       }
     }
   }
@@ -1690,26 +1693,26 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   MEMORYFULL  = 0;
 
   // init board
-  memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // reset counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(10, sizeof(u64));
+  COUNTERS = (u64*)calloc(64, sizeof(u64));
   // prepare hash history
   for(u64 i=0;i<totalThreads;i++)
   {
-    memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY* sizeof(Hash));
   }
 
   start = get_time(); 
 
-  state = cl_init_objects("perft_gpu");
+  state = cl_init_objects("alphabeta_gpu");
   // something went wrong...
   if (!state)
   {
     quitengine(EXIT_FAILURE);
   }
-  state = cl_run_perft(stm, depth);
+  state = cl_run_alphabeta(stm, depth);
   // something went wrong...
   if (!state)
   {
@@ -1723,7 +1726,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   }
 
   // collect counters
-  ABNODECOUNT+=   COUNTERS[2];
+//  ABNODECOUNT+=   COUNTERS[2];
 
   return 0;
 }
@@ -1761,11 +1764,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   NODES[0].lock                =  0; // assign root node to process 0   
 
   // init board
-  memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // clear counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(10, sizeof(u64));
+  COUNTERS = (u64*)calloc(64, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -1779,7 +1782,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   // prepare hash history
   for(u64 i=0;i<totalThreads;i++)
   {
-    memcpy(&GLOBAL_HASHHISTORY[i*1024], HashHistory, 1024* sizeof(Hash));
+    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY* sizeof(Hash));
   }
   // call GPU functions
 /*
@@ -1796,7 +1799,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   {
     quitengine(EXIT_FAILURE);
   }
-  state = cl_run_search(stm, depth);
+  state = cl_run_alphabeta(stm, depth);
   // something went wrong...
   if (!state)
   {
@@ -1956,11 +1959,11 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   NODES[0].lock                =  0; // assign root node to process 0   
 
   // init board
-  memcpy(GLOBAL_INIT_BOARD, board, 7*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // clear counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(10, sizeof(u64));
+  COUNTERS = (u64*)calloc(64, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -1982,7 +1985,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     return -1;
   }
   // run  benchmark
-  if (!cl_run_search(stm, depth))
+  if (!cl_run_alphabeta(stm, depth))
   {
     return -1;
   }
