@@ -175,11 +175,6 @@ bool cl_init_device(char *kernelname)
 	  return false;
 	}
 
-  return true;
-}
-// initialize OpenCL objects, called every search run
-bool cl_init_objects() {
-
   // create memory buffers
   GLOBAL_BOARD_Buffer = clCreateBuffer(
                           			      context, 
@@ -241,6 +236,90 @@ bool cl_init_objects() {
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_HASHHISTORY_Buffer)\n");
     return false;
   }
+
+  return true;
+}
+// write OpenCL memory buffers, called every search run
+bool cl_init_objects() {
+
+  // write buffers
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
+                                GLOBAL_BOARD_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(cl_ulong) * 7,
+                                GLOBAL_BOARD, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_BOARD_Buffer)\n");
+    return false;
+  }
+
+  templong = 0ULL;
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
+                                GLOBAL_NODECOUNT_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(cl_ulong) * 1,
+                                &templong, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_NODECOUNT_Buffer)\n");
+    return false;
+  }
+
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
+                                GLOBAL_COUNTERS_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(cl_ulong) * 7,
+                                COUNTERS, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_COUNTERS_Buffer)\n");
+    return false;
+  }
+
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
+                                GLOBAL_HASHHISTORY_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(Hash) * totalThreads*MAXGAMEPLY,
+                                GLOBAL_HASHHISTORY, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_HASHHISTORY_Buffer)\n");
+    return false;
+  }
+
+  // flush command queueu
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory writes. (clFlush)\n");
+    return false;
+  }
+
 
 	return true;
 }
@@ -510,6 +589,13 @@ bool cl_get_and_release_memory()
     return false; 
   }
 */
+
+	return true;
+}
+// release OpenCL device, once by exit
+bool cl_release_device() {
+
+  // release memory buffers
   status = clReleaseMemObject(GLOBAL_BOARD_Buffer);
   if(status!=CL_SUCCESS)
   {
@@ -544,11 +630,6 @@ bool cl_get_and_release_memory()
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_HASHHISTORY_Buffer)\n");
 		return false; 
 	}
-
-	return true;
-}
-// release OpenCL device, once by exit
-bool cl_release_device() {
 
   // release cl objects
   status = clReleaseKernel(kernel);
