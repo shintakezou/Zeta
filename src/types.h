@@ -84,6 +84,7 @@ typedef struct
   48  - 63  move score, signed 16 bit
 */
 // engine defaults
+#define MAXPLY      64      // max internal search ply
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare

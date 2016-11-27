@@ -122,7 +122,7 @@ void printbitboard(Bitboard board);
 bool read_and_init_config();
 s32 load_file_to_string(const char *filename, char **result);
 // cl functions
-extern bool cl_init_device();
+extern bool cl_init_device(char *kernelname);
 extern bool cl_init_objects();
 extern bool cl_run_alphabeta(bool stm, s32 depth);
 extern bool cl_run_perft(bool stm, s32 depth);
@@ -1500,7 +1500,8 @@ static void selftest(void)
 {
   u64 done;
   u64 passed = 0;
-  const u64 todo = 20;
+//  const u64 todo = 20;
+  const u64 todo = 4;
 
   char fenpositions[20][256]  =
   {
@@ -2070,7 +2071,7 @@ s32 benchmarkWrapper(s32 benchsec)
     release_configinits();
     return -1;
   }
-  if (!cl_init_device())
+  if (!cl_init_device("alphabeta_gpu"))
   {
     release_gameinits();
     release_configinits();
@@ -2185,7 +2186,7 @@ int main(int argc, char* argv[])
         break;
       case 2:
         // init engine and game memory, read config ini file and init OpenCL device
-        if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
+        if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device("alphabeta_gpu"))
         {
           quitengine(EXIT_FAILURE);
         }
@@ -2239,7 +2240,7 @@ int main(int argc, char* argv[])
     fprintf(LogFile,"feature done=0\n");  
   }
   // init engine and game memory, read config ini file and init OpenCL device
-  if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device())
+  if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device("alphabeta_gpu"))
   {
     quitengine(EXIT_FAILURE);
   }

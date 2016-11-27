@@ -38,7 +38,7 @@ extern s32 load_file_to_string(const char *filename, char **result);
 void print_debug(char *debug);
 
 // initialize OpenCL device, called once per game
-bool cl_init_device()
+bool cl_init_device(char *kernelname)
 {
   context = NULL;
   kernel  = NULL;
@@ -154,10 +154,14 @@ bool cl_init_device()
       return false;
     }
   }
-  return true;
-}
-// initialize OpenCL objects, called every search run
-bool cl_init_objects(char *kernelname) {
+
+  // create kernel
+  kernel = clCreateKernel(program, kernelname, &status);
+  if(status!=CL_SUCCESS) 
+  {  
+    print_debug((char *)"Error: Creating Kernel for gpu. (clCreateKernel)\n");
+    return false;
+  }
 
   // create command queue
   commandQueue = clCreateCommandQueue(
@@ -170,6 +174,12 @@ bool cl_init_objects(char *kernelname) {
 	  print_debug((char *)"Creating Command Queue. (clCreateCommandQueue)\n");
 	  return false;
 	}
+
+  return true;
+}
+// initialize OpenCL objects, called every search run
+bool cl_init_objects() {
+
   // create memory buffers
   GLOBAL_BOARD_Buffer = clCreateBuffer(
                           			      context, 
@@ -232,13 +242,6 @@ bool cl_init_objects(char *kernelname) {
     return false;
   }
 
-  // create kernel
-  kernel = clCreateKernel(program, kernelname, &status);
-  if(status!=CL_SUCCESS) 
-  {  
-    print_debug((char *)"Error: Creating Kernel for gpu. (clCreateKernel)\n");
-    return false;
-  }
 	return true;
 }
 // run OpenCL bestfirst kernel, every search
@@ -498,13 +501,6 @@ bool cl_get_and_release_memory()
     return false;
   }
 
-  // release cl objects
-  status = clReleaseKernel(kernel);
-  if(status!=CL_SUCCESS)
-  {
-    print_debug((char *)"Error: In clReleaseKernel \n");
-    return false; 
-  }
 /* keep build program across game play
 
   status = clReleaseProgram(program);
@@ -514,14 +510,6 @@ bool cl_get_and_release_memory()
     return false; 
   }
 */
-  // TODO: keep command queue and buffers across game play?
-  status = clReleaseCommandQueue(commandQueue);
-  if(status!=CL_SUCCESS)
-  {
-    print_debug((char *)"Error: In clReleaseCommandQueue\n");
-    return false;
-  }
-
   status = clReleaseMemObject(GLOBAL_BOARD_Buffer);
   if(status!=CL_SUCCESS)
   {
@@ -561,6 +549,21 @@ bool cl_get_and_release_memory()
 }
 // release OpenCL device, once by exit
 bool cl_release_device() {
+
+  // release cl objects
+  status = clReleaseKernel(kernel);
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: In clReleaseKernel \n");
+    return false; 
+  }
+
+  status = clReleaseCommandQueue(commandQueue);
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: In clReleaseCommandQueue\n");
+    return false;
+  }
 
   if (program!=NULL)
   {
