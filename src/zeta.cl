@@ -1186,8 +1186,8 @@ __kernel void alphabeta_gpu(
   localMoveCounter[sd]  = 0;
   localTodoIndex[0]     = 0;
   localTodoIndex[sd]    = 0;
-  localMoveIndexHistory[0]  = (float)INF;
-  localMoveIndexHistory[sd] = (float)INF;
+  localMoveIndexHistory[0]  = INF;
+  localMoveIndexHistory[sd] = INF;
   localMoveHistory[0]   = board[QBBLAST];
   localCrHistory[sd]    = board[QBBPMVD];
   localHashHistory[sd]  = board[QBBHASH];
@@ -1204,7 +1204,7 @@ __kernel void alphabeta_gpu(
     // ################################
     // resets
     tmpmoves[lid] = MOVENONE;
-    tmpscores[lid] = (float)-INF;
+    tmpscores[lid] = -INF;
     tmpcounter[lid] = 0;
     movecount = 0;
     n = 0;
@@ -1263,7 +1263,7 @@ __kernel void alphabeta_gpu(
     // move picker, x64 
     n = 0;
     move = MOVENONE;
-    fscore = (float)-INF;
+    fscore = -INF;
     while(bbMoves)
     {
       sqto = popfirst1(&bbMoves);
@@ -1306,7 +1306,7 @@ __kernel void alphabeta_gpu(
     // process data in serial and select move
     if(lid==0)
     {
-      fscore = (float)-INF;
+      fscore = -INF;
       for(Square i=0;i<64;i++)
       {
         // collect movecount
@@ -1380,7 +1380,7 @@ __kernel void alphabeta_gpu(
       localTodoIndex[sd+1]                  = 0;
       localAlphaBetaScores[(sd+1)*2+ALPHA]  = -localAlphaBetaScores[sd*2+BETA];
       localAlphaBetaScores[(sd+1)*2+BETA]   = -localAlphaBetaScores[sd*2+ALPHA];
-      localMoveIndexHistory[sd+1]           = (float)INF;
+      localMoveIndexHistory[sd+1]           = INF;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (mode==MOVEUP)
