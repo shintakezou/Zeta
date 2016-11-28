@@ -1180,18 +1180,20 @@ __kernel void alphabeta_gpu(
   localMove       = MOVENONE;
 
   // init ab search var stack
-  localAlphaBetaScores[0*2+ALPHA] = -INF;
-  localAlphaBetaScores[0*2+BETA]  =  INF;
-  localMoveCounter[0]   = 0;
-  localMoveCounter[sd]  = 0;
-  localTodoIndex[0]     = 0;
-  localTodoIndex[sd]    = 0;
-  localMoveIndexHistory[0]  = INF;
-  localMoveIndexHistory[sd] = INF;
-  localMoveHistory[0]   = board[QBBLAST];
-  localCrHistory[sd]    = board[QBBPMVD];
-  localHashHistory[sd]  = board[QBBHASH];
-
+  if (lid==0)
+  {
+    localAlphaBetaScores[0*2+ALPHA] = -INF;
+    localAlphaBetaScores[0*2+BETA]  =  INF;
+    localMoveCounter[0]   = 0;
+    localMoveCounter[sd]  = 0;
+    localTodoIndex[0]     = 0;
+    localTodoIndex[sd]    = 0;
+    localMoveIndexHistory[0]  = INF;
+    localMoveIndexHistory[sd] = INF;
+    localMoveHistory[0]   = board[QBBLAST];
+    localCrHistory[sd]    = board[QBBPMVD];
+    localHashHistory[sd]  = board[QBBHASH];
+  }
   barrier(CLK_LOCAL_MEM_FENCE);
 
   // ################################
