@@ -1139,7 +1139,7 @@ __kernel void alphabeta_gpu(
   __local Bitboard bbCheckers;
 
   const s32 gid = get_global_id(0) * get_global_size(1) + get_global_size(1);
-  const s32 lid = get_global_id(2);
+  const s32 lid = get_local_id(2);
 
   bool stm = (bool)stm_init;
   bool kic;
@@ -1147,7 +1147,7 @@ __kernel void alphabeta_gpu(
   bool qs = false;
   Score score = 0;
   float fscore = 0;
-  s32 sd = 1;
+  s32 sd = 0;
   s32 ply = 0;
   s32 n = 0;
   Move move = 0;
@@ -1184,7 +1184,7 @@ __kernel void alphabeta_gpu(
   board[QBBLAST]  = BOARD[QBBLAST]; // lastmove
   stm             = (bool)stm_init;
   ply             = 0;
-  sd              = 1;
+  sd              = 0;
   mode            = MOVEUP;
   localMove       = MOVENONE;
 
@@ -1194,14 +1194,11 @@ __kernel void alphabeta_gpu(
     localAlphaBetaScores[0*2+ALPHA] = -INF;
     localAlphaBetaScores[0*2+BETA]  =  INF;
     localMoveCounter[0]   = 0;
-    localMoveCounter[sd]  = 0;
     localTodoIndex[0]     = 0;
-    localTodoIndex[sd]    = 0;
     localMoveIndexHistory[0]  = INF;
-    localMoveIndexHistory[sd] = INF;
     localMoveHistory[0]   = board[QBBLAST];
-    localCrHistory[sd]    = board[QBBPMVD];
-    localHashHistory[sd]  = board[QBBHASH];
+    localCrHistory[0]    = board[QBBPMVD];
+    localHashHistory[0]  = board[QBBHASH];
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1422,7 +1419,6 @@ __kernel void alphabeta_gpu(
     if(lid==0)
     {
       fscore = -INF;
-      bbWork = bbMe;
       for (sqfrom=0;sqfrom<64;sqfrom++)
       {
         // collect movecount
@@ -1437,6 +1433,9 @@ __kernel void alphabeta_gpu(
       localMove = move;
       localMoveIndexHistory[sd] = fscore;
     }
+
+//localMove = MOVENONE;
+//movecount = 0;
 
 /*
     // ################################
@@ -1456,7 +1455,7 @@ __kernel void alphabeta_gpu(
     // draw by 3 fold repetition
     for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
     {
-      if (board[QBBHASH]==HashHistory[pid*MAXGAMEPLY+i])
+      if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
       {
         n       = 0;
         score   = DRAWSCORE;
@@ -1468,7 +1467,7 @@ __kernel void alphabeta_gpu(
     // ####     alphabeta stuff      ###
     // #################################
     // terminal node
-    if (lid==0&&sd>search_depth)
+    if (lid==0&&sd>=search_depth)
     {
       // terminal node counter
       NODECOUNTER[0]++;
@@ -1485,20 +1484,6 @@ __kernel void alphabeta_gpu(
     // ####         moveup         ####
     // ################################
     // move up in tree
-    if (lid==0&&mode==MOVEUP)
-    {
-      // set history
-      localMoveHistory[sd]  = localMove;
-      localCrHistory[sd]    = board[QBBPMVD];
-      localHashHistory[sd]  = board[QBBHASH];
-      localTodoIndex[sd]++;
-      // set values for next depth
-      localMoveCounter[sd+1]                = 0;
-      localTodoIndex[sd+1]                  = 0;
-      localAlphaBetaScores[(sd+1)*2+ALPHA]  = -localAlphaBetaScores[sd*2+BETA];
-      localAlphaBetaScores[(sd+1)*2+BETA]   = -localAlphaBetaScores[sd*2+ALPHA];
-      localMoveIndexHistory[sd+1]           = INF;
-    }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (mode==MOVEUP)
     {
@@ -1506,6 +1491,20 @@ __kernel void alphabeta_gpu(
       stm = !stm; // switch site to move
       sd++;       // increase depth counter
       ply++;      // increase ply counter
+    }
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set history
+      localMoveHistory[sd]  = localMove;
+      localCrHistory[sd]    = board[QBBPMVD];
+      localHashHistory[sd]  = board[QBBHASH];
+      localTodoIndex[sd-1]++;
+      // set values for next depth
+      localMoveCounter[sd]              = 0;
+      localTodoIndex[sd]                = 0;
+      localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
+      localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
+      localMoveIndexHistory[sd]         = INF;
     }
     // ################################
     // ####        movedown        ####
@@ -1515,8 +1514,7 @@ __kernel void alphabeta_gpu(
     {
       while (localTodoIndex[sd]>=localMoveCounter[sd]) 
       {
-        sd--;
-        if (sd==0)  // this is the end
+        if (sd<0)  // this is the end
             break;
         undomove( board, 
                   localMoveHistory[sd],
@@ -1524,6 +1522,7 @@ __kernel void alphabeta_gpu(
                   localCrHistory[sd], 
                   localHashHistory[sd]
                 );
+        sd--;
         ply--;
         // switch site to move
         stm = !stm;
@@ -1531,9 +1530,9 @@ __kernel void alphabeta_gpu(
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // set new mode
-    if (lid==0&&mode==MOVEDOWN&&sd==0)
+    if (lid==0&&mode==MOVEDOWN&&sd==-1)
       mode = EXIT;
-    if (lid==0&&mode==MOVEDOWN&&sd>0)
+    if (lid==0&&mode==MOVEDOWN&&sd>=0)
         mode = MOVEUP;
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
