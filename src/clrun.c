@@ -237,6 +237,30 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+  GLOBAL_bbInBetween_Buffer = clCreateBuffer(
+                            			     context, 
+                                       CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       sizeof(Bitboard) * 64 * 64,
+                                       bbInBetween, 
+                                       &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_bbInBetween_Buffer)\n");
+    return false;
+  }
+
+  GLOBAL_bbLine_Buffer = clCreateBuffer(
+                            			     context, 
+                                       CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       sizeof(Bitboard) * 64 * 64,
+                                       bbLine, 
+                                       &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_bbLine_Buffer)\n");
+    return false;
+  }
+
   return true;
 }
 // write OpenCL memory buffers, called every search run
@@ -384,6 +408,30 @@ bool cl_run_alphabeta(bool stm, s32 depth)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_HASHHISTORY_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_bbInBetween_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_bbInBetween_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_bbLine_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_bbLine_Buffer)\n");
     return false;
   }
   i++;
@@ -628,6 +676,20 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_HASHHISTORY_Buffer)\n");
+		return false; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_bbInBetween_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbInBetween_Buffer)\n");
+		return false; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_bbLine_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbLine_Buffer)\n");
 		return false; 
 	}
 

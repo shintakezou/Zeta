@@ -50,12 +50,16 @@ extern Score GPUSCORE;
 extern Bitboard *GLOBAL_BOARD;
 extern u64 *COUNTERS;
 extern Move *GLOBAL_HASHHISTORY;
+extern Bitboard bbInBetween[64*64];
+extern Bitboard bbLine[64*64];
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
 cl_mem	 GLOBAL_RETURN_SCORE_Buffer;
 cl_mem   GLOBAL_NODECOUNT_Buffer;
 cl_mem	 GLOBAL_COUNTERS_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
+cl_mem	 GLOBAL_bbInBetween_Buffer;
+cl_mem	 GLOBAL_bbLine_Buffer;
 // OpenCL runtime objects
 cl_context          context;
 cl_device_id        *devices;
