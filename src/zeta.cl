@@ -1139,7 +1139,7 @@ __kernel void alphabeta_gpu(
   __local Bitboard bbCheckers;
 
   const s32 gid = get_global_id(0) * get_global_size(1) + get_global_size(1);
-  const s32 lid = get_local_id(2);
+  const Square lid = get_local_id(2);
 
   bool stm = (bool)stm_init;
   bool kic;
@@ -1225,9 +1225,9 @@ __kernel void alphabeta_gpu(
     // enter quiescence search?
     qs = false;
 
-    bbBlockers = board[1]|board[2]|board[3];
-    bbMe   =  (stm)?board[0]:(board[0]^bbBlockers);
-    bbOpp  = (!stm)?board[0]:(board[0]^bbBlockers);
+    bbBlockers  = board[1]|board[2]|board[3];
+    bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
+    bbOpp       = (!stm)?board[0]:(board[0]^bbBlockers);
 
     // calc superking and get pinned pieces
     // get colored king
@@ -1242,22 +1242,22 @@ __kernel void alphabeta_gpu(
     while (bbWork)
     {
       sqfrom = popfirst1(&bbWork);
-      bbTemp = bbInBetween[sqfrom*64+sqking]&bbBlockers;
+      bbTemp = bbInBetween[sqfrom*64+sqking]&bbMe;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // generate opp moves
+    // generate own moves and opposite attacks
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
-    bbMask  = bbOpp&SETMASKBB(sqfrom);
+    bbMask  = bbBlockers&SETMASKBB(sqfrom);
     // get koggestone wraps
     bbWrap4 = wraps4[0];
     // generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbMask;
-    bbPro4  = (ulong4)(~bbBlockers^SETMASKBB(sqking));
+    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift left via ulong4 vector
     bbPro4 &= bbWrap4;
     bbGen4 |= bbPro4  & (bbGen4 << shift4);
@@ -1271,7 +1271,7 @@ __kernel void alphabeta_gpu(
     bbWrap4 = wraps4[1];
     // set generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbMask;
-    bbPro4  = (ulong4)(~bbBlockers^SETMASKBB(sqking));
+    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift right via ulong4 vector
     bbPro4 &= bbWrap4;
     bbGen4 |= bbPro4  & (bbGen4 >> shift4);
@@ -1282,81 +1282,49 @@ __kernel void alphabeta_gpu(
     bbGen4  = bbWrap4 & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // consider knights
-    bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbOpp&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
-    // verify attacks
-    n       = (GETPTYPE(pfrom)==PAWN)?(s32)!stm:(s32)GETPTYPE(pfrom);
+    bbTemp  = ((pfrom>>1)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
+    // verify captures
+    n       = ((pfrom>>1)==PAWN)?(s32)stm:(pfrom>>1);
     bbMask  = AttackTables[n*64+sqfrom];
-    bbMoves = bbMask&bbTemp;
+    bbMoves = (SETMASKBB(sqfrom)&bbMe)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    // verify non captures
+    if (SETMASKBB(sqfrom)&bbMe)
+    {
+      bbMask = ((pfrom>>1)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
+      bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+    }
 
-    // store opposite attacks in local
+    // store attacks in local
     tmpmoves[sqfrom] = bbMoves;
+
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // serial processing
+    // serial processing, get checkers
     if (lid==0)
     {
       bbWork = bbOpp;
       while(bbWork)
       {
-        sqfrom = popfirst1(&bbWork);
+        sqto = popfirst1(&bbWork);
         // collect opposite attack
-        bbAttacks |= tmpmoves[sqfrom];
+        bbAttacks |= tmpmoves[sqto];
         // get king checkers
-        if (tmpmoves[sqfrom]&SETMASKBB(sqking))
+        if (tmpmoves[sqto]&SETMASKBB(sqking))
         {
-          sqchecker = sqfrom;
-          bbCheckers |= SETMASKBB(sqfrom);
+          sqchecker = sqto;
+          bbCheckers |= SETMASKBB(sqto);
         }
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // generate own moves
-    sqfrom  = lid;
-    pfrom   = GETPIECE(board, sqfrom);
-    bbMask  = bbMe&SETMASKBB(sqfrom);
+    // extract only own moves
+    if (SETMASKBB(sqfrom)&bbOpp)
+      bbMoves = BBEMPTY;
 
-    // double check, king moves 
+    // double check, king moves only
     if (count1s(bbCheckers)>=2&&GETPTYPE(pfrom)!=KING)
-      bbMask = BBEMPTY;
-
-    // get koggestone wraps
-    bbWrap4 = wraps4[0];
-    // generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbMask;
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift left via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 << shift4);
-    bbPro4 &=           (bbPro4 << shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 2*shift4);
-    bbPro4 &=           (bbPro4 << 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 << shift4);
-    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-    // get koggestone wraps
-    bbWrap4 = wraps4[1];
-    // set generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbMask;
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift right via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 >> shift4);
-    bbPro4 &=           (bbPro4 >> shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 2*shift4);
-    bbPro4 &=           (bbPro4 >> 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 >> shift4);
-    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-    // consider knights
-    bbTemp  = ((pfrom>>1)==KNIGHT&&(bbMe&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
-    // verify captures
-    n       = ((pfrom>>1)==PAWN)?(s32)stm:(pfrom>>1);
-    bbMask = AttackTables[n*64+sqfrom];
-    bbMoves = bbMask&bbTemp&bbOpp;
-    // verify non captures
-    bbMask = ((pfrom>>1)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
-    bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+      bbMoves = BBEMPTY;
 
     // consider pinned pieces
     if (SETMASKBB(sqfrom)&bbPinned)
@@ -1371,9 +1339,9 @@ __kernel void alphabeta_gpu(
       bbMoves&= bbInBetween[sqchecker*64+sqking]|bbCheckers;
 
     // move picker, x64 
-    n = 0;
-    move = MOVENONE;
-    fscore = -INF;
+    n       = 0;
+    move    = MOVENONE;
+    fscore  = -INF;
     while(bbMoves)
     {
       sqto = popfirst1(&bbMoves);
