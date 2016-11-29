@@ -1338,22 +1338,98 @@ __kernel void alphabeta_gpu(
     if (count1s(bbCheckers)==1&&GETPTYPE(pfrom)!=KING)
       bbMoves&= bbInBetween[sqchecker*64+sqking]|bbCheckers;
 
+    // gen en passant moves 
+    bbTemp = BBEMPTY;
+    if (GETSQEP(board[QBBLAST]))
+    {
+      sqep    = GETSQEP(board[QBBLAST]); 
+      bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]);
+      bbMask &= (stm)? 0xFF000000 : 0xFF00000000;
+      bbTemp  = (sqep)?bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1)):BBEMPTY;
+    }
+
+     // check for en passant pawns
+    if (bbTemp&SETMASKBB(sqfrom))
+    {
+      pfrom   = GETPIECE(board, sqfrom);
+      pto     = pfrom;
+      sqcpt   = sqep;
+      pcpt    = GETPIECE(board, sqcpt);
+      sqto    = (stm)? sqep-8:sqep+8;
+      // pack move into 64 bits, considering castle rights and halfmovecounter and score
+      move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      // legal moves only
+      domovequick(board, move);
+      kic = squareunderattack(board, !stm, sqking);
+      undomovequick(board, move);
+      if (!kic)
+      {
+        bbMoves |= sqto;
+      }
+    }
+    // gen castle moves
+    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL))
+    { 
+      // get king square
+      sqfrom  = sqking;
+      sqto    = sqfrom-2;
+      // set castle move score
+      pfrom   = GETPIECE(board, sqfrom);
+      // get castle rights queenside
+      bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)?true:false:(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)?true:false;
+      // rook present
+      bbTemp  = (GETPIECE(board, sqfrom-4)==MAKEPIECE(ROOK,stm))?bbTemp:false;
+      // check for empty squares
+      bbMask  = ((bbBlockers&SETMASKBB(sqfrom-1))|(bbBlockers&SETMASKBB(sqfrom-2))|(bbBlockers&SETMASKBB(sqfrom-3)));
+      // check for king and empty squares in check
+      bbWork =  (bbAttacks&SETMASKBB(sqfrom))|(bbAttacks&SETMASKBB(sqfrom-1))|(bbAttacks&SETMASKBB(sqfrom-2));
+      // store move
+      if (bbTemp&&!bbMask&&!bbWork)
+      {
+        bbMoves |= sqto;
+      }
+      sqto  = sqfrom+2;
+      // get castle rights kingside
+      bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)?true:false:(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)?true:false;
+      // rook present
+      bbTemp  = (GETPIECE(board, sqfrom+3)==MAKEPIECE(ROOK,stm))?bbTemp:false;
+      // check for empty squares
+      bbMask  = ((bbBlockers&SETMASKBB(sqfrom+1))|(bbBlockers&SETMASKBB(sqfrom+2)));
+      // check for king and empty squares in check
+      bbWork =  (bbAttacks&SETMASKBB(sqfrom))|(bbAttacks&SETMASKBB(sqfrom-+1))|(bbAttacks&SETMASKBB(sqfrom+2));
+      // store move
+      if (bbTemp&&!bbMask&&!bbWork)
+      {
+        bbMoves |= sqto;
+      }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
     // move picker, x64 
     n       = 0;
     move    = MOVENONE;
     fscore  = -INF;
+    sqfrom  = lid;
+    pfrom   = GETPIECE(board, sqfrom);
     while(bbMoves)
     {
-      sqto = popfirst1(&bbMoves);
-      sqcpt = sqto;
+      sqto  = popfirst1(&bbMoves);
+      sqcpt = sqto; 
       // set en passant target square
-      sqep = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(sqfrom,stm)==2)?(stm)?sqto:sqto:0x0; 
+      sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(sqfrom,stm)==2)?(stm)?sqto:sqto:0x0; 
       // get piece captured
-      pcpt = GETPIECE(board, sqcpt);
+      pcpt  = GETPIECE(board, sqcpt);
+      // check for en passant capture square
+      if (GETPTYPE(pfrom)==PAWN&&abs(sqfrom-sqto)!=8&&abs(sqfrom-sqto)!=16&&pcpt==PNONE)
+      {
+        sqcpt = (stm)? sqep+8:sqep-8;
+        pcpt  = GETPIECE(board, sqcpt);
+      }
       // set pawn prommotion, queen
-      pto = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN, GETCOLOR(pfrom)):pfrom;
+      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN, GETCOLOR(pfrom)):pfrom;
       // make move
       tmpmove = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      tmpmove |= (GETPTYPE(pfrom)==KING&&abs(sqfrom-sqto)==2)?MOVEISCRK:BBEMPTY;
 /*
       // domove
       domovequick(board, tmpmove);
