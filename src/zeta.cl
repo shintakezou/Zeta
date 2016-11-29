@@ -29,6 +29,7 @@ typedef ulong   u64;
 typedef uint    u32;
 typedef int     s32;
 typedef uchar    u8;
+typedef  char    s8;
 
 typedef s32     Score;
 typedef u8      Square;
@@ -1193,12 +1194,12 @@ __kernel void alphabeta_gpu(
   {
     localAlphaBetaScores[0*2+ALPHA] = -INF;
     localAlphaBetaScores[0*2+BETA]  =  INF;
-    localMoveCounter[0]   = 0;
-    localTodoIndex[0]     = 0;
-    localMoveIndexHistory[0]  = INF;
-    localMoveHistory[0]   = board[QBBLAST];
-    localCrHistory[0]    = board[QBBPMVD];
-    localHashHistory[0]  = board[QBBHASH];
+    localMoveCounter[0]             = 0;
+    localTodoIndex[0]               = 0;
+    localMoveIndexHistory[0]        = INF;
+    localMoveHistory[0]             = board[QBBLAST];
+    localCrHistory[0]               = board[QBBPMVD];
+    localHashHistory[0]             = board[QBBHASH];
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1242,7 +1243,7 @@ __kernel void alphabeta_gpu(
     while (bbWork)
     {
       sqfrom = popfirst1(&bbWork);
-      bbTemp = bbInBetween[sqfrom*64+sqking]&bbMe;
+      bbTemp = bbInBetween[sqfrom*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
     }
@@ -1282,15 +1283,16 @@ __kernel void alphabeta_gpu(
     bbGen4  = bbWrap4 & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // consider knights
-    bbTemp  = ((pfrom>>1)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
+    bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
     // verify captures
-    n       = ((pfrom>>1)==PAWN)?(s32)stm:(pfrom>>1);
+    n       = (bbMe&SETMASKBB(sqfrom))?(s32)stm:(s32)!stm;
+    n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
     bbMask  = AttackTables[n*64+sqfrom];
     bbMoves = (SETMASKBB(sqfrom)&bbMe)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
     // verify non captures
     if (SETMASKBB(sqfrom)&bbMe)
     {
-      bbMask = ((pfrom>>1)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
+      bbMask = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
       bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
     }
 
@@ -1340,15 +1342,14 @@ __kernel void alphabeta_gpu(
 
     // gen en passant moves 
     bbTemp = BBEMPTY;
-    if (GETSQEP(board[QBBLAST]))
+    sqep   = GETSQEP(board[QBBLAST]); 
+    if (sqep)
     {
-      sqep    = GETSQEP(board[QBBLAST]); 
-      bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]);
+      bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
       bbMask &= (stm)? 0xFF000000 : 0xFF00000000;
-      bbTemp  = (sqep)?bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1)):BBEMPTY;
+      bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
     }
-
-     // check for en passant pawns
+    // check for en passant pawns
     if (bbTemp&SETMASKBB(sqfrom))
     {
       pfrom   = GETPIECE(board, sqfrom);
@@ -1357,16 +1358,17 @@ __kernel void alphabeta_gpu(
       pcpt    = GETPIECE(board, sqcpt);
       sqto    = (stm)? sqep-8:sqep+8;
       // pack move into 64 bits, considering castle rights and halfmovecounter and score
-      move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0x0UL, 0x0UL, 0x0UL);
       // legal moves only
       domovequick(board, move);
       kic = squareunderattack(board, !stm, sqking);
       undomovequick(board, move);
       if (!kic)
       {
-        bbMoves |= sqto;
+        bbMoves |= SETMASKBB(sqto);
       }
     }
+
     // gen castle moves
     if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL))
     { 
@@ -1386,9 +1388,9 @@ __kernel void alphabeta_gpu(
       // store move
       if (bbTemp&&!bbMask&&!bbWork)
       {
-        bbMoves |= sqto;
+        bbMoves |= SETMASKBB(sqto);
       }
-      sqto  = sqfrom+2;
+      sqto    = sqfrom+2;
       // get castle rights kingside
       bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)?true:false:(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)?true:false;
       // rook present
@@ -1400,11 +1402,10 @@ __kernel void alphabeta_gpu(
       // store move
       if (bbTemp&&!bbMask&&!bbWork)
       {
-        bbMoves |= sqto;
+        bbMoves |= SETMASKBB(sqto);
       }
     }
 
-    barrier(CLK_LOCAL_MEM_FENCE);
     // move picker, x64 
     n       = 0;
     move    = MOVENONE;
@@ -1416,20 +1417,25 @@ __kernel void alphabeta_gpu(
       sqto  = popfirst1(&bbMoves);
       sqcpt = sqto; 
       // set en passant target square
-      sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(sqfrom,stm)==2)?(stm)?sqto:sqto:0x0; 
+      sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(sqfrom,stm)==2)?sqto:0x0; 
       // get piece captured
       pcpt  = GETPIECE(board, sqcpt);
       // check for en passant capture square
-      if (GETPTYPE(pfrom)==PAWN&&abs(sqfrom-sqto)!=8&&abs(sqfrom-sqto)!=16&&pcpt==PNONE)
+      if (GETPTYPE(pfrom)==PAWN&&stm&&sqfrom-sqto!=8&&sqfrom-sqto!=16&&pcpt==PNONE)
       {
-        sqcpt = (stm)? sqep+8:sqep-8;
-        pcpt  = GETPIECE(board, sqcpt);
+        sqcpt = (stm)? sqto+8:sqto-8;
       }
+      if (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-sqfrom!=8&&sqto-sqfrom!=16&&pcpt==PNONE)
+      {
+        sqcpt = (stm)? sqto+8:sqto-8;
+      }
+      pcpt  = GETPIECE(board, sqcpt);
       // set pawn prommotion, queen
       pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN, GETCOLOR(pfrom)):pfrom;
       // make move
       tmpmove = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
-      tmpmove |= (GETPTYPE(pfrom)==KING&&abs(sqfrom-sqto)==2)?MOVEISCRK:BBEMPTY;
+      tmpmove |= (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MOVEISCRQ:MOVENONE;
+      tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MOVEISCRK:MOVENONE;
 /*
       // domove
       domovequick(board, tmpmove);
@@ -1529,6 +1535,14 @@ __kernel void alphabeta_gpu(
     // ################################
     // move up in tree
     barrier(CLK_LOCAL_MEM_FENCE);
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set history
+      localMoveHistory[sd]  = localMove;
+      localCrHistory[sd]    = board[QBBPMVD];
+      localHashHistory[sd]  = board[QBBHASH];
+      localTodoIndex[sd]++;
+    }
     if (mode==MOVEUP)
     {
       domove(board, localMove);
@@ -1538,11 +1552,6 @@ __kernel void alphabeta_gpu(
     }
     if (lid==0&&mode==MOVEUP)
     {
-      // set history
-      localMoveHistory[sd]  = localMove;
-      localCrHistory[sd]    = board[QBBPMVD];
-      localHashHistory[sd]  = board[QBBHASH];
-      localTodoIndex[sd-1]++;
       // set values for next depth
       localMoveCounter[sd]              = 0;
       localTodoIndex[sd]                = 0;
@@ -1550,6 +1559,7 @@ __kernel void alphabeta_gpu(
       localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
       localMoveIndexHistory[sd]         = INF;
     }
+    barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####        movedown        ####
     // ################################
@@ -1558,16 +1568,16 @@ __kernel void alphabeta_gpu(
     {
       while (localTodoIndex[sd]>=localMoveCounter[sd]) 
       {
+        sd--;
+        ply--;
         if (sd<0)  // this is the end
             break;
         undomove( board, 
                   localMoveHistory[sd],
-                  localMoveHistory[sd-1],
+                  (sd<0)?BOARD[QBBLAST]:localMoveHistory[sd-1],
                   localCrHistory[sd], 
                   localHashHistory[sd]
                 );
-        sd--;
-        ply--;
         // switch site to move
         stm = !stm;
       }

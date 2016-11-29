@@ -1635,8 +1635,7 @@ static void selftest(void)
 {
   u64 done;
   u64 passed = 0;
-//  const u64 todo = 20;
-  const u64 todo = 4;
+  const u64 todo = 20;
 
   char fenpositions[20][256]  =
   {
