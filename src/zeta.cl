@@ -1162,6 +1162,7 @@ __kernel void alphabeta_gpu(
   Piece pfrom;
   Piece pto;
   Piece pcpt;
+  Piece ppromo;
 
   Bitboard bbBlockers;
   Bitboard bbMe;
@@ -1398,7 +1399,7 @@ __kernel void alphabeta_gpu(
       // check for empty squares
       bbMask  = ((bbBlockers&SETMASKBB(sqfrom+1))|(bbBlockers&SETMASKBB(sqfrom+2)));
       // check for king and empty squares in check
-      bbWork =  (bbAttacks&SETMASKBB(sqfrom))|(bbAttacks&SETMASKBB(sqfrom-+1))|(bbAttacks&SETMASKBB(sqfrom+2));
+      bbWork =  (bbAttacks&SETMASKBB(sqfrom))|(bbAttacks&SETMASKBB(sqfrom+1))|(bbAttacks&SETMASKBB(sqfrom+2));
       // store move
       if (bbTemp&&!bbMask&&!bbWork)
       {
@@ -1406,12 +1407,13 @@ __kernel void alphabeta_gpu(
       }
     }
 
-    // move picker, x64 
+    // move picker, extract moves x64 
     n       = 0;
     move    = MOVENONE;
     fscore  = -INF;
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
+    ppromo  = GETPTYPE(pfrom);
     while(bbMoves)
     {
       sqto  = popfirst1(&bbMoves);
@@ -1430,10 +1432,22 @@ __kernel void alphabeta_gpu(
         sqcpt = (stm)? sqto+8:sqto-8;
       }
       pcpt  = GETPIECE(board, sqcpt);
+      pto   = pfrom;
       // set pawn prommotion, queen
-      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN, GETCOLOR(pfrom)):pfrom;
+//      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN, GETCOLOR(pfrom)):pfrom;
+      // handle all pawn promo, repeat loop
+      if (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8&&ppromo<QUEEN)
+      {
+        if (ppromo==KNIGHT) // skip king type
+          ppromo = BISHOP;
+        else
+          ppromo++;        
+        pto = MAKEPIECE(ppromo, GETCOLOR(pfrom));
+        if (ppromo<QUEEN)
+          bbMoves |= SETMASKBB(sqto);
+      }
       // make move
-      tmpmove = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      tmpmove  = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MOVEISCRQ:MOVENONE;
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MOVEISCRK:MOVENONE;
 /*
