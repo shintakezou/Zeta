@@ -188,18 +188,6 @@ bool cl_init_device(char *kernelname)
 		return false;
 	}
 
-  GLOBAL_RETURN_SCORE_Buffer = clCreateBuffer(
-                        	              context, 
-                                        CL_MEM_READ_WRITE,
-                                        sizeof(Score) * 1,
-                                        NULL, 
-                                        &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_RETURN_SCORE_Buffer)\n");
-    return false;
-  }
-
   templong = 0ULL;
   GLOBAL_NODECOUNT_Buffer = clCreateBuffer(
                         	              context, 
@@ -307,7 +295,7 @@ bool cl_init_objects() {
                                 GLOBAL_COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(cl_ulong) * 7,
+                                sizeof(cl_ulong) * 64,
                                 COUNTERS, 
                                 0,
                                 NULL,
@@ -360,18 +348,6 @@ bool cl_run_alphabeta(bool stm, s32 depth)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_RETURN_SCORE_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_RETURN_SCORE_Buffer)\n");
     return false;
   }
   i++;
@@ -566,37 +542,6 @@ bool cl_get_and_release_memory()
     return false;
   }
 
-  // copy computed score 
-  status = clEnqueueReadBuffer(
-                                commandQueue,
-                                GLOBAL_RETURN_SCORE_Buffer,
-                                CL_TRUE,
-                                0,
-                                sizeof(Score) * 1,
-                                &GPUSCORE,
-                                0,
-                                NULL,
-                                &events[1]);
-
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_RETURN_SCORE_Buffer)\n");
-    return false;
-  }
-  // wait for the read buffer to finish execution
-  status = clWaitForEvents(1, &events[1]);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_RETURN_SCORE_Buffer)\n");
-    return false;
-  }
-  status = clReleaseEvent(events[1]);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Release event object.(GLOBAL_RETURN_SCORE_Buffer)\n");
-    return false;
-  }
-
   // copy alpha beta nodecount
   status = clEnqueueReadBuffer(
                                 commandQueue,
@@ -648,13 +593,6 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_Buffer)\n");
-    return false; 
-  }
-
-  status = clReleaseMemObject(GLOBAL_RETURN_SCORE_Buffer);
-  if(status!=CL_SUCCESS)
-  {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RETURN_SCORE_Buffer)\n");
     return false; 
   }
 
