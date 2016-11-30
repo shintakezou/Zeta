@@ -97,8 +97,8 @@ typedef struct
 #define ALPHA               0
 #define BETA                1
 // scores
-#define INF                 1000000
-#define MATESCORE            999000
+#define INF                 1000000000
+#define MATESCORE            999000000
 #define DRAWSCORE           0
 #define STALEMATESCORE      0
 // piece type enumeration
@@ -1125,7 +1125,7 @@ __kernel void alphabeta_gpu(
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
-  __local Score localMoveIndexHistory[MAXPLY];
+  __local Score localMoveIndexScore[MAXPLY];
   __local s32 mode;
   __local s32 movecount;
   __local Move localMove;
@@ -1193,11 +1193,11 @@ __kernel void alphabeta_gpu(
   // init ab search var stack
   if (lid==0)
   {
-    localAlphaBetaScores[0*2+ALPHA] = -INF;
-    localAlphaBetaScores[0*2+BETA]  =  INF;
+    localAlphaBetaScores[0*2+ALPHA] =-INF;
+    localAlphaBetaScores[0*2+BETA]  = INF;
     localMoveCounter[0]             = 0;
     localTodoIndex[0]               = 0;
-    localMoveIndexHistory[0]        = 1000000000;
+    localMoveIndexScore[0]          = INF;
     localMoveHistory[0]             = board[QBBLAST];
     localCrHistory[0]               = board[QBBPMVD];
     localHashHistory[0]             = board[QBBHASH];
@@ -1410,7 +1410,7 @@ __kernel void alphabeta_gpu(
     // move picker, extract moves x64 
     n       = 0;
     move    = MOVENONE;
-    score   = -1000000000;
+    score   = -INF;
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     ppromo  = GETPTYPE(pfrom);
@@ -1463,7 +1463,7 @@ __kernel void alphabeta_gpu(
       // get move score
       tmpscore = (EvalMove(tmpmove)*10000)+(lid*64+n);
       // ignore moves already searched
-      if (tmpscore>=localMoveIndexHistory[sd])
+      if (tmpscore>=localMoveIndexScore[sd])
         continue;
       // get move with highest score
       if (tmpscore<=score)
@@ -1482,7 +1482,7 @@ __kernel void alphabeta_gpu(
     // process data in serial and select move
     if(lid==0)
     {
-      tmpscore = -1000000000;
+      tmpscore = -INF;
       for (sqfrom=0;sqfrom<64;sqfrom++)
       {
         // collect movecount
@@ -1495,7 +1495,7 @@ __kernel void alphabeta_gpu(
         }
       }
       localMove = move;
-      localMoveIndexHistory[sd] = tmpscore;
+      localMoveIndexScore[sd] = tmpscore;
     }
 
 //localMove = MOVENONE;
@@ -1571,7 +1571,7 @@ __kernel void alphabeta_gpu(
       localTodoIndex[sd]                = 0;
       localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
       localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-      localMoveIndexHistory[sd]         = 1000000000;
+      localMoveIndexScore[sd]           = INF;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
