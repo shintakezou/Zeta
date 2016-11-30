@@ -505,6 +505,176 @@ bool cl_run_alphabeta(bool stm, s32 depth)
 
   return true;
 }
+// run OpenCL bestfirst kernel, every search
+bool cl_run_perft(bool stm, s32 depth)
+{
+  s32 i = 0;
+  // set kernel arguments
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_BOARD_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_NODECOUNT_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_NODECOUNT_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_COUNTERS_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_COUNTERS_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_HASHHISTORY_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_HASHHISTORY_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_bbInBetween_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_bbInBetween_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_bbLine_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_bbLine_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  temp = (s32)stm;
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&temp);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (stm)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&PLY);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (PLY)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_int), 
+                          (void *)&depth);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (search_depth)\n");
+    return false;
+  }
+  i++;
+
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_long), 
+                          (void *)&MaxNodes);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (max_nodes)\n");
+    return false;
+  }
+  i++;
+
+  // enqueue a kernel run call.
+  globalThreads[0] = threadsX;
+  globalThreads[1] = threadsY;
+  globalThreads[2] = 64;
+
+  localThreads[0]  = 1;
+  localThreads[1]  = 1;
+  localThreads[2]  = 64;
+
+  status = clEnqueueNDRangeKernel(
+	                                 commandQueue,
+                                   kernel,
+                                   maxDims,
+                                   NULL,
+                                   globalThreads,
+                                   localThreads,
+                                   0,
+                                   NULL,
+                                   NULL);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)\n");
+    return false;
+  }
+
+  // flush command queueu
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the Kernel. (clFlush)\n");
+    return false;
+  }
+
+  // wait for kernel to finish execution
+  status = clFinish(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for kernel run to finish. (clFinish)\n");
+    return false;
+  }
+
+  return true;
+}
 
 // copy and release memory from device
 bool cl_get_and_release_memory()

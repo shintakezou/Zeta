@@ -1103,8 +1103,8 @@ Score eval(__private Bitboard *board)
 
   return score;
 }
-// alphabeta on gpu, 64 threads in parallel on one chess position
-__kernel void alphabeta_gpu(  
+// perft on gpu, 64 threads in parallel on one chess position
+__kernel void perft_gpu(  
                             __global Bitboard *BOARD,
                             __global u64 *NODECOUNTER,
                             __global u64 *COUNTERS,
@@ -1406,6 +1406,507 @@ __kernel void alphabeta_gpu(
       }
     }
     // move picker, extract moves x64 
+    n       = 0;
+    move    = MOVENONE;
+    score   = -INF;
+    sqfrom  = lid;
+    pfrom   = GETPIECE(board, sqfrom);
+    ppromo  = GETPTYPE(pfrom);
+    while(bbMoves)
+    {
+      sqto  = popfirst1(&bbMoves);
+      sqcpt = sqto; 
+      // set en passant target square
+      sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(sqfrom,stm)==2)?sqto:0x0; 
+      // get piece captured
+      pcpt  = GETPIECE(board, sqcpt);
+      // check for en passant capture square
+      if (GETPTYPE(pfrom)==PAWN&&stm&&sqfrom-sqto!=8&&sqfrom-sqto!=16&&pcpt==PNONE)
+      {
+        sqcpt = (stm)? sqto+8:sqto-8;
+      }
+      if (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-sqfrom!=8&&sqto-sqfrom!=16&&pcpt==PNONE)
+      {
+        sqcpt = (stm)? sqto+8:sqto-8;
+      }
+      pcpt  = GETPIECE(board, sqcpt);
+      pto   = pfrom;
+      // set pawn prommotion, queen
+//      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+
+      // handle all pawn promo, repeat loop
+      if (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)
+      {
+        ppromo++;
+        ppromo=(ppromo==KING)?BISHOP:ppromo; // skip king
+        pto = MAKEPIECE(ppromo,GETCOLOR(pfrom));
+        bbMoves |= (ppromo<QUEEN)?SETMASKBB(sqto):BBEMPTY;
+        ppromo=(ppromo==QUEEN)?PAWN:ppromo; // reset ppromo for further sqto
+      }
+
+      // make move
+      tmpmove  = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      tmpmove |= (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MOVEISCRQ:MOVENONE;
+      tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MOVEISCRK:MOVENONE;
+/*
+      // domove
+      domovequick(board, tmpmove);
+      // king in check, illegal move
+      kic = squareunderattack(board, !stm, getkingsq(board, stm));
+      undomovequick(board, tmpmove);
+      if (kic)
+        continue;
+*/
+      n++;
+      // get move score
+      tmpscore = (EvalMove(tmpmove)*10000)+(lid*64+n);
+      // ignore moves already searched
+      if (tmpscore>=localMoveIndexScore[sd])
+        continue;
+      // get move with highest score
+      if (tmpscore<=score)
+        continue;
+      score = tmpscore;
+      move = tmpmove;
+    }
+    
+    // store data in local memory
+    tmpmoves[lid] = move;
+    tmpscores[lid] = score;
+    tmpcounter[lid] = n;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    // process data in serial and select move
+    if(lid==0)
+    {
+      tmpscore = -INF;
+      for (sqfrom=0;sqfrom<64;sqfrom++)
+      {
+        // collect movecount
+        movecount+= tmpcounter[sqfrom];
+        // collect bestmove
+        if (tmpscores[sqfrom]>tmpscore)
+        {
+          move = tmpmoves[sqfrom];
+          tmpscore = tmpscores[sqfrom];
+        }
+      }
+      localMove = move;
+      localMoveIndexScore[sd] = tmpscore;
+    }
+
+//localMove = MOVENONE;
+//movecount = 0;
+
+/*
+    // ################################
+    // ####        evaluation       ###
+    // ################################
+    score = eval(board);
+    // centi pawn *10
+    score*=10;
+    // hack for drawscore == 0, site to move bonus
+    score+=(!stm)?1:-1;
+    // negamaxed scores
+    score = (stm)?-score:score;
+    // checkmate
+    score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
+    // stalemate
+    score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
+    // draw by 3 fold repetition
+    for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
+    {
+      if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
+      {
+        n       = 0;
+        score   = DRAWSCORE;
+        break;
+      }
+    }
+*/
+    // #################################
+    // ####     alphabeta stuff      ###
+    // #################################
+    // terminal node
+    if (lid==0&&sd>=search_depth)
+    {
+      // terminal node counter
+      NODECOUNTER[0]++;
+      movecount = 0;
+      localMove = MOVENONE;
+    }
+    if (lid==0)
+      localMoveCounter[sd]  = movecount;
+
+    // terminal node
+    if (lid==0&&mode==MOVEUP&&localMove==MOVENONE)
+      mode = MOVEDOWN;
+    // ################################
+    // ####         moveup         ####
+    // ################################
+    // move up in tree
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set history
+      localMoveHistory[sd]  = localMove;
+      localCrHistory[sd]    = board[QBBPMVD];
+      localHashHistory[sd]  = board[QBBHASH];
+      localTodoIndex[sd]++;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (mode==MOVEUP)
+    {
+      domove(board, localMove);
+      stm = !stm; // switch site to move
+      sd++;       // increase depth counter
+      ply++;      // increase ply counter
+    }
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set values for next depth
+      localMoveCounter[sd]              = 0;
+      localTodoIndex[sd]                = 0;
+      localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
+      localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
+      localMoveIndexScore[sd]           = INF;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // ################################
+    // ####        movedown        ####
+    // ################################
+    // move down in tree
+    if (mode==MOVEDOWN)
+    {
+      while (localTodoIndex[sd]>=localMoveCounter[sd]) 
+      {
+        sd--;
+        ply--;
+        if (sd<0)  // this is the end
+            break;
+        undomove( board, 
+                  localMoveHistory[sd],
+                  (sd<0)?BOARD[QBBLAST]:localMoveHistory[sd-1],
+                  localCrHistory[sd], 
+                  localHashHistory[sd]
+                );
+        // switch site to move
+        stm = !stm;
+      }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // set new mode
+    if (lid==0&&mode==MOVEDOWN&&sd==-1)
+      mode = EXIT;
+    if (lid==0&&mode==MOVEDOWN&&sd>=0)
+        mode = MOVEUP;
+    barrier(CLK_LOCAL_MEM_FENCE);
+  } // end main loop
+//  COUNTERS[gid*64+0] = *NODECOUNTER;
+}
+// perft on gpu, 64 threads in parallel on one chess position
+__kernel void alphabeta_gpu(  
+                            __global Bitboard *BOARD,
+                            __global u64 *NODECOUNTER,
+                            __global u64 *COUNTERS,
+                            __global Hash *HashHistory,
+                            __global Bitboard *bbInBetween,
+                            __global Bitboard *bbLine,
+                               const s32 stm_init,
+                               const s32 ply_init,
+                               const s32 search_depth,
+                               const u64 max_nodes
+)
+{
+  __private Bitboard board[7]; // Quadbitboard + piece moved flags + hash + lastmove
+  __local Score localAlphaBetaScores[MAXPLY*2];
+  __local u8 localTodoIndex[MAXPLY];
+  __local u8 localMoveCounter[MAXPLY];
+  __local Move localMoveHistory[MAXPLY];
+  __local Cr localCrHistory[MAXPLY];
+  __local Hash localHashHistory[MAXPLY];
+  __local Score localMoveIndexScore[MAXPLY];
+  __local s32 mode;
+  __local s32 movecount;
+  __local Move localMove;
+  __local Move tmpmoves[64];
+  __local Score tmpscores[64];
+  __local u8 tmpcounter[64];
+  __local Square sqchecker;
+
+//  __local Bitboard bbPinned;
+  Bitboard bbPinned;
+  __local Bitboard bbAttacks;
+  __local Bitboard bbCheckers;
+
+  const s32 gid = get_global_id(0) * get_global_size(1) + get_global_size(1);
+  const Square lid = get_local_id(2);
+
+  bool stm = (bool)stm_init;
+  bool kic;
+  bool rootkic = false;
+  bool qs = false;
+  Score score = 0;
+  Score tmpscore = 0;
+  s32 sd = 0;
+  s32 ply = 0;
+  s32 n = 0;
+  Move move = 0;
+  Move tmpmove = 0;
+
+  Square sqking;
+  Square sqfrom;
+  Square sqto;
+  Square sqcpt;   
+  Square sqep;
+  Piece pfrom;
+  Piece pto;
+  Piece pcpt;
+  Piece ppromo;
+
+  Bitboard bbBlockers;
+  Bitboard bbMe;
+  Bitboard bbOpp;
+  Bitboard bbTemp;
+  Bitboard bbWork;
+  Bitboard bbMask;
+  Bitboard bbMoves;
+
+  ulong4 bbWrap4;
+  ulong4 bbPro4;
+  ulong4 bbGen4; 
+
+  // get init quadbitboard plus plus
+  board[QBBBLACK] = BOARD[QBBBLACK];
+  board[QBBP1]    = BOARD[QBBP1];
+  board[QBBP2]    = BOARD[QBBP2];
+  board[QBBP3]    = BOARD[QBBP3];
+  board[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
+  board[QBBHASH]  = BOARD[QBBHASH]; // hash
+  board[QBBLAST]  = BOARD[QBBLAST]; // lastmove
+  stm             = (bool)stm_init;
+  ply             = 0;
+  sd              = 0;
+  mode            = MOVEUP;
+  localMove       = MOVENONE;
+
+  // init ab search var stack
+  if (lid==0)
+  {
+    localAlphaBetaScores[0*2+ALPHA] =-INF;
+    localAlphaBetaScores[0*2+BETA]  = INF;
+    localMoveCounter[0]             = 0;
+    localTodoIndex[0]               = 0;
+    localMoveIndexScore[0]          = INF;
+    localMoveHistory[0]             = board[QBBLAST];
+    localCrHistory[0]               = board[QBBPMVD];
+    localHashHistory[0]             = board[QBBHASH];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+
+  // ################################
+  // ####       main loop        ####
+  // ################################
+  while(mode!=EXIT)
+  {
+    // ################################
+    // ####     nove generator     ####
+    // ################################
+    // resets
+    tmpmoves[lid] = MOVENONE;
+    tmpscores[lid] = -INF;
+    tmpcounter[lid] = 0;
+    movecount = 0;
+
+    localMove = MOVENONE;
+    bbPinned = BBEMPTY;
+    bbAttacks = BBEMPTY;
+    bbCheckers  = BBEMPTY;
+
+    n = 0;
+    // enter quiescence search?
+    qs = false;
+
+    bbBlockers  = board[1]|board[2]|board[3];
+    bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
+    bbOpp       = (!stm)?board[0]:(board[0]^bbBlockers);
+
+    // calc superking and get pinned pieces
+    // get colored king
+    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
+    // get king square
+    sqking = first1(bbTemp);
+//    rootkic = squareunderattack(board, !stm, sqking);
+
+    // get superking, rooks n queens
+    bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    // get superking, bishops n queems
+    bbWork|= bishop_attacks(BBEMPTY, sqking) & ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    // get pinned pieces
+    while (bbWork)
+    {
+      sqfrom = popfirst1(&bbWork);
+      bbTemp = bbInBetween[sqfrom*64+sqking]&bbBlockers;
+      if (count1s(bbTemp)==1)
+        bbPinned |= bbTemp;
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // generate own moves and opposite attacks
+    sqfrom  = lid;
+    pfrom   = GETPIECE(board, sqfrom);
+    bbMask  = bbBlockers&SETMASKBB(sqfrom);
+    // get koggestone wraps
+    bbWrap4 = wraps4[0];
+    // generator and propagator (piece and empty squares)
+    bbGen4  = (ulong4)bbMask;
+    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
+    // kogge stone shift left via ulong4 vector
+    bbPro4 &= bbWrap4;
+    bbGen4 |= bbPro4  & (bbGen4 << shift4);
+    bbPro4 &=           (bbPro4 << shift4);
+    bbGen4 |= bbPro4  & (bbGen4 << 2*shift4);
+    bbPro4 &=           (bbPro4 << 2*shift4);
+    bbGen4 |= bbPro4  & (bbGen4 << 4*shift4);
+    bbGen4  = bbWrap4 & (bbGen4 << shift4);
+    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    // get koggestone wraps
+    bbWrap4 = wraps4[1];
+    // set generator and propagator (piece and empty squares)
+    bbGen4  = (ulong4)bbMask;
+    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
+    // kogge stone shift right via ulong4 vector
+    bbPro4 &= bbWrap4;
+    bbGen4 |= bbPro4  & (bbGen4 >> shift4);
+    bbPro4 &=           (bbPro4 >> shift4);
+    bbGen4 |= bbPro4  & (bbGen4 >> 2*shift4);
+    bbPro4 &=           (bbPro4 >> 2*shift4);
+    bbGen4 |= bbPro4  & (bbGen4 >> 4*shift4);
+    bbGen4  = bbWrap4 & (bbGen4 >> shift4);
+    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    // consider knights
+    bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
+    // verify captures
+    n       = (bbMe&SETMASKBB(sqfrom))?(s32)stm:(s32)!stm;
+    n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
+    bbMask  = AttackTables[n*64+sqfrom];
+    bbMoves = (SETMASKBB(sqfrom)&bbMe)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    // verify non captures
+    if (SETMASKBB(sqfrom)&bbMe)
+    {
+      bbMask = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
+      bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+    }
+
+    // store attacks in local
+    tmpmoves[sqfrom] = bbMoves;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // serial processing, get checkers
+    if (lid==0)
+    {
+      bbWork = bbOpp;
+      while(bbWork)
+      {
+        sqto = popfirst1(&bbWork);
+        // collect opposite attack
+        bbAttacks |= tmpmoves[sqto];
+        // get king checkers
+        if (tmpmoves[sqto]&SETMASKBB(sqking))
+        {
+          sqchecker = sqto;
+          bbCheckers |= SETMASKBB(sqto);
+        }
+      }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // extract only own moves
+    if (SETMASKBB(sqfrom)&bbOpp)
+      bbMoves = BBEMPTY;
+
+    // double check, king moves only
+    if (count1s(bbCheckers)>=2&&GETPTYPE(pfrom)!=KING)
+      bbMoves = BBEMPTY;
+
+    // consider pinned pieces
+    if (SETMASKBB(sqfrom)&bbPinned)
+      bbMoves&=bbLine[sqfrom*64+sqking];
+
+    // consider king and opp attacks
+    if (GETPTYPE(pfrom)==KING)
+      bbMoves&=~bbAttacks;
+
+    // consider single checker
+    if (count1s(bbCheckers)==1&&GETPTYPE(pfrom)!=KING)
+      bbMoves&= bbInBetween[sqchecker*64+sqking]|bbCheckers;
+
+    // gen en passant moves 
+    bbTemp = BBEMPTY;
+    sqep   = GETSQEP(board[QBBLAST]); 
+    if (sqep)
+    {
+      bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
+      bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
+      bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
+    }
+    // check for en passant pawns
+    if (bbTemp&SETMASKBB(sqfrom))
+    {
+      pfrom   = GETPIECE(board, sqfrom);
+      pto     = pfrom;
+      sqcpt   = sqep;
+      pcpt    = GETPIECE(board, sqcpt);
+      sqto    = (stm)? sqep-8:sqep+8;
+      // pack move into 64 bits, considering castle rights and halfmovecounter and score
+      move    = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, 0x0UL, 0x0UL, 0x0UL);
+      // legal moves only
+      domovequick(board, move);
+      kic = squareunderattack(board, !stm, sqking);
+      undomovequick(board, move);
+      if (!kic)
+      {
+        bbMoves |= SETMASKBB(sqto);
+      }
+    }
+    // gen castle moves
+    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))
+    { 
+      // get king square
+      sqfrom  = sqking;
+      sqto    = sqfrom-2;
+      pfrom   = GETPIECE(board, sqfrom);
+      // rook present
+      bbTemp  = (GETPIECE(board, sqfrom-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+      // check for empty squares
+      bbMask  = ((bbBlockers&SETMASKBB(sqfrom-1))|(bbBlockers&SETMASKBB(sqfrom-2))|(bbBlockers&SETMASKBB(sqfrom-3)));
+      // check for king and empty squares in check
+      bbWork =  (bbAttacks&SETMASKBB(sqfrom))|(bbAttacks&SETMASKBB(sqfrom-1))|(bbAttacks&SETMASKBB(sqfrom-2));
+      // store move
+      if (bbTemp&&!bbMask&&!bbWork)
+      {
+        bbMoves |= SETMASKBB(sqto);
+      }
+    }
+    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))
+    {
+      // get castle rights kingside
+      sqto    = sqfrom+2;
+      // rook present
+      bbTemp  = (GETPIECE(board, sqfrom+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+      // check for empty squares
+      bbMask  = ((bbBlockers&SETMASKBB(sqfrom+1))|(bbBlockers&SETMASKBB(sqfrom+2)));
+      // check for king and empty squares in check
+      bbWork =  (bbAttacks&SETMASKBB(sqfrom))|(bbAttacks&SETMASKBB(sqfrom+1))|(bbAttacks&SETMASKBB(sqfrom+2));
+      // store move
+      if (bbTemp&&!bbMask&&!bbWork)
+      {
+        bbMoves |= SETMASKBB(sqto);
+      }
+    }
+    // move picker, extract moves x64 parallel
     n       = 0;
     move    = MOVENONE;
     score   = -INF;

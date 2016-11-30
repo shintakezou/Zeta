@@ -124,6 +124,7 @@ s32 load_file_to_string(const char *filename, char **result);
 // cl functions
 extern bool cl_init_device(char *kernelname);
 extern bool cl_init_objects();
+extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_run_alphabeta(bool stm, s32 depth);
 extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
@@ -1842,13 +1843,13 @@ Score perft(Bitboard *board, bool stm, s32 depth)
 
   start = get_time(); 
 
-  state = cl_init_objects("alphabeta_gpu");
+  state = cl_init_objects("perft_gpu");
   // something went wrong...
   if (!state)
   {
     quitengine(EXIT_FAILURE);
   }
-  state = cl_run_alphabeta(stm, depth);
+  state = cl_run_perft(stm, depth);
   // something went wrong...
   if (!state)
   {
