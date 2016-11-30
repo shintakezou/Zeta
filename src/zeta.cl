@@ -1236,6 +1236,8 @@ __kernel void alphabeta_gpu(
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
+//    rootkic = squareunderattack(board, !stm, sqking);
+
     // get superking, rooks n queens
     bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
     // get superking, bishops n queems
@@ -1371,17 +1373,14 @@ __kernel void alphabeta_gpu(
     }
 
     // gen castle moves
-    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL))
+    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))
     { 
       // get king square
       sqfrom  = sqking;
       sqto    = sqfrom-2;
-      // set castle move score
       pfrom   = GETPIECE(board, sqfrom);
-      // get castle rights queenside
-      bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)?true:false:(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)?true:false;
       // rook present
-      bbTemp  = (GETPIECE(board, sqfrom-4)==MAKEPIECE(ROOK,stm))?bbTemp:false;
+      bbTemp  = (GETPIECE(board, sqfrom-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
       // check for empty squares
       bbMask  = ((bbBlockers&SETMASKBB(sqfrom-1))|(bbBlockers&SETMASKBB(sqfrom-2))|(bbBlockers&SETMASKBB(sqfrom-3)));
       // check for king and empty squares in check
@@ -1391,11 +1390,13 @@ __kernel void alphabeta_gpu(
       {
         bbMoves |= SETMASKBB(sqto);
       }
-      sqto    = sqfrom+2;
+    }
+    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))
+    {
       // get castle rights kingside
-      bbTemp  = (stm)?(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)?true:false:(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)?true:false;
+      sqto    = sqfrom+2;
       // rook present
-      bbTemp  = (GETPIECE(board, sqfrom+3)==MAKEPIECE(ROOK,stm))?bbTemp:false;
+      bbTemp  = (GETPIECE(board, sqfrom+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
       // check for empty squares
       bbMask  = ((bbBlockers&SETMASKBB(sqfrom+1))|(bbBlockers&SETMASKBB(sqfrom+2)));
       // check for king and empty squares in check
@@ -1434,18 +1435,18 @@ __kernel void alphabeta_gpu(
       pcpt  = GETPIECE(board, sqcpt);
       pto   = pfrom;
       // set pawn prommotion, queen
-//      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN, GETCOLOR(pfrom)):pfrom;
+//      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+
       // handle all pawn promo, repeat loop
-      if (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8&&ppromo<QUEEN)
+      if (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)
       {
-        if (ppromo==KNIGHT) // skip king type
-          ppromo = BISHOP;
-        else
-          ppromo++;        
-        pto = MAKEPIECE(ppromo, GETCOLOR(pfrom));
-        if (ppromo<QUEEN)
-          bbMoves |= SETMASKBB(sqto);
+        ppromo++;
+        ppromo=(ppromo==KING)?BISHOP:ppromo; // skip king
+        pto = MAKEPIECE(ppromo,GETCOLOR(pfrom));
+        bbMoves |= (ppromo<QUEEN)?SETMASKBB(sqto):BBEMPTY;
+        ppromo=(ppromo==QUEEN)?PAWN:ppromo; // reset ppromo for further sqto
       }
+
       // make move
       tmpmove  = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MOVEISCRQ:MOVENONE;
@@ -1548,7 +1549,6 @@ __kernel void alphabeta_gpu(
     // ####         moveup         ####
     // ################################
     // move up in tree
-    barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0&&mode==MOVEUP)
     {
       // set history
@@ -1557,6 +1557,7 @@ __kernel void alphabeta_gpu(
       localHashHistory[sd]  = board[QBBHASH];
       localTodoIndex[sd]++;
     }
+    barrier(CLK_LOCAL_MEM_FENCE);
     if (mode==MOVEUP)
     {
       domove(board, localMove);
