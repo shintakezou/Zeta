@@ -1106,7 +1106,6 @@ Score eval(__private Bitboard *board)
 // alphabeta on gpu, 64 threads in parallel on one chess position
 __kernel void alphabeta_gpu(  
                             __global Bitboard *BOARD,
-                            __global Score *RETURN_SCORE,
                             __global u64 *NODECOUNTER,
                             __global u64 *COUNTERS,
                             __global Hash *HashHistory,
@@ -1349,7 +1348,7 @@ __kernel void alphabeta_gpu(
     if (sqep)
     {
       bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
-      bbMask &= (stm)? 0xFF000000 : 0xFF00000000;
+      bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
       bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
     }
     // check for en passant pawns
@@ -1371,7 +1370,6 @@ __kernel void alphabeta_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
-
     // gen castle moves
     if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))
     { 
@@ -1407,7 +1405,6 @@ __kernel void alphabeta_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
-
     // move picker, extract moves x64 
     n       = 0;
     move    = MOVENONE;

@@ -1643,13 +1643,13 @@ static void selftest(void)
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ",
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ",
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ",
-    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
-    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
-    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
-    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - ",
     "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
     "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
     "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",
@@ -1660,27 +1660,28 @@ static void selftest(void)
     "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -",
     "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -"
   };
-  u32 depths[] =
+  u32 depths[20] =
   {
     1,2,3,4,
-    1,2,3,
     1,2,3,4,
+    1,2,3,
     1,2,3,
     1,2,3,
     1,2,3
   };
-  u64 nodecounts[] =
+  u64 nodecounts[20] =
   {
     20,400,8902,197281,
-    48,2039,97862,
     14,191,2812,43238,
+    48,2039,97862,
     6,264,9467,
     44,1486,62379,
-    46,2079,89890,
+    46,2079,89890
   };
 
   for (done=0;done<todo;done++)
   {
+
     ABNODECOUNT = 0;
 
     SD = depths[done];
