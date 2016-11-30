@@ -1125,12 +1125,12 @@ __kernel void alphabeta_gpu(
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
-  __local float localMoveIndexHistory[MAXPLY];
+  __local Score localMoveIndexHistory[MAXPLY];
   __local s32 mode;
   __local s32 movecount;
   __local Move localMove;
   __local Move tmpmoves[64];
-  __local float tmpscores[64];
+  __local Score tmpscores[64];
   __local u8 tmpcounter[64];
   __local Square sqchecker;
 
@@ -1147,7 +1147,7 @@ __kernel void alphabeta_gpu(
   bool rootkic = false;
   bool qs = false;
   Score score = 0;
-  float fscore = 0;
+  Score tmpscore = 0;
   s32 sd = 0;
   s32 ply = 0;
   s32 n = 0;
@@ -1197,7 +1197,7 @@ __kernel void alphabeta_gpu(
     localAlphaBetaScores[0*2+BETA]  =  INF;
     localMoveCounter[0]             = 0;
     localTodoIndex[0]               = 0;
-    localMoveIndexHistory[0]        = INF;
+    localMoveIndexHistory[0]        = 1000000000;
     localMoveHistory[0]             = board[QBBLAST];
     localCrHistory[0]               = board[QBBPMVD];
     localHashHistory[0]             = board[QBBHASH];
@@ -1410,7 +1410,7 @@ __kernel void alphabeta_gpu(
     // move picker, extract moves x64 
     n       = 0;
     move    = MOVENONE;
-    fscore  = -INF;
+    score   = -1000000000;
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     ppromo  = GETPTYPE(pfrom);
@@ -1461,20 +1461,20 @@ __kernel void alphabeta_gpu(
 */
       n++;
       // get move score
-      score = EvalMove(tmpmove);
+      tmpscore = (EvalMove(tmpmove)*10000)+(lid*64+n);
       // ignore moves already searched
-      if ((float)score+((float)(lid*64+n)/1000)>=localMoveIndexHistory[sd])
+      if (tmpscore>=localMoveIndexHistory[sd])
         continue;
       // get move with highest score
-      if ((float)score+((float)(lid*64+n)/1000)<=fscore)
+      if (tmpscore<=score)
         continue;
-      fscore = (float)score+((float)(lid*64+n)/1000);
+      score = tmpscore;
       move = tmpmove;
     }
     
     // store data in local memory
     tmpmoves[lid] = move;
-    tmpscores[lid] = fscore;
+    tmpscores[lid] = score;
     tmpcounter[lid] = n;
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1482,20 +1482,20 @@ __kernel void alphabeta_gpu(
     // process data in serial and select move
     if(lid==0)
     {
-      fscore = -INF;
+      tmpscore = -1000000000;
       for (sqfrom=0;sqfrom<64;sqfrom++)
       {
         // collect movecount
         movecount+= tmpcounter[sqfrom];
         // collect bestmove
-        if (tmpscores[sqfrom]>fscore)
+        if (tmpscores[sqfrom]>tmpscore)
         {
           move = tmpmoves[sqfrom];
-          fscore = tmpscores[sqfrom];
+          tmpscore = tmpscores[sqfrom];
         }
       }
       localMove = move;
-      localMoveIndexHistory[sd] = fscore;
+      localMoveIndexHistory[sd] = tmpscore;
     }
 
 //localMove = MOVENONE;
@@ -1571,7 +1571,7 @@ __kernel void alphabeta_gpu(
       localTodoIndex[sd]                = 0;
       localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
       localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-      localMoveIndexHistory[sd]         = INF;
+      localMoveIndexHistory[sd]         = 1000000000;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
