@@ -2015,11 +2015,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       fprintdate(LogFile);
       fprintf(LogFile, "depth score time nodes pv \n");
     }
-    fprintf(stdout,"%i %i %i %" PRIu64, plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
+    fprintf(stdout,"%i %i %i %" PRIu64 " ", plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile,"%i %i %i %" PRIu64, plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
+      fprintf(LogFile,"%i %i %i %" PRIu64 " ", plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
     }
     printmovecan(bestmove);
     fprintf(stdout,"\n");
