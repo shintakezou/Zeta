@@ -60,7 +60,7 @@ typedef struct
   s32 parent;
 } NodeBlock;
 
-#define VERSION "098e"
+#define VERSION "098g"
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit

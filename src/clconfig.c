@@ -35,7 +35,8 @@ bool cl_guess_config(bool extreme)
 {
   cl_int status = 0;
   size_t paramSize;
-  char *paramValue;
+  size_t paramValue;
+  char *deviceName;
   char *ExtensionsValue;
   cl_device_id *devices;
   u32 i,j,k;
@@ -197,12 +198,12 @@ bool cl_guess_config(bool extreme)
           }
           continue;
         }
-        paramValue = (char *)malloc(1 * paramSize);
+        deviceName = (char *)malloc(1 * paramSize);
         // get device name
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_NAME,
                                   paramSize,
-                                  paramValue,
+                                  deviceName,
                                   NULL
                                   );
 
@@ -222,11 +223,11 @@ bool cl_guess_config(bool extreme)
           fprintdate(LogFile);
           fprintf(LogFile, "#> ### Query and check the OpenCL Device...\n");
         }
-        fprintf(stdout, "#> Device: %i, Device name: %s \n", j, paramValue);
+        fprintf(stdout, "#> Device: %i, Device name: %s \n", j, deviceName);
         if (LogFile)
         {
           fprintdate(LogFile);
-          fprintf(LogFile, "#> Device: %i, Device name: %s \n", j, paramValue);
+          fprintf(LogFile, "#> Device: %i, Device name: %s \n", j, deviceName);
         }
         cl_bool endianlittle = CL_FALSE;
         // get endianess, only little supported
@@ -641,14 +642,14 @@ bool cl_guess_config(bool extreme)
           continue;
         }
 
-        warpVal = (s32 *)malloc(1 * paramSize);
         status = clGetKernelWorkGroupInfo ( kernel,
                                             devices[j],
                                             CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
                                             paramSize,
-                                            warpVal,
+                                            &paramValue,
                                             NULL
                                           );
+        warpVal = (s32 *)&paramValue;
         if(status!=CL_SUCCESS) 
         {  
           fprintf(stdout, "#> Error: Getting CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE (clGetKernelWorkGroupInfo)\n");
@@ -672,7 +673,7 @@ bool cl_guess_config(bool extreme)
         remove("config.tmp");
 
         Cfg = fopen("config.tmp", "w");
-        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(Cfg, "threadsX: %i;\n", deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", warpmulti);
         fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
@@ -755,7 +756,7 @@ bool cl_guess_config(bool extreme)
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
-            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "threadsZ: %i;\n\n", warpsize*2);
@@ -815,7 +816,7 @@ bool cl_guess_config(bool extreme)
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
-            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti*2);
             fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
@@ -884,7 +885,7 @@ bool cl_guess_config(bool extreme)
         remove(confignamefile);
 
         Cfg = fopen(confignamefile, "w");
-        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(Cfg, "threadsX: %i;\n", deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", warpmulti);
         fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
@@ -913,7 +914,7 @@ bool cl_guess_config(bool extreme)
 
         fprintf(stdout, "#\n");
         fprintf(stdout, "#\n");
-        fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+        fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(stdout, "threadsX: %i;\n", deviceunits);
         fprintf(stdout, "threadsY: %i;\n", warpmulti);
         fprintf(stdout, "threadsZ: %i;\n", warpsize);
@@ -930,7 +931,7 @@ bool cl_guess_config(bool extreme)
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
           fprintf(LogFile, "#\n");
-          fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+          fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
           fprintf(LogFile, "threadsX: %i;\n", deviceunits);
           fprintf(LogFile, "threadsY: %i;\n", warpmulti);
           fprintf(LogFile, "threadsZ: %i;\n", warpsize);
