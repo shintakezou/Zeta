@@ -1936,7 +1936,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
-    ABNODECOUNT+=   COUNTERS[i];
+    ABNODECOUNT+=   COUNTERS[i*64+0];
   }
   score = (Score)COUNTERS[1];
   bestmove = (Move)COUNTERS[2];
