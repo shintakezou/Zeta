@@ -1837,7 +1837,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
 
   start = get_time(); 
 
-  state = cl_init_objects("perft_gpu");
+  state = cl_init_objects();
   // something went wrong...
   if (!state)
   {
@@ -1906,7 +1906,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     quitengine(EXIT_FAILURE);
   }
 */
-  state = cl_init_objects("alphabeta_gpu");
+  state = cl_init_objects();
   // something went wrong...
   if (!state)
   {
@@ -1933,7 +1933,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   }
 */
   // collect counters
-  ABNODECOUNT =   COUNTERS[0];
+  // prepare hash history
+  for(u64 i=0;i<totalWorkUnits;i++)
+  {
+    ABNODECOUNT+=   COUNTERS[i];
+  }
   score = (Score)COUNTERS[1];
   bestmove = (Move)COUNTERS[2];
   bestscore = ISINF(score)?DRAWSCORE:score;
