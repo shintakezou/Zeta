@@ -37,11 +37,8 @@ char *Command;                // for pasring the xboard command
 char *Fen;                    // for storing the fen chess baord string
 const char filename[]  = "zeta.cl";
 // counters
-u64 ITERCOUNT = 0;
-u64 EXNODECOUNT = 0;
 u64 ABNODECOUNT = 0;
 u64 MOVECOUNT = 0;
-u64 MEMORYFULL = 0;
 Score GPUSCORE;
 // config file
 u64 threadsX            =  0;
@@ -1823,11 +1820,8 @@ Score perft(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
 
-  ITERCOUNT   = 0;
-  EXNODECOUNT = 0;
   ABNODECOUNT = 0;
   MOVECOUNT   = 0;
-  MEMORYFULL  = 0;
 
   // init board
   memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
@@ -1871,34 +1865,16 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
   Score score;
-  Score tmpscore;
   Score xboard_score;
-  s32 j;
-  s32 visits = 0;
-  s32 tmpvisits = 0;
   Move bestmove = MOVENONE;
   Score bestscore = 0;
   s32 plyreached = 0;
-  s32 scoreply = 0;
   double start, end;
 
-  ITERCOUNT   = 0;
-  EXNODECOUNT = 0;
   ABNODECOUNT = 0;
   MOVECOUNT   = 0;
-  MEMORYFULL  = 0;
 
   start = get_time(); 
-
-  // prepare root node
-  BOARD_STACK_TOP = 1;
-  NODES[0].move                =  board[QBBLAST];
-  NODES[0].score               = -INF;
-  NODES[0].visits              =  0;
-  NODES[0].children            = -1;
-  NODES[0].parent              = -1;
-  NODES[0].child               = -1;
-  NODES[0].lock                =  0; // assign root node to process 0   
 
   // init board
   memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
@@ -1956,42 +1932,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     quitengine(EXIT_FAILURE);
   }
 */
-  // single reply
-  score = -NODES[NODES[0].child].score;
-  bestmove = NODES[NODES[0].child].move;
-  // get best move from tree copied from cl device
-  for(s32 i=0; i < NODES[0].children; i++)
-  {
-    j = NODES[0].child + i;
-    tmpscore = -NODES[j].score;
-    tmpvisits = NODES[j].visits;
-  /*
-    FILE 	*Stats;
-    Stats = fopen("zeta.debug", "a");
-    fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
-    fclose(Stats);
-  */
-    if (ISINF(tmpscore)) // skip illegal
-      continue;
-    if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
-    {
-      score = tmpscore;
-      visits = tmpvisits;
-      // collect bestmove
-      bestmove = NODES[j].move;
-    }
-  }
-  bestscore = ISINF(score)?DRAWSCORE:score;
   // collect counters
-  ITERCOUNT+=     COUNTERS[0];
-  EXNODECOUNT+=   COUNTERS[1];
-  ABNODECOUNT+=   COUNTERS[2];
-
-//  bestscore = (s32)COUNTERS[totalWorkUnits*4+0];
-//  MOVECOUNT = COUNTERS[3];
-  plyreached = COUNTERS[5];
-  MEMORYFULL = COUNTERS[6];
-  scoreply = COUNTERS[7];
+  ABNODECOUNT =   COUNTERS[0];
+  score = (Score)COUNTERS[1];
+  bestmove = (Move)COUNTERS[2];
+  bestscore = ISINF(score)?DRAWSCORE:score;
   // timers
   end = get_time();
   elapsed = end-start;
@@ -2000,7 +1945,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   nps_current =  (s32 )(ABNODECOUNT/(elapsed));
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
   // xboard mate scores
-  xboard_score = bestscore/10;
+  xboard_score = bestscore;
   xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore-PLY):xboard_score;
   xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore+PLY):xboard_score;
   // print xboard output
@@ -2029,36 +1974,6 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   if ((!xboard_mode)||xboard_debug)
   {
     printboard(BOARD);
-    fprintf(stdout, "#Runs: %" PRIu64 "\n", ITERCOUNT);
-    fprintf(stdout, "#Expaned-Nodes: %" PRIu64 "\n", EXNODECOUNT);
-    fprintf(stdout, "#AB-Nodes: %" PRIu64 "\n", ABNODECOUNT);
-    fprintf(stdout, "#BF-Depth: %d\n", plyreached);
-    fprintf(stdout, "#ScoreDepth: %d\n", scoreply);
-    fprintf(stdout, "#Memory full: %" PRIu64 "\n", COUNTERS[6]);
-    fprintf(stdout, "#Score: %d\n", xboard_score);
-    fprintf(stdout, "#nps: %" PRIu64 "\n", (u64)(ABNODECOUNT/elapsed));
-    fprintf(stdout, "#sec: %lf\n", elapsed);
-  }
-  if (LogFile)
-  {
-    fprintdate(LogFile);
-    fprintf(LogFile, "#Runs: %" PRIu64 "\n", ITERCOUNT);
-    fprintdate(LogFile);
-    fprintf(LogFile, "#Expaned-Nodes: %" PRIu64 "\n", EXNODECOUNT);
-    fprintdate(LogFile);
-    fprintf(LogFile, "#AB-Nodes: %" PRIu64 "\n", ABNODECOUNT);
-    fprintdate(LogFile);
-    fprintf(LogFile, "#BF-Depth: %d\n", plyreached);
-    fprintdate(LogFile);
-    fprintf(LogFile, "#ScoreDepth: %d\n", scoreply);
-    fprintdate(LogFile);
-    fprintf(LogFile, "#Memory full: %" PRIu64 "\n", COUNTERS[6]);
-    fprintdate(LogFile);
-    fprintf(LogFile, "#Score: %d\n", xboard_score);
-    fprintdate(LogFile);
-    fprintf(LogFile, "#nps: %" PRIu64 "\n", (u64)(ABNODECOUNT/elapsed));
-    fprintdate(LogFile);
-    fprintf(LogFile, "#sec: %lf\n", elapsed);
   }
 
   fflush(stdout);
@@ -2078,8 +1993,6 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   s32 plyreached = 0;
   double start, end;
 
-  ITERCOUNT   = 0;
-  EXNODECOUNT = 0;
   ABNODECOUNT = 0;
   MOVECOUNT   = 0;
 
@@ -2163,14 +2076,11 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   }
   bestscore = ISINF(score)?DRAWSCORE:score;
 
-  ITERCOUNT+=     COUNTERS[0];
-  EXNODECOUNT+=   COUNTERS[1];
   ABNODECOUNT+=   COUNTERS[2];
 
 //  bestscore = (s32)COUNTERS[totalWorkUnits*4+0];
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];
-  MEMORYFULL = COUNTERS[6];
 //  scoreply = COUNTERS[7];
   // print cli output
   fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
@@ -2227,22 +2137,6 @@ s32 benchmarkWrapper(s32 benchsec)
     bench = benchmark(BOARD, STM, SD);                
     if (bench != 0 )
       break;
-    if (MEMORYFULL == 1)
-    {
-      fprintf(stdout, "#\n");
-      fprintf(stdout, "#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
-      fprintf(stdout, "#\n");
-      if (LogFile)
-      {
-        fprintdate(LogFile);
-        fprintf(LogFile, "#\n");
-        fprintdate(LogFile);
-        fprintf(LogFile, "#> Lack of Device Memory, try to set memory_slots to 2 or 3\n");
-        fprintdate(LogFile);
-        fprintf(LogFile, "#\n");
-      }
-      break;
-    }
     max_nodes*=2; // search double the nodes for next iteration
     MaxNodes = max_nodes;
     setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -2552,7 +2446,6 @@ int main(int argc, char* argv[])
         bool kic = squareunderattack(BOARD, STM, getkingpos(BOARD,STM));
         Move move;
         xboard_force = false;
-        ITERCOUNT = 0;
         MOVECOUNT = 0;
         start = get_time();
 
@@ -2585,8 +2478,8 @@ int main(int argc, char* argv[])
           // start thinking
           move = rootsearch(BOARD, STM, SD);
 
-          // check for root node expanded
-          if (EXNODECOUNT==0)
+          // check for root node searched
+          if (ABNODECOUNT==0)
           {
             if (STM)
             {
@@ -2660,8 +2553,11 @@ int main(int argc, char* argv[])
             end = get_time();   
             elapsed = end-start;
 
-            if (!xboard_mode||xboard_debug)
+            if ((!xboard_mode)||xboard_debug)
+            {
               printboard(BOARD);
+              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, (u64)(ABNODECOUNT/(elapsed/1000)));
+            }
 
             PLY++;
             STM = !STM;
@@ -2814,7 +2710,6 @@ int main(int argc, char* argv[])
       if (!xboard_force)
       {
         bool kic = squareunderattack(BOARD, STM, getkingpos(BOARD,STM));
-        ITERCOUNT = 0;
         MOVECOUNT = 0;
         start = get_time();
 
@@ -2847,8 +2742,8 @@ int main(int argc, char* argv[])
           // start thinking
           move = rootsearch(BOARD, STM, SD);
 
-          // check for root node expanded
-          if (EXNODECOUNT==0)
+          // check for root node searched
+          if (ABNODECOUNT==0)
           {
             if (STM)
             {
@@ -2922,8 +2817,11 @@ int main(int argc, char* argv[])
             end = get_time();   
             elapsed = end-start;
 
-            if (!xboard_mode||xboard_debug)
+            if ((!xboard_mode)||xboard_debug)
+            {
               printboard(BOARD);
+              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, (u64)(ABNODECOUNT/(elapsed/1000)));
+            }
 
             PLY++;
             STM = !STM;
@@ -3064,7 +2962,6 @@ int main(int argc, char* argv[])
     // do an node count to depth defined via sd 
     if (!xboard_mode && !strcmp(Command, "perft"))
     {
-      ITERCOUNT = 0;
       MOVECOUNT = 0;
 
       fprintf(stdout,"### doing perft depth %d: ###\n", SD);  
