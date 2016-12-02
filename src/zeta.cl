@@ -1106,7 +1106,6 @@ Score eval(__private Bitboard *board)
 // perft on gpu, 64 threads in parallel on one chess position
 __kernel void perft_gpu(  
                             __global Bitboard *BOARD,
-                            __global u64 *NODECOUNTER,
                             __global u64 *COUNTERS,
                             __global Hash *HashHistory,
                             __global Bitboard *bbInBetween,
@@ -1138,7 +1137,7 @@ __kernel void perft_gpu(
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
-  const s32 gid = get_global_id(0) * get_global_size(1) + get_global_size(1);
+  const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
   const Square lid = get_local_id(2);
 
   bool stm = (bool)stm_init;
@@ -1532,7 +1531,7 @@ __kernel void perft_gpu(
     if (lid==0&&sd>=search_depth)
     {
       // terminal node counter
-      NODECOUNTER[0]++;
+      COUNTERS[gid*64+0]++;
       movecount = 0;
       localMove = MOVENONE;
     }
@@ -1607,7 +1606,6 @@ __kernel void perft_gpu(
 // perft on gpu, 64 threads in parallel on one chess position
 __kernel void alphabeta_gpu(  
                             __global Bitboard *BOARD,
-                            __global u64 *NODECOUNTER,
                             __global u64 *COUNTERS,
                             __global Hash *HashHistory,
                             __global Bitboard *bbInBetween,
@@ -1639,7 +1637,7 @@ __kernel void alphabeta_gpu(
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
-  const s32 gid = get_global_id(0) * get_global_size(1) + get_global_size(1);
+  const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
   const Square lid = get_local_id(2);
 
   bool stm = (bool)stm_init;
@@ -2033,7 +2031,7 @@ __kernel void alphabeta_gpu(
     if (lid==0&&sd>=search_depth)
     {
       // terminal node counter
-      NODECOUNTER[0]++;
+      COUNTERS[gid*64+0]++;
       movecount = 0;
       localMove = MOVENONE;
     }

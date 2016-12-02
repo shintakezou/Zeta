@@ -188,23 +188,10 @@ bool cl_init_device(char *kernelname)
 		return false;
 	}
 
-  templong = 0ULL;
-  GLOBAL_NODECOUNT_Buffer = clCreateBuffer(
-                        	              context, 
-                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                        sizeof(u64) * 1,
-                                        &templong, 
-                                        &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_NODECOUNT_Buffer)\n");
-    return false;
-  }
-
   GLOBAL_COUNTERS_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(u64) * 64,
+                                    sizeof(u64) * totalWorkUnits * 64,
                                     COUNTERS, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -216,7 +203,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_HASHHISTORY_Buffer = clCreateBuffer(
                             			     context, 
                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(Hash) * totalThreads*MAXGAMEPLY,
+                                       sizeof(Hash) * totalWorkUnits*MAXGAMEPLY,
                                        GLOBAL_HASHHISTORY, 
                                        &status);
   if(status!=CL_SUCCESS) 
@@ -272,30 +259,12 @@ bool cl_init_objects() {
     return false;
   }
 
-  templong = 0ULL;
-  status = clEnqueueWriteBuffer(
-                                commandQueue,
-                                GLOBAL_NODECOUNT_Buffer,
-                                CL_TRUE,
-                                0,
-                                sizeof(cl_ulong) * 1,
-                                &templong, 
-                                0,
-                                NULL,
-                                NULL);
-
-  if(status!=CL_SUCCESS)
-  {
-    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_NODECOUNT_Buffer)\n");
-    return false;
-  }
-
   status = clEnqueueWriteBuffer(
                                 commandQueue,
                                 GLOBAL_COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(cl_ulong) * 64,
+                                sizeof(cl_ulong) * totalWorkUnits * 64,
                                 COUNTERS, 
                                 0,
                                 NULL,
@@ -312,7 +281,7 @@ bool cl_init_objects() {
                                 GLOBAL_HASHHISTORY_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(Hash) * totalThreads*MAXGAMEPLY,
+                                sizeof(Hash) * totalWorkUnits*MAXGAMEPLY,
                                 GLOBAL_HASHHISTORY, 
                                 0,
                                 NULL,
@@ -348,18 +317,6 @@ bool cl_run_alphabeta(bool stm, s32 depth)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_BOARD_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_NODECOUNT_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_NODECOUNT_Buffer)\n");
     return false;
   }
   i++;
@@ -526,18 +483,6 @@ bool cl_run_perft(bool stm, s32 depth)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_NODECOUNT_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_NODECOUNT_Buffer)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
                           (void *)&GLOBAL_COUNTERS_Buffer);
   if(status!=CL_SUCCESS) 
   { 
@@ -687,7 +632,7 @@ bool cl_get_and_release_memory()
                                 GLOBAL_COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                64 * sizeof(cl_ulong),
+                                totalWorkUnits * 64 * sizeof(cl_ulong),
                                 COUNTERS,
                                 0,
                                 NULL,
@@ -712,37 +657,6 @@ bool cl_get_and_release_memory()
     return false;
   }
 
-  // copy alpha beta nodecount
-  status = clEnqueueReadBuffer(
-                                commandQueue,
-                                GLOBAL_NODECOUNT_Buffer,
-                                CL_TRUE,
-                                0,
-                                sizeof(cl_ulong) * 1,
-                                &ABNODECOUNT,
-                                0,
-                                NULL,
-                                &events[1]);
-
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_NODECOUNT_Buffer)\n");
-    return false;
-  }
-  // wait for the read buffer to finish execution
-  status = clWaitForEvents(1, &events[1]);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_NODECOUNT_Buffer)\n");
-    return false;
-  }
-  status = clReleaseEvent(events[1]);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Release event object.(GLOBAL_NODECOUNT_Buffer)\n");
-    return false;
-  }
-
 /* keep build program across game play
 
   status = clReleaseProgram(program);
@@ -763,13 +677,6 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_Buffer)\n");
-    return false; 
-  }
-
-  status = clReleaseMemObject(GLOBAL_NODECOUNT_Buffer);
-  if(status!=CL_SUCCESS)
-  {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_NODECOUNT_Buffer)\n");
     return false; 
   }
 

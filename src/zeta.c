@@ -47,7 +47,7 @@ Score GPUSCORE;
 u64 threadsX            =  0;
 u64 threadsY            =  0;
 u64 threadsZ            =  0;
-u64 totalThreads        =  0;
+u64 totalWorkUnits        =  0;
 s32 nodes_per_second    =  0;
 s32 max_nodes           =  0;
 s32 nps_current         =  0;
@@ -1558,7 +1558,7 @@ bool read_and_init_config(char configfile[])
   else
     MaxNodes = max_nodes;
 
-  totalThreads = threadsX*threadsY;
+  totalWorkUnits = threadsX*threadsY;
 
   // allocate memory
   GLOBAL_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
@@ -1585,7 +1585,7 @@ bool read_and_init_config(char configfile[])
     return false;
   }
 */
-  COUNTERS = (u64*)calloc(64, sizeof(u64));
+  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -1596,7 +1596,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  GLOBAL_HASHHISTORY = (Hash*)malloc((totalThreads*MAXGAMEPLY) * sizeof (Hash));
+  GLOBAL_HASHHISTORY = (Hash*)malloc((totalWorkUnits*MAXGAMEPLY) * sizeof (Hash));
   if (GLOBAL_HASHHISTORY==NULL)
   {
     fprintf(stdout, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
@@ -1834,9 +1834,9 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   // reset counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(64, sizeof(u64));
+  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
   // prepare hash history
-  for(u64 i=0;i<totalThreads;i++)
+  for(u64 i=0;i<totalWorkUnits;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY* sizeof(Hash));
   }
@@ -1863,7 +1863,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   }
 
   // collect counters
-//  ABNODECOUNT+=   COUNTERS[2];
+  ABNODECOUNT = COUNTERS[0];
 
   return 0;
 }
@@ -1905,7 +1905,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   // clear counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(64, sizeof(u64));
+  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -1917,7 +1917,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     exit(EXIT_FAILURE);
   }
   // prepare hash history
-  for(u64 i=0;i<totalThreads;i++)
+  for(u64 i=0;i<totalWorkUnits;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY* sizeof(Hash));
   }
@@ -1930,7 +1930,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     quitengine(EXIT_FAILURE);
   }
 */
-  state = cl_init_objects("bestfirst_gpu");
+  state = cl_init_objects("alphabeta_gpu");
   // something went wrong...
   if (!state)
   {
@@ -1987,7 +1987,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   EXNODECOUNT+=   COUNTERS[1];
   ABNODECOUNT+=   COUNTERS[2];
 
-//  bestscore = (s32)COUNTERS[totalThreads*4+0];
+//  bestscore = (s32)COUNTERS[totalWorkUnits*4+0];
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];
   MEMORYFULL = COUNTERS[6];
@@ -2100,7 +2100,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   // clear counters
   if (COUNTERS)
     free(COUNTERS);
-  COUNTERS = (u64*)calloc(64, sizeof(u64));
+  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
   if (COUNTERS==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERS, failed\n");
@@ -2112,12 +2112,12 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     exit(EXIT_FAILURE);
   }
   // prepare hash history
-  for(u64 i=0;i<totalThreads;i++)
+  for(u64 i=0;i<totalWorkUnits;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY*sizeof(Hash));
   }
   // inits
-  if (!cl_init_objects("bestfirst_gpu"))
+  if (!cl_init_objects("alphabeta_gpu"))
   {
     return -1;
   }
@@ -2167,7 +2167,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   EXNODECOUNT+=   COUNTERS[1];
   ABNODECOUNT+=   COUNTERS[2];
 
-//  bestscore = (s32)COUNTERS[totalThreads*4+0];
+//  bestscore = (s32)COUNTERS[totalWorkUnits*4+0];
 //  MOVECOUNT = COUNTERS[3];
   plyreached = COUNTERS[5];
   MEMORYFULL = COUNTERS[6];

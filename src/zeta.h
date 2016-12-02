@@ -31,7 +31,7 @@ void print_debug(char *debug);
 extern s32 threadsX;
 extern s32 threadsY;
 extern s32 threadsZ;
-extern s32 totalThreads;
+extern s32 totalWorkUnits;
 extern s32 max_depth;
 extern s32 opencl_device_id;
 extern s32 opencl_platform_id;
@@ -54,7 +54,6 @@ extern Bitboard bbInBetween[64*64];
 extern Bitboard bbLine[64*64];
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
-cl_mem   GLOBAL_NODECOUNT_Buffer;
 cl_mem	 GLOBAL_COUNTERS_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 cl_mem	 GLOBAL_bbInBetween_Buffer;
