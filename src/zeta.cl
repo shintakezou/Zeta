@@ -1699,6 +1699,7 @@ __kernel void alphabeta_gpu(
     localMoveHistory[0]             = board[QBBLAST];
     localCrHistory[0]               = board[QBBPMVD];
     localHashHistory[0]             = board[QBBHASH];
+    COUNTERS[gid*64+1]              = (u64)-INF;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1723,7 +1724,7 @@ __kernel void alphabeta_gpu(
 
     n = 0;
     // enter quiescence search?
-    qs = false;
+    qs = (sd>=search_depth)?true:false;
 
     bbBlockers  = board[1]|board[2]|board[3];
     bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
@@ -1734,7 +1735,7 @@ __kernel void alphabeta_gpu(
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
-//    rootkic = squareunderattack(board, !stm, sqking);
+    rootkic = squareunderattack(board, !stm, sqking);
 
     // get superking, rooks n queens
     bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
@@ -1911,6 +1912,7 @@ __kernel void alphabeta_gpu(
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     ppromo  = GETPTYPE(pfrom);
+
     while(bbMoves)
     {
       sqto  = popfirst1(&bbMoves);
@@ -1963,12 +1965,12 @@ __kernel void alphabeta_gpu(
       if (tmpscore>=localMoveIndexScore[sd])
         continue;
       // get move with highest score
-      if (tmpscore<=score)
+      if (score>=tmpscore)
         continue;
       score = tmpscore;
       move = tmpmove;
     }
-    
+
     // store data in local memory
     tmpmoves[lid] = move;
     tmpscores[lid] = score;
@@ -1980,8 +1982,10 @@ __kernel void alphabeta_gpu(
     if(lid==0)
     {
       tmpscore = -INF;
-      for (sqfrom=0;sqfrom<64;sqfrom++)
+      bbWork = bbMe;
+      while(bbWork)
       {
+        sqfrom = popfirst1(&bbWork);
         // collect movecount
         movecount+= tmpcounter[sqfrom];
         // collect bestmove
@@ -1998,49 +2002,118 @@ __kernel void alphabeta_gpu(
 //localMove = MOVENONE;
 //movecount = 0;
 
-/*
     // ################################
-    // ####        evaluation       ###
+    // ####     evaluation x64      ###
     // ################################
-    score = eval(board);
-    // centi pawn *10
-    score*=10;
-    // hack for drawscore == 0, site to move bonus
-    score+=(!stm)?1:-1;
-    // negamaxed scores
-    score = (stm)?-score:score;
-    // checkmate
-    score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
-    // stalemate
-    score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
-    // draw by 3 fold repetition
-    for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
+    sqfrom  = lid;
+    pfrom   = GETPIECE(board, sqfrom);
+    kic     = GETCOLOR(pfrom); // get color to work on
+    pfrom   = GETPTYPE(pfrom);
+    bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
+    bbMe    =  (kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
+    bbOpp   = (!kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
+    tmpscore= 0;
+    // piece bonus
+    tmpscore+= (kic)?-10:10;
+    // wood count
+    tmpscore+= (kic)?-EvalPieceValues[pfrom]:EvalPieceValues[pfrom];
+    // piece square tables
+    tmpscore+= (kic)?-EvalTable[pfrom*64+sqfrom]:EvalTable[pfrom*64+FLIPFLOP(sqfrom)];
+    // square control table
+    tmpscore+= (kic)?-EvalControl[sqfrom]:EvalControl[FLIPFLOP(sqfrom)];
+    // simple pawn structure white
+    // blocked
+    tmpscore-=(pfrom==PAWN&&kic==WHITE&&GETRANK(sqfrom)<RANK_8&&(bbOpp&SETMASKBB(sqfrom+8)))?15:0;
+      // chain
+    tmpscore+=(pfrom==PAWN&&kic==WHITE&&GETFILE(sqfrom)<FILE_H&&(bbMask&bbOpp&SETMASKBB(sqfrom-7)))?10:0;
+    tmpscore+=(pfrom==PAWN&&kic==WHITE&&GETFILE(sqfrom)>FILE_A&&(bbMask&bbOpp&SETMASKBB(sqfrom-9)))?10:0;
+    // column
+    for(n=sqfrom-8;n>7&&pfrom==PAWN&&kic==WHITE;n-=8)
+      tmpscore-=(bbMask&bbMe&SETMASKBB(n))?30:0;
+    // simple pawn structure black
+    // blocked
+    tmpscore+=(pfrom==PAWN&&kic==BLACK&&GETRANK(sqfrom)>RANK_1&&(bbOpp&SETMASKBB(sqfrom-8)))?15:0;
+      // chain
+    tmpscore-=(pfrom==PAWN&&kic==BLACK&&GETFILE(sqfrom)>FILE_A&&(bbMask&bbOpp&SETMASKBB(sqfrom+7)))?10:0;
+    tmpscore-=(pfrom==PAWN&&kic==BLACK&&GETFILE(sqfrom)<FILE_H&&(bbMask&bbOpp&SETMASKBB(sqfrom+9)))?10:0;
+    // column
+    for(n=sqfrom+8;n<56&&pfrom==PAWN&&kic==BLACK;n+=8)
+      tmpscore+=(bbMask&bbMe&SETMASKBB(n))?30:0;
+    // duble bishop
+    tmpscore+= (pfrom==KING&&count1s(bbMe&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?(kic)?-25:25:0;
+
+    // reset score for dummy threads
+    tmpscore = (pfrom==PNONE)?0:tmpscore;
+    // store scores in local memory
+    tmpscores[sqfrom] = tmpscore;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // serial processing, collect score
+    if (lid==0)
     {
-      if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
+      score = 0;
+      bbWork = bbBlockers;
+      while(bbWork)
       {
-        n       = 0;
-        score   = DRAWSCORE;
-        break;
+        sqfrom = popfirst1(&bbWork);
+        score+= tmpscores[sqfrom];
       }
-    }
+      // negamaxed scores
+      score = (stm)?-score:score;
+      // checkmate
+      score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
+      // stalemate
+      score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
+/*
+      // draw by 3 fold repetition
+      for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
+      {
+        if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
+        {
+          n       = 0;
+          score   = DRAWSCORE;
+          break;
+        }
+      }
 */
+    }
     // #################################
     // ####     alphabeta stuff      ###
     // #################################
-    // terminal node
-    if (lid==0&&sd>=search_depth)
+    // check bounds
+    if (lid==0&&sd>=MAXPLY)
     {
-      // terminal node counter
-      COUNTERS[gid*64+0]++;
       movecount = 0;
-      localMove = MOVENONE;
+      localMoveCounter[sd] = 0;
+      mode = MOVEDOWN;
     }
     if (lid==0)
+    {
+      COUNTERS[gid*64+0]++; // nodecounter
       localMoveCounter[sd]  = movecount;
-
+    }
     // terminal node
     if (lid==0&&mode==MOVEUP&&localMove==MOVENONE)
+    {
+      localAlphaBetaScores[sd*2+ALPHA] = score;
+      localMoveCounter[sd] = 0;
       mode = MOVEDOWN;
+    }
+    // stand pat in qsearch
+    // return beta
+    if (lid==0&&mode==MOVEUP&&qs&&!rootkic&&score>=localAlphaBetaScores[sd*2+BETA])
+    {
+//      localAlphaBetaScores[sd*2+ALPHA] = localAlphaBetaScores[sd*2+BETA]; // fail hard
+      localAlphaBetaScores[sd*2+ALPHA] = score; // fail soft
+      localMoveCounter[sd] = 0;
+			mode = MOVEDOWN;
+    }
+    // stand pat in qsearch
+    // set alpha
+    if (lid==0&&mode==MOVEUP&&qs&&!rootkic)
+    {
+      if (score>localAlphaBetaScores[sd*2+ALPHA])
+        localAlphaBetaScores[sd*2+ALPHA]=score;
+		}
     // ################################
     // ####         moveup         ####
     // ################################
@@ -2077,8 +2150,28 @@ __kernel void alphabeta_gpu(
     // move down in tree
     if (mode==MOVEDOWN)
     {
-      while (localTodoIndex[sd]>=localMoveCounter[sd]) 
+      while (
+              // all children searched
+              localTodoIndex[sd]>=localMoveCounter[sd] 
+              ||
+              // apply alphabeta pruning downwards the tree
+              localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
+            ) 
       {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        // do alphabeta negamax scoring
+        if (lid==0&&sd>0)
+        {
+          score = -localAlphaBetaScores[sd*2+ALPHA];
+          if (score>localAlphaBetaScores[(sd-1)*2+ALPHA]&&!ISINF(score))
+            localAlphaBetaScores[(sd-1)*2+ALPHA]=score;
+          // get bestmove, TODO: via upcoming hashtable, collect PV
+          if (sd==1&&score>(Score)COUNTERS[gid*64+1]&&!ISINF(score))
+          {
+            COUNTERS[gid*64+1] = (u64)score;
+            COUNTERS[gid*64+2] = localMoveHistory[sd-1];
+          }
+        }
         sd--;
         ply--;
         if (sd<0)  // this is the end
