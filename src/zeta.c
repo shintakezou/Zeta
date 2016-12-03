@@ -1884,7 +1884,10 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   }
 
   // collect counters
-  ABNODECOUNT = COUNTERS[0];
+  for(u64 i=0;i<totalWorkUnits;i++)
+  {
+    ABNODECOUNT+= COUNTERS[i*64+0];
+  }
 
   return 0;
 }
