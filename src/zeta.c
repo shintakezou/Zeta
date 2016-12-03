@@ -2993,6 +2993,8 @@ int main(int argc, char* argv[])
     // do an node count to depth defined via sd 
     if (!xboard_mode && !strcmp(Command, "perft"))
     {
+      bool state;
+      ABNODECOUNT = 0;
       MOVECOUNT = 0;
 
       fprintf(stdout,"### doing perft depth %d: ###\n", SD);  
@@ -3002,6 +3004,19 @@ int main(int argc, char* argv[])
         fprintf(LogFile,"### doing perft depth %d: ###\n", SD);  
       }
 
+      state = cl_release_device();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+      state = cl_init_device("perft_gpu");
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+
       start = get_time();
 
       perft(BOARD, STM, SD);
@@ -3009,6 +3024,19 @@ int main(int argc, char* argv[])
       end = get_time();   
       elapsed = end-start;
       elapsed/=1000;
+
+      state = cl_release_device();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+      state = cl_init_device("alphabeta_gpu");
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
 
       fprintf(stdout,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
               ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
