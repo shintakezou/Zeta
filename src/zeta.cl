@@ -1251,7 +1251,46 @@ __kernel void perft_gpu(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
+/*
     // generate own moves and opposite attacks
+    sqfrom  = lid;
+    pfrom   = GETPIECE(board, sqfrom);
+    kic     = GETCOLOR(pfrom);
+    // Knight and King
+    bbTemp  = (GETPTYPE(pfrom)==KNIGHT||GETPTYPE(pfrom)==KING)?AttackTables[GETPTYPE(pfrom)*64+sqfrom]:0x0UL;
+    // sliders
+    // rook or queen
+    bbMask  = (kic==stm)?bbBlockers:(bbBlockers^SETMASKBB(sqking));
+    bbTemp |= (GETPTYPE(pfrom)==ROOK||GETPTYPE(pfrom)==QUEEN)?rook_attacks(bbMask, sqfrom):0x0UL;
+    // bishop or queen
+    bbTemp |= (GETPTYPE(pfrom)==BISHOP||GETPTYPE(pfrom)==QUEEN)?bishop_attacks(bbMask, sqfrom):0x0UL;
+    // verify captures
+    bbMoves = (kic==stm)?(bbTemp&bbOpp):bbTemp;
+    // verify non captures
+    bbMoves|= (!qs&&kic==stm)?(bbTemp&~bbBlockers):BBEMPTY; 
+    // pawn attacks and forward step
+    bbMask  = (kic==stm)?bbOpp:BBFULL;
+    bbMoves |= (GETPTYPE(pfrom)==PAWN)?(AttackTables[kic*64+sqfrom]&bbMask):0x0UL;
+    bbMoves |= (GETPTYPE(pfrom)==PAWN&&kic==stm&&!qs)?(AttackTablesPawnPushes[kic*64+sqfrom]):0x0UL;
+
+    // check pawn single square
+    if (GETPTYPE(pfrom)==PAWN&&kic==stm)
+    {
+        sqto  = (kic)?sqfrom-8:sqfrom+8;
+        if (bbBlockers&SETMASKBB(sqto))
+            bbMoves ^= SETMASKBB(sqto);
+    }
+    // check pawn double square
+    if (GETPTYPE(pfrom)==PAWN&&(GETRRANK(sqfrom,kic)==RANK_2)&&kic==stm)
+    {
+        sqcpt = (kic)?sqfrom-8:sqfrom+8;
+        sqto  = (kic)?sqfrom-16:sqfrom+16;
+        if ((bbBlockers&SETMASKBB(sqcpt))||(bbBlockers&SETMASKBB(sqto)))
+            bbMoves ^= SETMASKBB(sqto);
+    }
+*/
+    // generate own moves and opposite attacks
+
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     bbMask  = bbBlockers&SETMASKBB(sqfrom);
@@ -1447,15 +1486,15 @@ __kernel void perft_gpu(
       tmpmove  = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MOVEISCRQ:MOVENONE;
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MOVEISCRK:MOVENONE;
-/*
+
       // domove
-      domovequick(board, tmpmove);
-      // king in check, illegal move
-      kic = squareunderattack(board, !stm, getkingsq(board, stm));
-      undomovequick(board, tmpmove);
-      if (kic)
-        continue;
-*/
+//      domovequick(board, tmpmove);
+//      // king in check, illegal move
+//      kic = squareunderattack(board, !stm, getkingsq(board, stm));
+//      undomovequick(board, tmpmove);
+//      if (kic)
+//        continue;
+
       n++;
       // get move score
       tmpscore = (EvalMove(tmpmove)*10000)+(lid*64+n);
@@ -1495,35 +1534,6 @@ __kernel void perft_gpu(
       localMoveIndexScore[sd] = tmpscore;
     }
 
-//localMove = MOVENONE;
-//movecount = 0;
-
-/*
-    // ################################
-    // ####        evaluation       ###
-    // ################################
-    score = eval(board);
-    // centi pawn *10
-    score*=10;
-    // hack for drawscore == 0, site to move bonus
-    score+=(!stm)?1:-1;
-    // negamaxed scores
-    score = (stm)?-score:score;
-    // checkmate
-    score = (!qs&&rootkic&&n==0)?-INF+ply+ply_init:score;
-    // stalemate
-    score = (!qs&&!rootkic&&n==0)?STALEMATESCORE:score;
-    // draw by 3 fold repetition
-    for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
-    {
-      if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
-      {
-        n       = 0;
-        score   = DRAWSCORE;
-        break;
-      }
-    }
-*/
     // #################################
     // ####     alphabeta stuff      ###
     // #################################
@@ -1949,15 +1959,14 @@ __kernel void alphabeta_gpu(
       tmpmove  = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MOVEISCRQ:MOVENONE;
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MOVEISCRK:MOVENONE;
-/*
+
       // domove
-      domovequick(board, tmpmove);
-      // king in check, illegal move
-      kic = squareunderattack(board, !stm, getkingsq(board, stm));
-      undomovequick(board, tmpmove);
-      if (kic)
-        continue;
-*/
+//      domovequick(board, tmpmove);
+//      // king in check, illegal move
+//      kic = squareunderattack(board, !stm, getkingsq(board, stm));
+//      undomovequick(board, tmpmove);
+//      if (kic)
+//        continue;
       n++;
       // get move score
       tmpscore = (EvalMove(tmpmove)*10000)+(lid*64+n);
@@ -2063,18 +2072,17 @@ __kernel void alphabeta_gpu(
       score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
       // stalemate
       score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
-/*
-      // draw by 3 fold repetition
-      for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
-      {
-        if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
-        {
-          n       = 0;
-          score   = DRAWSCORE;
-          break;
-        }
-      }
-*/
+
+//      // draw by 3 fold repetition
+//      for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
+//      {
+//        if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
+//        {
+//          n       = 0;
+//          score   = DRAWSCORE;
+//          break;
+//        }
+//      }
     }
     // #################################
     // ####     alphabeta stuff      ###
