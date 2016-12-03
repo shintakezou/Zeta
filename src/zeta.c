@@ -1631,6 +1631,7 @@ int load_file_to_string(const char *filename, char **result)
 }
 static void selftest(void)
 {
+  bool state;
   u64 done;
   u64 passed = 0;
   const u64 todo = 20;
@@ -1676,6 +1677,19 @@ static void selftest(void)
     44,1486,62379,
     46,2079,89890
   };
+
+  state = cl_release_device();
+  // something went wrong...
+  if (!state)
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  state = cl_init_device("perft_gpu");
+  // something went wrong...
+  if (!state)
+  {
+    quitengine(EXIT_FAILURE);
+  }
 
   for (done=0;done<todo;done++)
   {
@@ -1745,6 +1759,19 @@ static void selftest(void)
     fprintdate(LogFile);
     fprintf(LogFile,"###############################\n");
   }
+  state = cl_release_device();
+  // something went wrong...
+  if (!state)
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  state = cl_init_device("alphabeta_gpu");
+  // something went wrong...
+  if (!state)
+  {
+    quitengine(EXIT_FAILURE);
+  }
+
 }
 // print engine info to console
 static void print_version(void)
