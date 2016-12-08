@@ -42,7 +42,6 @@ bool cl_guess_config(bool extreme)
   u32 i,j,k;
   u32 deviceunits = 0;
   u64 devicememalloc = 0;
-  s32 *warpVal;
   s32 warpsize = 1;
   s32 warpmulti = 1;
   s32 nps = 0;
@@ -649,7 +648,6 @@ bool cl_guess_config(bool extreme)
                                             &paramValue,
                                             NULL
                                           );
-        warpVal = (s32 *)&paramValue;
         if(status!=CL_SUCCESS) 
         {  
           fprintf(stdout, "#> Error: Getting CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE (clGetKernelWorkGroupInfo)\n");
@@ -660,7 +658,7 @@ bool cl_guess_config(bool extreme)
           }
           continue;
         }
-        warpsize = (int)*warpVal;
+        warpsize = (s32)paramValue;
         fprintf(stdout, "#> OK, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE: %i.\n", warpsize);
         if (LogFile)
         {
