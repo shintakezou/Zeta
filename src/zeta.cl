@@ -754,16 +754,13 @@ __constant Bitboard AttackTables[7*64] =
 // generate rook moves via koggestone shifts
 Bitboard ks_attacks_ls1(Bitboard bbBlockers, Square sq)
 {
-  Bitboard bbWrap;
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions left shifting <<1 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  bbWrap  = BBNOTAFILE;
-  bbPro  &= bbWrap;
+  bbPro  &= BBNOTAFILE;
   // do kogge stone
   bbGen  |= bbPro &   (bbGen << 1);
   bbPro  &=           (bbPro << 1);
@@ -771,16 +768,14 @@ Bitboard ks_attacks_ls1(Bitboard bbBlockers, Square sq)
   bbPro  &=           (bbPro << 2*1);
   bbGen  |= bbPro &   (bbGen << 4*1);
   // shift one further
-  bbGen   = bbWrap &  (bbGen << 1);
-  bbMoves|= bbGen;
+  bbGen   = BBNOTAFILE &  (bbGen << 1);
 
-  return bbMoves;
+  return bbGen;
 }
 Bitboard ks_attacks_ls8(Bitboard bbBlockers, Square sq)
 {
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions left shifting <<8 ROOK
   bbPro   = ~bbBlockers;
@@ -793,22 +788,18 @@ Bitboard ks_attacks_ls8(Bitboard bbBlockers, Square sq)
   bbGen  |= bbPro &   (bbGen << 4*8);
   // shift one further
   bbGen   =           (bbGen << 8);
-  bbMoves|= bbGen;
   
-  return bbMoves;
+  return bbGen;
 }
 Bitboard ks_attacks_rs1(Bitboard bbBlockers, Square sq)
 {
-  Bitboard bbWrap;
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions right shifting >>1 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  bbWrap  = BBNOTHFILE;
-  bbPro  &= bbWrap;
+  bbPro  &= BBNOTHFILE;
   // do kogge stone
   bbGen  |= bbPro &   (bbGen >> 1);
   bbPro  &=           (bbPro >> 1);
@@ -816,16 +807,14 @@ Bitboard ks_attacks_rs1(Bitboard bbBlockers, Square sq)
   bbPro  &=           (bbPro >> 2*1);
   bbGen  |= bbPro &   (bbGen >> 4*1);
   // shift one further
-  bbGen   = bbWrap &  (bbGen >> 1);
-  bbMoves|= bbGen;
+  bbGen   = BBNOTHFILE &  (bbGen >> 1);
 
-  return bbMoves;
+  return bbGen;
 }
 Bitboard ks_attacks_rs8(Bitboard bbBlockers, Square sq)
 {
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions right shifting >>8 ROOK
   bbPro   = ~bbBlockers;
@@ -838,9 +827,8 @@ Bitboard ks_attacks_rs8(Bitboard bbBlockers, Square sq)
   bbGen  |= bbPro &   (bbGen >> 4*8);
   // shift one further
   bbGen   =           (bbGen >> 8);
-  bbMoves|= bbGen;  
 
-  return bbMoves;
+  return bbGen;
 }
 Bitboard rook_attacks(Bitboard bbBlockers, Square sq)
 {
@@ -852,16 +840,13 @@ Bitboard rook_attacks(Bitboard bbBlockers, Square sq)
 // generate bishop moves via koggestone shifts
 Bitboard ks_attacks_ls9(Bitboard bbBlockers, Square sq)
 {
-  Bitboard bbWrap;
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions left shifting <<9 BISHOP
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  bbWrap  = BBNOTAFILE;
-  bbPro  &= bbWrap;
+  bbPro  &= BBNOTAFILE;
   // do kogge stone
   bbGen  |= bbPro &   (bbGen << 9);
   bbPro  &=           (bbPro << 9);
@@ -869,23 +854,19 @@ Bitboard ks_attacks_ls9(Bitboard bbBlockers, Square sq)
   bbPro  &=           (bbPro << 2*9);
   bbGen  |= bbPro &   (bbGen << 4*9);
   // shift one further
-  bbGen   = bbWrap &  (bbGen << 9);
-  bbMoves|= bbGen;
+  bbGen   = BBNOTAFILE &  (bbGen << 9);
 
-  return bbMoves;
+  return bbGen;
 }
 Bitboard ks_attacks_ls7(Bitboard bbBlockers, Square sq)
 {
-  Bitboard bbWrap;
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions left shifting <<7 BISHOP
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  bbWrap  = BBNOTHFILE;
-  bbPro  &= bbWrap;
+  bbPro  &= BBNOTHFILE;
   // do kogge stone
   bbGen  |= bbPro &   (bbGen << 7);
   bbPro  &=           (bbPro << 7);
@@ -893,23 +874,19 @@ Bitboard ks_attacks_ls7(Bitboard bbBlockers, Square sq)
   bbPro  &=           (bbPro << 2*7);
   bbGen  |= bbPro &   (bbGen << 4*7);
   // shift one further
-  bbGen   = bbWrap &  (bbGen << 7);
-  bbMoves|= bbGen;
+  bbGen   = BBNOTHFILE &  (bbGen << 7);
 
-  return bbMoves;
+  return bbGen;
 }
 Bitboard ks_attacks_rs9(Bitboard bbBlockers, Square sq)
 {
-  Bitboard bbWrap;
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions right shifting >>9 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  bbWrap  = BBNOTHFILE;
-  bbPro  &= bbWrap;
+  bbPro  &= BBNOTHFILE;
   // do kogge stone
   bbGen  |= bbPro &   (bbGen >> 9);
   bbPro  &=           (bbPro >> 9);
@@ -917,23 +894,19 @@ Bitboard ks_attacks_rs9(Bitboard bbBlockers, Square sq)
   bbPro  &=           (bbPro >> 2*9);
   bbGen  |= bbPro &   (bbGen >> 4*9);
   // shift one further
-  bbGen   = bbWrap &  (bbGen >> 9);
-  bbMoves|= bbGen;
+  bbGen   = BBNOTHFILE &  (bbGen >> 9);
 
-  return bbMoves;
+  return bbGen;
 }
 Bitboard ks_attacks_rs7(Bitboard bbBlockers, Square sq)
 {
-  Bitboard bbWrap;
   Bitboard bbPro;
   Bitboard bbGen;
-  Bitboard bbMoves = BBEMPTY;
 
   // directions right shifting <<7 ROOK
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
-  bbWrap  = BBNOTAFILE;
-  bbPro  &= bbWrap;
+  bbPro  &= BBNOTAFILE;
   // do kogge stone
   bbGen  |= bbPro &   (bbGen >> 7);
   bbPro  &=           (bbPro >> 7);
@@ -941,10 +914,9 @@ Bitboard ks_attacks_rs7(Bitboard bbBlockers, Square sq)
   bbPro  &=           (bbPro >> 2*7);
   bbGen  |= bbPro &   (bbGen >> 4*7);
   // shift one further
-  bbGen   = bbWrap &  (bbGen >> 7);
-  bbMoves|= bbGen;
+  bbGen   = BBNOTAFILE &  (bbGen >> 7);
 
-  return bbMoves;
+  return bbGen;
 }
 Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
 {
