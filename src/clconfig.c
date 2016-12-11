@@ -27,8 +27,6 @@
 
 extern s32 benchmarkWrapper(s32 benchsec);
 extern void read_config();
-extern s32 load_file_to_string(const char *filename, char **result);
-extern const char filename[];
 
 // guess minimal and optimal setup for given cl device
 bool cl_guess_config(bool extreme)

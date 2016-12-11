@@ -24,40 +24,37 @@
 
 #include "types.h"
 
-s32  load_file_to_string(const char *filename, char **result);
 void print_debug(char *debug);
 
 // from ini config file
-extern s32 threadsX;
-extern s32 threadsY;
-extern s32 threadsZ;
-extern s32 totalWorkUnits;
-extern s32 max_depth;
+extern u64 threadsX;
+extern u64 threadsY;
+extern u64 threadsZ;
+extern u64 totalWorkUnits;
 extern s32 opencl_device_id;
 extern s32 opencl_platform_id;
 extern s32 max_nodes_to_expand;
+extern u64 max_memory;
 extern s32 memory_slots;
-extern u64 max_nodes;
-extern s32 max_depth;
-extern s32 max_ab_depth;
 extern u64 MaxNodes;
 // globals
 extern FILE *LogFile;
 extern s32 PLY;
 extern s32 SD;
 extern u64 ABNODECOUNT;
-extern Score GPUSCORE;
 extern Bitboard *GLOBAL_BOARD;
 extern u64 *COUNTERS;
 extern Move *GLOBAL_HASHHISTORY;
 extern Bitboard bbInBetween[64*64];
 extern Bitboard bbLine[64*64];
+struct TTE *TT;
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
 cl_mem	 GLOBAL_COUNTERS_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 cl_mem	 GLOBAL_bbInBetween_Buffer;
 cl_mem	 GLOBAL_bbLine_Buffer;
+cl_mem   GLOBAL_TT_Buffer;
 // OpenCL runtime objects
 cl_context          context;
 cl_device_id        *devices;

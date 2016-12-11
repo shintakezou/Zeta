@@ -31,6 +31,7 @@ typedef cl_ulong u64;
 typedef cl_long s64;
 typedef cl_uint u32;
 typedef cl_int s32;
+typedef cl_short s16;
 typedef cl_uchar u8;
 typedef cl_bool bool;
 // boolean val
@@ -42,23 +43,14 @@ typedef u64 Bitboard;
 typedef u64 Cr;
 typedef u64 Hash;
 
+typedef u32 TTMove;
 typedef s32 Score;
+typedef s16 TTScore;
 typedef u8 Square;
 typedef u8 Piece;
 
 typedef u8 File;
 typedef u8 Rank;
-
-typedef struct
-{
-  Move move;
-  Score score;
-  s32 lock;
-  s32 visits;
-  s32 child;
-  s32 children;
-  s32 parent;
-} NodeBlock;
 
 #define VERSION "099a"
 // quad bitboard array index definition
@@ -94,8 +86,8 @@ typedef struct
 #define BLACK               1
 #define WHITE               0
 // scores
-#define INF                 1000000
-#define MATESCORE            999000
+#define INF                 1000000000
+#define MATESCORE            999000000
 #define DRAWSCORE           0
 #define STALEMATESCORE      0
 // piece type enumeration
@@ -228,6 +220,20 @@ enum Squares
 #define ISINF(val) \
 (((val)==INF||(val)==-INF)?true:false)
 // node type flags
+
+// transposition table entry
+typedef struct
+{
+  Hash hash;
+  TTMove bestmove;
+  TTScore score;
+  u8 flag;
+  u8 depth;
+} TTE;
+// TT node type flags
+#define EXACTSCORE      2
+#define FAILHIGH        1
+#define FAILLOW         0
 
 #endif // TYPES_H_INCLUDED
 

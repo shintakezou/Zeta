@@ -33,8 +33,8 @@ size_t localThreads[3];
 
 s32 temp = 0;
 u64 templong = 0;
+u64 ttbits = 0;
 
-extern s32 load_file_to_string(const char *filename, char **result);
 void print_debug(char *debug);
 
 // initialize OpenCL device, called once per game
@@ -236,6 +236,25 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+  // initialize transposition table
+  ttbits = 0;
+  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
+  while ( mem >>= 1)   // get msb
+    ttbits++;
+  mem = 1ULL<<ttbits;   // get number of tt entries
+  ttbits=mem;
+
+  GLOBAL_TT_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                    sizeof(TTE) * mem,
+                                    TT, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT_Buffer)\n");
+    return false;
+  }
   return true;
 }
 // write OpenCL memory buffers, called every search run
@@ -369,6 +388,18 @@ bool cl_run_alphabeta(bool stm, s32 depth)
   }
   i++;
 
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_TT_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT_Buffer)\n");
+    return false;
+  }
+  i++;
+
   temp = (s32)stm;
   status = clSetKernelArg(
                           kernel, 
@@ -415,6 +446,18 @@ bool cl_run_alphabeta(bool stm, s32 depth)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (max_nodes)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_ulong), 
+                          (void *)&ttbits);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (ttindex)\n");
     return false;
   }
   i++;

@@ -35,12 +35,10 @@ FILE *LogFile = NULL;         // logfile for debug
 char *Line;                   // for fgetting the input on stdin
 char *Command;                // for pasring the xboard command
 char *Fen;                    // for storing the fen chess baord string
-const char filename[]  = "zeta.cl";
 // counters
 u64 ABNODECOUNT = 0;
 u64 TTHITS = 0;
 u64 MOVECOUNT = 0;
-Score GPUSCORE;
 // config file
 u64 threadsX            =  1;
 u64 threadsY            =  1;
@@ -52,8 +50,6 @@ s32 nps_current         =  0;
 s32 max_nodes_to_expand =  1;
 u64 max_memory          =  0;
 u64 memory_slots        =  1;
-u64 max_ab_depth        =  0;
-u64 max_depth           = MAXPLY;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 // further config
@@ -102,10 +98,10 @@ Bitboard BOARD[7];
 */
 // for exchange with OpenCL device
 Bitboard *GLOBAL_BOARD = NULL;
-NodeBlock *NODES = NULL;
+// transposition hash table
+TTE *TT = NULL;
 u64 *COUNTERS = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
-s32 BOARD_STACK_TOP;
 // functions 
 Score perft(Bitboard *board, bool stm, s32 depth);
 static void print_help(void);
@@ -118,7 +114,6 @@ static Move can2move(char *usermove, Bitboard *board, bool stm);
 void printboard(Bitboard *board);
 void printbitboard(Bitboard board);
 bool read_and_init_config();
-s32 load_file_to_string(const char *filename, char **result);
 // cl functions
 extern bool cl_init_device(char *kernelname);
 extern bool cl_init_objects();
@@ -614,7 +609,19 @@ static bool gameinits(void)
             MAXGAMEPLY);
     return false;
   }
-
+  // initialize transposition table
+  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
+  u64 ttbits = 0;
+  while ( mem >>= 1)   // get msb
+    ttbits++;
+  mem = 1ULL<<ttbits;   // get number of tt entries
+  ttbits=mem;
+  TT = (TTE*)calloc(mem,sizeof(TTE));
+  if (TT==NULL) 
+  {
+    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory", max_memory);
+    return false;
+  }
   return true;
 }
 void release_gameinits()
@@ -623,13 +630,13 @@ void release_gameinits()
   free(MoveHistory);
   free(HashHistory);
   free(CRHistory);
+  free(TT);
 }
 void release_configinits()
 {
   // opencl related
   free(GLOBAL_BOARD);
   free(COUNTERS);
-  free(NODES);
   free(GLOBAL_HASHHISTORY);
 }
 void release_engineinits()
@@ -1532,16 +1539,12 @@ bool read_and_init_config(char configfile[])
     sscanf(line, "max_nodes: %d;", &max_nodes);
     sscanf(line, "max_memory: %" PRIu64 ";", &max_memory);
     sscanf(line, "memory_slots: %" PRIu64 ";", &memory_slots);
-    sscanf(line, "max_depth: %" PRIu64 ";", &max_depth);
-    sscanf(line, "max_ab_depth: %" PRIu64 ";", &max_ab_depth);
     sscanf(line, "opencl_platform_id: %d;", &opencl_platform_id);
     sscanf(line, "opencl_device_id: %d;", &opencl_device_id);
   }
   fclose(fcfg);
 
-//  SD = max_ab_depth;
-
-  max_nodes_to_expand = (s32)(max_memory*1024*1024/sizeof(NodeBlock));
+//  max_nodes_to_expand = (s32)(max_memory*1024*1024/sizeof(NodeBlock));
 
 /*
   FILE 	*Stats;
@@ -1607,29 +1610,21 @@ bool read_and_init_config(char configfile[])
     return false;
   }
 
+  // initialize transposition table
+  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
+  u64 ttbits = 0;
+  while ( mem >>= 1)   // get msb
+    ttbits++;
+  mem = 1ULL<<ttbits;   // get number of tt entries
+  ttbits=mem;
+  if (TT!=NULL)
+    free(TT);
+  TT = (TTE*)calloc(mem,sizeof(TTE));
+  if (TT==NULL)
+    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory", max_memory);
+
+
   return true;
-}
-int load_file_to_string(const char *filename, char **result) 
-{ 
-	unsigned int size = 0;
-	FILE *f = fopen(filename, "r");
-	if (f == NULL) 
-	{ 
-		*result = NULL;
-		return -1;
-	} 
-	fseek(f, 0, SEEK_END);
-	size = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	*result = (char *)malloc(size+1);
-	if (size != fread(*result, sizeof(char), size, f)) 
-	{ 
-		free(*result);
-		return -2;
-	} 
-	fclose(f);
-	(*result)[size] = 0;
-	return size;
 }
 static void selftest(void)
 {
@@ -2408,7 +2403,6 @@ int main(int argc, char* argv[])
           fprintf(LogFile,"Error (in setting start postition): new\n");        
         }
       }
-//      SD = max_ab_depth;
       // reset time control
       MaxNodes = MaxTime/1000*nodes_per_second;
       if (!xboard_mode)
@@ -2561,8 +2555,10 @@ int main(int argc, char* argv[])
             if ((!xboard_mode)||xboard_debug)
             {
               printboard(BOARD);
-              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, (u64)(ABNODECOUNT/(elapsed/1000)));
+              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
             }
+            if (LogFile)
+              fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
 
             PLY++;
             STM = !STM;
@@ -2825,8 +2821,10 @@ int main(int argc, char* argv[])
             if ((!xboard_mode)||xboard_debug)
             {
               printboard(BOARD);
-              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, (u64)(ABNODECOUNT/(elapsed/1000)));
+              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
             }
+            if (LogFile)
+              fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
 
             PLY++;
             STM = !STM;
