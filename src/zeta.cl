@@ -19,17 +19,22 @@
   GNU General Public License for more details.
 */
 
-// mandatory
-#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics       : enable
-#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics   : enable
+// mandatory extensions
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics        : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics    : enable
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics              : enable
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics          : enable
+// deprecated
+//#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics       : enable
+//#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics   : enable
 // otpional
-#pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
+//#pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
 
 typedef ulong   u64;
 typedef uint    u32;
 typedef int     s32;
 typedef uchar    u8;
-typedef  char    s8;
+typedef char     s8;
 
 typedef s32     Score;
 typedef u8      Square;
@@ -1127,6 +1132,7 @@ __kernel void perft_gpu(
   __local s32 mode;
   __local s32 movecount;
   __local Move localMove;
+  __local Score lscore;
   __local Move tmpmoves[64];
   __local Score tmpscores[64];
   __local u8 tmpcounter[64];
@@ -1215,6 +1221,7 @@ __kernel void perft_gpu(
     tmpscores[lid] = -INF;
     tmpcounter[lid] = 0;
     movecount = 0;
+    lscore = -INF;
 
     localMove = MOVENONE;
     bbPinned = BBEMPTY;
@@ -1248,8 +1255,6 @@ __kernel void perft_gpu(
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
     }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
 
 /*
     // generate own moves and opposite attacks
@@ -1293,6 +1298,7 @@ __kernel void perft_gpu(
 
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
+    kic     = GETCOLOR(pfrom);
     bbMask  = bbBlockers&SETMASKBB(sqfrom);
     // get koggestone wraps
     bbWrap4 = wraps4[0];
@@ -1335,31 +1341,16 @@ __kernel void perft_gpu(
       bbMask = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
       bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
     }
-
-    // store attacks in local
-    tmpmoves[sqfrom] = bbMoves;
-
+    // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
-
-    // serial processing, get checkers
-    if (lid==0)
+    atom_or(&bbAttacks, (kic==stm)?BBEMPTY:bbMoves);
+    // get king checkers
+    if (bbMoves&SETMASKBB(sqking))
     {
-      bbWork = bbOpp;
-      while(bbWork)
-      {
-        sqto = popfirst1(&bbWork);
-        // collect opposite attack
-        bbAttacks |= tmpmoves[sqto];
-        // get king checkers
-        if (tmpmoves[sqto]&SETMASKBB(sqking))
-        {
-          sqchecker = sqto;
-          bbCheckers |= SETMASKBB(sqto);
-        }
-      }
+      sqchecker = sqfrom;
+      atom_or(&bbCheckers, SETMASKBB(sqfrom));
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-
     // extract only own moves
     if (SETMASKBB(sqfrom)&bbOpp)
       bbMoves = BBEMPTY;
@@ -1495,9 +1486,15 @@ __kernel void perft_gpu(
 //      if (kic)
 //        continue;
 
+      atom_inc(&movecount);
       n++;
-      // get move score
-      tmpscore = (EvalMove(tmpmove)*10000)+(lid*64+n);
+      // eval move
+      // wood count and piece square tables, pto-pfrom   
+      tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?sqfrom:FLIPFLOP(sqfrom))]+EvalControl[((stm)?sqfrom:FLIPFLOP(sqfrom))];
+      // MVV-LVA
+      tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
+      tmpscore = tmpscore*10000+lid*64+n;
       // ignore moves already searched
       if (tmpscore>=localMoveIndexScore[sd])
         continue;
@@ -1507,33 +1504,16 @@ __kernel void perft_gpu(
       score = tmpscore;
       move = tmpmove;
     }
-    
-    // store data in local memory
-    tmpmoves[lid] = move;
-    tmpscores[lid] = score;
-    tmpcounter[lid] = n;
-
+    // get sorted next move and store to local memory
+    atom_max(&lscore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    
-    // process data in serial and select move
-    if(lid==0)
+    tmpscore = atom_cmpxchg(&lscore, score, score);
+    if (score==tmpscore)
     {
-      tmpscore = -INF;
-      for (sqfrom=0;sqfrom<64;sqfrom++)
-      {
-        // collect movecount
-        movecount+= tmpcounter[sqfrom];
-        // collect bestmove
-        if (tmpscores[sqfrom]>tmpscore)
-        {
-          move = tmpmoves[sqfrom];
-          tmpscore = tmpscores[sqfrom];
-        }
-      }
       localMove = move;
       localMoveIndexScore[sd] = tmpscore;
     }
-
+    barrier(CLK_LOCAL_MEM_FENCE);
     // #################################
     // ####     alphabeta stuff      ###
     // #################################
@@ -1637,6 +1617,7 @@ __kernel void alphabeta_gpu(
   __local s32 mode;
   __local s32 movecount;
   __local Move localMove;
+  __local Score lscore;
   __local Move tmpmoves[64];
   __local Score tmpscores[64];
   __local u8 tmpcounter[64];
@@ -1726,6 +1707,7 @@ __kernel void alphabeta_gpu(
     tmpscores[lid] = -INF;
     tmpcounter[lid] = 0;
     movecount = 0;
+    lscore = -INF;
 
     localMove = MOVENONE;
     bbPinned = BBEMPTY;
@@ -1759,8 +1741,6 @@ __kernel void alphabeta_gpu(
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
     }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
 
     // generate own moves and opposite attacks
     sqfrom  = lid;
@@ -1808,27 +1788,59 @@ __kernel void alphabeta_gpu(
       bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
     }
 
-    // store attacks in local
-    tmpmoves[sqfrom] = bbMoves;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    // serial processing, get checkers
-    if (lid==0)
+    sqfrom  = lid;
+    pfrom   = GETPIECE(board, sqfrom);
+    kic     = GETCOLOR(pfrom);
+    bbMask  = bbBlockers&SETMASKBB(sqfrom);
+    // get koggestone wraps
+    bbWrap4 = wraps4[0];
+    // generator and propagator (piece and empty squares)
+    bbGen4  = (ulong4)bbMask;
+    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
+    // kogge stone shift left via ulong4 vector
+    bbPro4 &= bbWrap4;
+    bbGen4 |= bbPro4  & (bbGen4 << shift4);
+    bbPro4 &=           (bbPro4 << shift4);
+    bbGen4 |= bbPro4  & (bbGen4 << 2*shift4);
+    bbPro4 &=           (bbPro4 << 2*shift4);
+    bbGen4 |= bbPro4  & (bbGen4 << 4*shift4);
+    bbGen4  = bbWrap4 & (bbGen4 << shift4);
+    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    // get koggestone wraps
+    bbWrap4 = wraps4[1];
+    // set generator and propagator (piece and empty squares)
+    bbGen4  = (ulong4)bbMask;
+    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
+    // kogge stone shift right via ulong4 vector
+    bbPro4 &= bbWrap4;
+    bbGen4 |= bbPro4  & (bbGen4 >> shift4);
+    bbPro4 &=           (bbPro4 >> shift4);
+    bbGen4 |= bbPro4  & (bbGen4 >> 2*shift4);
+    bbPro4 &=           (bbPro4 >> 2*shift4);
+    bbGen4 |= bbPro4  & (bbGen4 >> 4*shift4);
+    bbGen4  = bbWrap4 & (bbGen4 >> shift4);
+    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    // consider knights
+    bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
+    // verify captures
+    n       = (bbMe&SETMASKBB(sqfrom))?(s32)stm:(s32)!stm;
+    n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
+    bbMask  = AttackTables[n*64+sqfrom];
+    bbMoves = (SETMASKBB(sqfrom)&bbMe)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    // verify non captures
+    if (SETMASKBB(sqfrom)&bbMe)
     {
-      bbWork = bbOpp;
-      while(bbWork)
-      {
-        sqto = popfirst1(&bbWork);
-        // collect opposite attack
-        bbAttacks |= tmpmoves[sqto];
-        // get king checkers
-        if (tmpmoves[sqto]&SETMASKBB(sqking))
-        {
-          sqchecker = sqto;
-          bbCheckers |= SETMASKBB(sqto);
-        }
-      }
+      bbMask = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
+      bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+    }
+    // collect opp attacks
+    barrier(CLK_LOCAL_MEM_FENCE);
+    atom_or(&bbAttacks, (kic==stm)?BBEMPTY:bbMoves);
+    // get king checkers
+    if (bbMoves&SETMASKBB(sqking))
+    {
+      sqchecker = sqfrom;
+      atom_or(&bbCheckers, SETMASKBB(sqfrom));
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1967,53 +1979,41 @@ __kernel void alphabeta_gpu(
 //      undomovequick(board, tmpmove);
 //      if (kic)
 //        continue;
+      atom_inc(&movecount);
       n++;
-      // get move score
-      tmpscore = (EvalMove(tmpmove)*10000)+(lid*64+n);
+      // eval move
+      // wood count and piece square tables, pto-pfrom   
+      tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?sqfrom:FLIPFLOP(sqfrom))]+EvalControl[((stm)?sqfrom:FLIPFLOP(sqfrom))];
+      // MVV-LVA
+      tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
+      tmpscore = tmpscore*10000+lid*64+n;
       // ignore moves already searched
       if (tmpscore>=localMoveIndexScore[sd])
         continue;
       // get move with highest score
-      if (score>=tmpscore)
+      if (tmpscore<=score)
         continue;
       score = tmpscore;
       move = tmpmove;
     }
-
-    // store data in local memory
-    tmpmoves[lid] = move;
-    tmpscores[lid] = score;
-    tmpcounter[lid] = n;
-
+    // get sorted next move and store to local memory
+    atom_max(&lscore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    
-    // process data in serial and select move
-    if(lid==0)
+    tmpscore = atom_cmpxchg(&lscore, score, score);
+    if (score==tmpscore)
     {
-      tmpscore = -INF;
-      bbWork = bbMe;
-      while(bbWork)
-      {
-        sqfrom = popfirst1(&bbWork);
-        // collect movecount
-        movecount+= tmpcounter[sqfrom];
-        // collect bestmove
-        if (tmpscores[sqfrom]>tmpscore)
-        {
-          move = tmpmoves[sqfrom];
-          tmpscore = tmpscores[sqfrom];
-        }
-      }
       localMove = move;
       localMoveIndexScore[sd] = tmpscore;
     }
-
+    barrier(CLK_LOCAL_MEM_FENCE);
 //localMove = MOVENONE;
 //movecount = 0;
 
     // ################################
     // ####     evaluation x64      ###
     // ################################
+    lscore  = 0;
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     kic     = GETCOLOR(pfrom); // get color to work on
@@ -2050,28 +2050,19 @@ __kernel void alphabeta_gpu(
       tmpscore+=(bbMask&bbMe&SETMASKBB(n))?30:0;
     // duble bishop
     tmpscore+= (pfrom==KING&&count1s(bbMe&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?(kic)?-25:25:0;
-
     // reset score for dummy threads
     tmpscore = (pfrom==PNONE)?0:tmpscore;
     // store scores in local memory
-    tmpscores[sqfrom] = tmpscore;
     barrier(CLK_LOCAL_MEM_FENCE);
-    // serial processing, collect score
-    if (lid==0)
-    {
-      score = 0;
-      bbWork = bbBlockers;
-      while(bbWork)
-      {
-        sqfrom = popfirst1(&bbWork);
-        score+= tmpscores[sqfrom];
-      }
-      // negamaxed scores
-      score = (stm)?-score:score;
-      // checkmate
-      score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
-      // stalemate
-      score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
+    atom_add(&lscore, tmpscore);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    score = lscore;
+    // negamaxed scores
+    score = (stm)?-score:score;
+    // checkmate
+    score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
+    // stalemate
+    score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
 //      // draw by 3 fold repetition
 //      for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
@@ -2083,7 +2074,6 @@ __kernel void alphabeta_gpu(
 //          break;
 //        }
 //      }
-    }
     // #################################
     // ####     alphabeta stuff      ###
     // #################################
@@ -2203,5 +2193,6 @@ __kernel void alphabeta_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
 //  COUNTERS[gid*64+0] = *NODECOUNTER;
+
 }
 
