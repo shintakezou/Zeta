@@ -38,6 +38,7 @@ char *Fen;                    // for storing the fen chess baord string
 const char filename[]  = "zeta.cl";
 // counters
 u64 ABNODECOUNT = 0;
+u64 TTHITS = 0;
 u64 MOVECOUNT = 0;
 Score GPUSCORE;
 // config file
@@ -78,7 +79,7 @@ double TimeInc  = 0;      // time increase
 double TimeBase = 5*1000; // time base for conventional inc, 5s default
 double TimeLeft = 5*1000; // overall time on clock, 5s default
 double MaxTime  = 5*1000; // max time per move
-s64 MaxNodes    = 1;
+u64 MaxNodes    = 1;
 // game state
 bool STM        = WHITE;  // site to move
 s32 SD          = 0;      // max search depth*/
@@ -1898,11 +1899,10 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   Score xboard_score;
   Move bestmove = MOVENONE;
   Score bestscore = 0;
-  s32 plyreached = 0;
-  double start, end;
+  s32 idf = 1;
 
   ABNODECOUNT = 0;
-  MOVECOUNT   = 0;
+  TTHITS = 0;
 
   start = get_time(); 
 
@@ -1927,90 +1927,97 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY* sizeof(Hash));
   }
-  // call GPU functions
-/*
-  state = cl_init_device();
-  // something went wrong...
-  if (!state)
-  {
-    quitengine(EXIT_FAILURE);
+
+  if (xboard_mode==false)
+  { 
+    fprintf(stdout, "depth score time nodes pv \n");
   }
-*/
-  state = cl_init_objects();
-  // something went wrong...
-  if (!state)
+  if (LogFile)
   {
-    quitengine(EXIT_FAILURE);
+    fprintdate(LogFile);
+    fprintf(LogFile, "depth score time nodes pv \n");
   }
-  state = cl_run_alphabeta(stm, depth);
-  // something went wrong...
-  if (!state)
-  {
-    quitengine(EXIT_FAILURE);
-  }
-  state = cl_get_and_release_memory();
-  // something went wrong...
-  if (!state)
-  {
-    quitengine(EXIT_FAILURE);
-  }
-/*
-  state = cl_release_device();
-  // something went wrong...
-  if (!state)
-  {
-    quitengine(EXIT_FAILURE);
-  }
-*/
-  // collect counters
-  // prepare hash history
-  for(u64 i=0;i<totalWorkUnits;i++)
-  {
-    ABNODECOUNT+=   COUNTERS[i*64+0];
-  }
-  score = (Score)COUNTERS[1];
-  bestmove = (Move)COUNTERS[2];
-  bestscore = ISINF(score)?DRAWSCORE:score;
-  // timers
-  end = get_time();
-  elapsed = end-start;
-  elapsed/=1000;
+
+  // iterative deepening framework
+  do {
+
+    // call GPU functions
+  /*
+    state = cl_init_device();
+    // something went wrong...
+    if (!state)
+    {
+      quitengine(EXIT_FAILURE);
+    }
+  */
+    state = cl_init_objects();
+    // something went wrong...
+    if (!state)
+    {
+      quitengine(EXIT_FAILURE);
+    }
+    state = cl_run_alphabeta(stm, idf);
+    // something went wrong...
+    if (!state)
+    {
+      quitengine(EXIT_FAILURE);
+    }
+    state = cl_get_and_release_memory();
+    // something went wrong...
+    if (!state)
+    {
+      quitengine(EXIT_FAILURE);
+    }
+  /*
+    state = cl_release_device();
+    // something went wrong...
+    if (!state)
+    {
+      quitengine(EXIT_FAILURE);
+    }
+  */
+    // collect counters
+    for(u64 i=0;i<totalWorkUnits;i++)
+    {
+      ABNODECOUNT+=   COUNTERS[i*64+0];
+      TTHITS+=        COUNTERS[i*64+3];
+    }
+    // timers
+    end = get_time();
+    elapsed = end-start;
+    elapsed/=1000;
+
+    // only if gpu search was not interrupted by maxnodes
+    if (COUNTERS[0]<MaxNodes/totalWorkUnits)
+    {
+      score = (Score)COUNTERS[1];
+      bestmove = (Move)COUNTERS[2];
+      bestscore = ISINF(score)?DRAWSCORE:score;
+      // xboard mate scores
+      xboard_score = bestscore;
+      xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore-PLY):xboard_score;
+      xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore+PLY):xboard_score;
+      // print xboard output
+      if (xboard_post==true||xboard_mode == false)
+      {
+        fprintf(stdout,"%i %i %i %" PRIu64 " ", idf, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"%i %i %i %" PRIu64 " ", idf, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
+        }
+        printmovecan(bestmove);
+        fprintf(stdout,"\n");
+        if (LogFile)
+          fprintf(LogFile, "\n");
+      }
+      fflush(stdout);
+    }
+  } while (++idf<=depth&&elapsed*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&idf<=MAXPLY);
+
   // compute next nps value
   nps_current =  (s32 )(ABNODECOUNT/(elapsed));
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
-  // xboard mate scores
-  xboard_score = bestscore;
-  xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore-PLY):xboard_score;
-  xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore+PLY):xboard_score;
-  // print xboard output
-  if (xboard_post==true||xboard_mode == false)
-  {
-    if (xboard_mode==false)
-    { 
-      fprintf(stdout, "depth score time nodes pv \n");
-    }
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "depth score time nodes pv \n");
-    }
-    fprintf(stdout,"%i %i %i %" PRIu64 " ", plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile,"%i %i %i %" PRIu64 " ", plyreached, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
-    }
-    printmovecan(bestmove);
-    fprintf(stdout,"\n");
-    if (LogFile)
-      fprintf(LogFile, "\n");
-  }
-  if ((!xboard_mode)||xboard_debug)
-  {
-    printboard(BOARD);
-  }
-
-  fflush(stdout);
 
   return bestmove;
 }

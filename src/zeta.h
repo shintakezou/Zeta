@@ -40,7 +40,7 @@ extern s32 memory_slots;
 extern u64 max_nodes;
 extern s32 max_depth;
 extern s32 max_ab_depth;
-extern s64 MaxNodes;
+extern u64 MaxNodes;
 // globals
 extern FILE *LogFile;
 extern s32 PLY;
