@@ -42,10 +42,10 @@ u64 TTHITS = 0;
 u64 MOVECOUNT = 0;
 Score GPUSCORE;
 // config file
-u64 threadsX            =  0;
-u64 threadsY            =  0;
-u64 threadsZ            =  0;
-u64 totalWorkUnits        =  0;
+u64 threadsX            =  1;
+u64 threadsY            =  1;
+u64 threadsZ            = 64;
+u64 totalWorkUnits      =  1;
 s32 nodes_per_second    =  0;
 s32 max_nodes           =  0;
 s32 nps_current         =  0;
@@ -53,7 +53,7 @@ s32 max_nodes_to_expand =  1;
 u64 max_memory          =  0;
 u64 memory_slots        =  1;
 u64 max_ab_depth        =  0;
-u64 max_depth           = 99;
+u64 max_depth           = MAXPLY;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 // further config
@@ -1527,7 +1527,7 @@ bool read_and_init_config(char configfile[])
   { 
     sscanf(line, "threadsX: %" PRIu64 ";", &threadsX);
     sscanf(line, "threadsY: %" PRIu64 ";", &threadsY);
-    sscanf(line, "threadsZ: %" PRIu64 ";", &threadsZ);
+//    sscanf(line, "threadsZ: %" PRIu64 ";", &threadsZ);
     sscanf(line, "nodes_per_second: %d;", &nodes_per_second);
     sscanf(line, "max_nodes: %d;", &max_nodes);
     sscanf(line, "max_memory: %" PRIu64 ";", &max_memory);
@@ -1556,6 +1556,7 @@ bool read_and_init_config(char configfile[])
   else
     MaxNodes = max_nodes;
 
+  threadsZ = 64;
   totalWorkUnits = threadsX*threadsY;
 
   // allocate memory
@@ -2024,30 +2025,15 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 // run an benchmark for current set up
 s32 benchmark(Bitboard *board, bool stm, s32 depth)
 {
-  s32 j;
-  Score score = -2147483647;
-  Score tmpscore;
-  s32 tmpvisits = 0;
-  s32 visits = 0;
+  Score score = -INF;
   Move bestmove = MOVENONE;
   Score bestscore = 0;
-  s32 plyreached = 0;
-  double start, end;
 
   ABNODECOUNT = 0;
+  TTHITS = 0;
   MOVECOUNT   = 0;
 
   start = get_time();
-
-  // prepare root node
-  BOARD_STACK_TOP = 1;
-  NODES[0].move                =  board[QBBLAST];
-  NODES[0].score               = -INF;
-  NODES[0].visits              =  0;
-  NODES[0].children            = -1;
-  NODES[0].parent              = -1;
-  NODES[0].child               = -1;
-  NODES[0].lock                =  0; // assign root node to process 0   
 
   // init board
   memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
@@ -2090,46 +2076,22 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   elapsed = end-start;
   elapsed/=1000;
 
-  // single reply
-  score = -NODES[NODES[0].child].score;
-  bestmove = NODES[NODES[0].child].move;
-  // get best move from tree copied from cl device
-  for(s32 i=0; i < NODES[0].children; i++)
+  // collect counters
+  for(u64 i=0;i<totalWorkUnits;i++)
   {
-    j = NODES[0].child + i;
-    tmpscore = -NODES[j].score;
-    tmpvisits = NODES[j].visits;
-  /*
-    FILE 	*Stats;
-    Stats = fopen("zeta.debug", "a");
-    fprintf(Stats, "#node: %d, score:%f \n", j,(float)tmpscore/1000);
-    fclose(Stats);
-  */
-    if (ISINF(tmpscore)) // skip illegal
-      continue;
-    if (tmpscore > score || (tmpscore == score && tmpvisits > visits))
-    {
-      score = tmpscore;
-      visits = tmpvisits;
-      // collect bestmove
-      bestmove = NODES[j].move;
-    }
+    ABNODECOUNT+=   COUNTERS[i*64+0];
+    TTHITS+=        COUNTERS[i*64+3];
   }
+  score = (Score)COUNTERS[1];
+  bestmove = (Move)COUNTERS[2];
   bestscore = ISINF(score)?DRAWSCORE:score;
-
-  ABNODECOUNT+=   COUNTERS[2];
-
-//  bestscore = (s32)COUNTERS[totalWorkUnits*4+0];
-//  MOVECOUNT = COUNTERS[3];
-  plyreached = COUNTERS[5];
-//  scoreply = COUNTERS[7];
   // print cli output
-  fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+  fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
   fprintf(stdout, " move ");
   if (LogFile)
   {
     fprintdate(LogFile);
-    fprintf(LogFile, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", plyreached, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+    fprintf(LogFile, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
     fprintf(LogFile, " move ");
   }
   printmovecan(bestmove);
@@ -2145,6 +2107,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
 // get nodes per second for temp config and specified position
 s32 benchmarkWrapper(s32 benchsec)
 {
+  s32 sd = 1; 
   s32 bench = 0;
   // inits
   if (!gameinits())
@@ -2169,17 +2132,18 @@ s32 benchmarkWrapper(s32 benchsec)
 
   printboard(BOARD);
   elapsed = 0;
-  MaxNodes = max_nodes = 8192; // search n nodes initial
+//  MaxNodes = max_nodes = 8192; // search n nodes initial
   // run bench
   while (elapsed <= benchsec) {
     if (elapsed *2 >= benchsec)
       break;
     PLY = 0;
-    bench = benchmark(BOARD, STM, SD);                
+    bench = benchmark(BOARD, STM, sd);                
     if (bench != 0 )
       break;
-    max_nodes*=2; // search double the nodes for next iteration
-    MaxNodes = max_nodes;
+    sd++;
+//    max_nodes*=2; // search double the nodes for next iteration
+//    MaxNodes = max_nodes;
     setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
   }
   // release inits

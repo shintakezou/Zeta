@@ -35,14 +35,13 @@ bool cl_guess_config(bool extreme)
 {
   cl_int status = 0;
   size_t paramSize;
-  char *paramValue;
+  char *deviceName;
   char *ExtensionsValue;
+  size_t *warpsize;
   cl_device_id *devices;
   u32 i,j,k;
   u32 deviceunits = 0;
   u64 devicememalloc = 0;
-  s32 *warpVal;
-  s32 warpsize = 1;
   s32 warpmulti = 1;
   s32 nps = 0;
   s32 npstmp = 0;
@@ -197,12 +196,12 @@ bool cl_guess_config(bool extreme)
           }
           continue;
         }
-        paramValue = (char *)malloc(1 * paramSize);
+        deviceName = (char *)malloc(1 * paramSize);
         // get device name
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_NAME,
                                   paramSize,
-                                  paramValue,
+                                  deviceName,
                                   NULL
                                   );
 
@@ -222,11 +221,11 @@ bool cl_guess_config(bool extreme)
           fprintdate(LogFile);
           fprintf(LogFile, "#> ### Query and check the OpenCL Device...\n");
         }
-        fprintf(stdout, "#> Device: %i, Device name: %s \n", j, paramValue);
+        fprintf(stdout, "#> Device: %i, Device name: %s \n", j, deviceName);
         if (LogFile)
         {
           fprintdate(LogFile);
-          fprintf(LogFile, "#> Device: %i, Device name: %s \n", j, paramValue);
+          fprintf(LogFile, "#> Device: %i, Device name: %s \n", j, deviceName);
         }
         cl_bool endianlittle = CL_FALSE;
         // get endianess, only little supported
@@ -395,6 +394,8 @@ bool cl_guess_config(bool extreme)
           }
           continue;
         } 
+/*
+        // global in32 atomics
         if ((!strstr(ExtensionsValue, "cl_khr_global_int32_base_atomics")))
         {
           fprintf(stdout, "#> Error: Device extension cl_khr_global_int32_base_atomics not supported.\n");
@@ -414,7 +415,26 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_global_int32_base_atomics is supported.\n");
           }
         }
-/*
+        if ((!strstr(ExtensionsValue, "cl_khr_global_int32_extended_atomics")))
+        {
+          fprintf(stdout, "#> Error: Device extension cl_khr_global_int32_extended_atomics not supported.\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error: Device extension cl_khr_global_int32_extended_atomics not supported.\n");
+          }
+        }
+        else
+        {
+          fprintf(stdout, "#> OK, Device extension cl_khr_global_int32_extended_atomics is supported.\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, Device extension cl_khr_global_int32_extended_atomics is supported.\n");
+          }
+        }
+*/
+        // local 32 bit atomics
         if ((!strstr(ExtensionsValue, "cl_khr_local_int32_base_atomics")))
         {
           fprintf(stdout, "#> Error: Device extension cl_khr_local_int32_base_atomics not supported.\n");
@@ -434,25 +454,105 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_local_int32_base_atomics is supported.\n");
           }
         }
-*/
-        if ((!strstr(ExtensionsValue, "cl_khr_global_int32_extended_atomics")))
+        // local 32 bit atomics
+        if ((!strstr(ExtensionsValue, "cl_khr_local_int32_extended_atomics")))
         {
-          fprintf(stdout, "#> Error: Device extension cl_khr_global_int32_extended_atomics not supported.\n");
+          fprintf(stdout, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Device extension cl_khr_global_int32_extended_atomics not supported.\n");
+            fprintf(LogFile, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
           }
+          continue;
         }
         else
         {
-          fprintf(stdout, "#> OK, Device extension cl_khr_global_int32_extended_atomics is supported.\n");
+          fprintf(stdout, "#> OK, Device extension cl_khr_local_int32_extended_atomics is supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, Device extension cl_khr_global_int32_extended_atomics is supported.\n");
+            fprintf(LogFile, "#> OK, Device extension cl_khr_local_int32_extended_atomics is supported.\n");
           }
         }
+        // 64 bit atomics
+        if ((!strstr(ExtensionsValue, "cl_khr_int64_extended_atomics")))
+        {
+          fprintf(stdout, "#> Error: Device extension cl_khr_int64_extended_atomics not supported.\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error: Device extension cl_khr_int64_extended_atomics not supported.\n");
+          }
+          continue;
+        }
+        else
+        {
+          fprintf(stdout, "#> OK, Device extension cl_khr_int64_extended_atomics is supported.\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, Device extension cl_khr_int64_extended_atomics is supported.\n");
+          }
+        }
+
+        // get work group size size
+        status = clGetDeviceInfo (devices[j],
+                                  CL_DEVICE_MAX_WORK_GROUP_SIZE,
+                                  0,
+                                  NULL,
+                                  &paramSize
+                                  );
+
+        if(status!=CL_SUCCESS) 
+        {  
+          fprintf(stdout, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE param size (clGetDeviceInfo)\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE param size (clGetDeviceInfo)\n");
+          }
+          continue;
+        }
+        warpsize = (size_t *)malloc(1 * paramSize);
+        // get device name
+        status = clGetDeviceInfo (devices[j],
+                                  CL_DEVICE_MAX_WORK_GROUP_SIZE,
+                                  paramSize,
+                                  warpsize,
+                                  NULL
+                                  );
+
+        if(status!=CL_SUCCESS) 
+        {  
+          fprintf(stdout, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE (clGetDeviceInfo)\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE (clGetDeviceInfo)\n");
+          }
+          continue;
+        }
+        if ((s32)*warpsize<64)
+        {
+          fprintf(stdout, "#> Error, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i < 64\n", (s32)*warpsize);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i < 64\n", (s32)*warpsize);
+          }
+          continue;
+        }
+        else
+        {
+          fprintf(stdout, "#> OK, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i >= 64\n", (s32)*warpsize);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i >= 64\n", (s32)*warpsize);
+          }
+        }
+/*
+        // deprecated:
         // getting prefered warpsize resp. wavefront size, 
         fprintf(stdout, "#> #### Query Kernel params.\n");
         if (LogFile)
@@ -602,7 +702,7 @@ bool cl_guess_config(bool extreme)
           }
         }
         // get a kernel object handle for a kernel with the given name
-        kernel = clCreateKernel(program, "bestfirst_gpu", &status);
+        kernel = clCreateKernel(program, "alphabeta_gpu", &status);
         if(status!=CL_SUCCESS) 
         {  
           fprintf(stdout, "#> Error: Creating Kernel from program. (clCreateKernel)\n");
@@ -625,28 +725,28 @@ bool cl_guess_config(bool extreme)
         // query kernel for warp resp wavefront size
         status = clGetKernelWorkGroupInfo ( kernel,
                                             devices[j],
-                                            CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+                                            CL_DEVICE_MAX_WORK_GROUP_SIZE,
                                             0,
                                             NULL,
                                             &paramSize
                                           );
         if(status!=CL_SUCCESS) 
         {  
-          fprintf(stdout, "#> Error: Getting CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE size (clGetKernelWorkGroupInfo)\n");
+          fprintf(stdout, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE size (clGetKernelWorkGroupInfo)\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Getting CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE size (clGetKernelWorkGroupInfo)\n");
+            fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE size (clGetKernelWorkGroupInfo)\n");
           }
           continue;
         }
 
-        warpVal = (s32 *)malloc(1 * paramSize);
+        paramValue = (size_t *)malloc(1 * paramSize);
         status = clGetKernelWorkGroupInfo ( kernel,
                                             devices[j],
                                             CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
                                             paramSize,
-                                            warpVal,
+                                            &paramValue,
                                             NULL
                                           );
         if(status!=CL_SUCCESS) 
@@ -655,27 +755,19 @@ bool cl_guess_config(bool extreme)
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Getting CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE (clGetKernelWorkGroupInfo)\n");
+            fprintf(LogFile, "#> Error: CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE (clGetKernelWorkGroupInfo)\n");
           }
           continue;
         }
-        warpsize = (int)*warpVal;
-        fprintf(stdout, "#> OK, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE: %i.\n", warpsize);
-        if (LogFile)
-        {
-          fprintdate(LogFile);
-          fprintf(LogFile, "#> OK, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE: %i.\n", warpsize);
-        }
-
+*/
         // print temp config file
         FILE 	*Cfg;
         remove("config.tmp");
 
         Cfg = fopen("config.tmp", "w");
-        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(Cfg, "threadsX: %i;\n", deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-        fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
@@ -687,8 +779,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"\n");
         fprintf(Cfg,"config options explained:\n");
         fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-        fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
-        fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+        fprintf(Cfg,"threadsY => multiplier for threadsX\n");
         fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
         fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
         fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
@@ -755,10 +846,9 @@ bool cl_guess_config(bool extreme)
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
-            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-            fprintf(Cfg, "threadsZ: %i;\n\n", warpsize*2);
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
@@ -770,8 +860,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"\n");
             fprintf(Cfg,"config options explained:\n");
             fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-            fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
-            fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+            fprintf(Cfg,"threadsY => multiplier for threadsX\n");
             fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
             fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
             fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
@@ -815,10 +904,9 @@ bool cl_guess_config(bool extreme)
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
-            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti*2);
-            fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
@@ -830,8 +918,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"\n");
             fprintf(Cfg,"config options explained:\n");
             fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-            fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
-            fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+            fprintf(Cfg,"threadsY => multiplier for threadsX\n");
             fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
             fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
             fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
@@ -884,10 +971,9 @@ bool cl_guess_config(bool extreme)
         remove(confignamefile);
 
         Cfg = fopen(confignamefile, "w");
-        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(Cfg, "threadsX: %i;\n", deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-        fprintf(Cfg, "threadsZ: %i;\n\n", warpsize);
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
@@ -899,8 +985,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"\n");
         fprintf(Cfg,"config options explained:\n");
         fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-        fprintf(Cfg,"threadsY => multiplier for threadsZ\n");
-        fprintf(Cfg,"threadsZ => mumber of threads per SIMD Unit or core\n");
+        fprintf(Cfg,"threadsY => multiplier for threadsX\n");
         fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
         fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
         fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
@@ -913,10 +998,9 @@ bool cl_guess_config(bool extreme)
 
         fprintf(stdout, "#\n");
         fprintf(stdout, "#\n");
-        fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+        fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(stdout, "threadsX: %i;\n", deviceunits);
         fprintf(stdout, "threadsY: %i;\n", warpmulti);
-        fprintf(stdout, "threadsZ: %i;\n", warpsize);
         fprintf(stdout, "nodes_per_second: %i;\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
@@ -930,10 +1014,9 @@ bool cl_guess_config(bool extreme)
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
           fprintf(LogFile, "#\n");
-          fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", paramValue);
+          fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
           fprintf(LogFile, "threadsX: %i;\n", deviceunits);
           fprintf(LogFile, "threadsY: %i;\n", warpmulti);
-          fprintf(LogFile, "threadsZ: %i;\n", warpsize);
           fprintf(LogFile, "nodes_per_second: %i;\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
