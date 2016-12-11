@@ -1010,104 +1010,6 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 
   return false;
 }
-Score evalpiece(Piece piece, Square sq)
-{
-  Score score = 0;
-
-  // wood count
-  score+= EvalPieceValues[GETPTYPE(piece)];
-  // piece square tables
-  sq = (piece&0x1)?sq:FLOP(sq);
-  score+= EvalTable[GETPTYPE(piece)*64+sq];
-  // sqaure control
-  score+= EvalControl[sq];
-
-  return score;
-}
-Score EvalMove(Move move)
-{
-  // pto (wood + pst) - pfrom (wood + pst)
-  if ( (((move>>26)&0xF)>>1) == PNONE) 
-    return evalpiece((Piece)((move>>22)&0xF), (Square)((move>>6)&0x3F))-evalpiece((Piece)((move>>18)&0xF), (Square)(move&0x3F));
-  // MVV-LVA
-  else
-    return EvalPieceValues[(Piece)(((move>>26)&0xF)>>1)] * 16 - EvalPieceValues[(Piece)(((move>>22)&0xF)>>1)];
-}
-// evaluation taken from ZetaDva engine, est 2000 Elo.
-Score eval(__private Bitboard *board)
-{
-  s32 j;
-  Square sq;
-  Piece piece;
-  Bitboard bbBlockers = board[1]|board[2]|board[3];        // all pieces
-  Bitboard bbTemp     = board[1]&~board[2]&~board[3];      // all pawns
-  Bitboard bbWork;
-  Bitboard bbMe;
-  Bitboard bbOpp;
-  Score score = 0;
-
-  // white
-  bbMe  = board[0]^bbBlockers;
-  bbOpp = board[0];
-  bbWork = bbMe;
-
-  while (bbWork) 
-  {
-    sq = popfirst1(&bbWork);
-    piece = GETPIECETYPE(board, sq);
-    // piece bonus
-    score+= 10;
-    // wodd count
-    score+= EvalPieceValues[piece];
-    // piece square tables
-    score+= EvalTable[piece*64+FLOP(sq)];
-    // square control table
-    score+= EvalControl[FLOP(sq)];
-    // simple pawn structure white
-    // blocked
-    score-=(piece==PAWN&&GETRANK(sq)<RANK_8&&(bbOpp&SETMASKBB(sq+8)))?15:0;
-    // chain
-    score+=(piece==PAWN&&GETFILE(sq)<FILE_H&&(bbTemp&bbMe&SETMASKBB(sq-7)))?10:0;
-    score+=(piece==PAWN&&GETFILE(sq)>FILE_A&&(bbTemp&bbMe&SETMASKBB(sq-9)))?10:0;
-    // column
-    for(j=sq-8;j>7&&piece==PAWN;j-=8)
-      score-=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-  }
-  // duble bishop
-  score+= (count1s(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
-
-  // black
-  bbMe  = board[0];
-  bbOpp = board[0]^bbBlockers;
-  bbWork = bbMe;
-
-  while (bbWork) 
-  {
-    sq = popfirst1(&bbWork);
-    piece = GETPIECETYPE(board, sq);
-    // piece bonus
-    score-= 10;
-    // wodd count
-    score-= EvalPieceValues[piece];
-    // piece square tables
-    score-= EvalTable[piece*64+sq];
-    // square control table
-    score-= EvalControl[sq];
-    // simple pawn structure black
-    // blocked
-    score+=(piece==PAWN&&GETRANK(sq)>RANK_1&&(bbOpp&SETMASKBB(sq-8)))?15:0;
-    // chain
-    score-=(piece==PAWN&&GETFILE(sq)>FILE_A&&(bbTemp&bbMe&SETMASKBB(sq+7)))?10:0;
-    score-=(piece==PAWN&&GETFILE(sq)<FILE_H&&(bbTemp&bbMe&SETMASKBB(sq+9)))?10:0;
-    // column
-    for(j=sq+8;j<56&&piece==PAWN;j+=8)
-      score+=(bbTemp&bbMe&SETMASKBB(j))?30:0;
-  }
-  // duble bishop
-  score-= (count1s(bbMe&(~board[1]&~board[2]&board[3]))>=2)?25:0;
-
-  return score;
-}
 // perft on gpu, 64 threads in parallel on one chess position
 __kernel void perft_gpu(  
                             __global Bitboard *BOARD,
@@ -1122,41 +1024,39 @@ __kernel void perft_gpu(
 )
 {
   __private Bitboard board[7]; // Quadbitboard + piece moved flags + hash + lastmove
+
+  // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
-  __local u8 localTodoIndex[MAXPLY];
-  __local u8 localMoveCounter[MAXPLY];
+  __local s32 localTodoIndex[MAXPLY];
+  __local s32 localMoveCounter[MAXPLY];
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
   __local Score localMoveIndexScore[MAXPLY];
+
   __local s32 mode;
   __local s32 movecount;
-  __local Move localMove;
+  __local Move lmove;
   __local Score lscore;
-  __local Move tmpmoves[64];
-  __local Score tmpscores[64];
-  __local u8 tmpcounter[64];
   __local Square sqchecker;
 
-//  __local Bitboard bbPinned;
-  Bitboard bbPinned;
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
   const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
   const Square lid = get_local_id(2);
 
-  bool stm = (bool)stm_init;
+  bool stm;
   bool kic;
-  bool rootkic = false;
-  bool qs = false;
-  Score score = 0;
-  Score tmpscore = 0;
-  s32 sd = 0;
-  s32 ply = 0;
-  s32 n = 0;
-  Move move = 0;
-  Move tmpmove = 0;
+  bool rootkic;
+  bool qs;
+  Score score;
+  Score tmpscore;
+  s32 sd;
+  s32 ply;
+  s32 n;
+  Move move;
+  Move tmpmove;
 
   Square sqking;
   Square sqfrom;
@@ -1175,8 +1075,8 @@ __kernel void perft_gpu(
   Bitboard bbWork;
   Bitboard bbMask;
   Bitboard bbMoves;
+  Bitboard bbPinned;
 
-  ulong4 bbWrap4;
   ulong4 bbPro4;
   ulong4 bbGen4; 
 
@@ -1192,7 +1092,7 @@ __kernel void perft_gpu(
   ply             = 0;
   sd              = 0;
   mode            = MOVEUP;
-  localMove       = MOVENONE;
+  lmove       = MOVENONE;
 
   // init ab search var stack
   if (lid==0)
@@ -1205,6 +1105,7 @@ __kernel void perft_gpu(
     localMoveHistory[0]             = board[QBBLAST];
     localCrHistory[0]               = board[QBBPMVD];
     localHashHistory[0]             = board[QBBHASH];
+    COUNTERS[gid*64+1]              = (u64)-INF;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1214,23 +1115,19 @@ __kernel void perft_gpu(
   while(mode!=EXIT)
   {
     // ################################
-    // ####     nove generator     ####
+    // ####     movegenerator x64  ####
     // ################################
     // resets
-    tmpmoves[lid] = MOVENONE;
-    tmpscores[lid] = -INF;
-    tmpcounter[lid] = 0;
     movecount = 0;
     lscore = -INF;
 
-    localMove = MOVENONE;
+    lmove = MOVENONE;
     bbPinned = BBEMPTY;
     bbAttacks = BBEMPTY;
     bbCheckers  = BBEMPTY;
 
     n = 0;
-    // enter quiescence search?
-    qs = false;
+    qs = (sd>=search_depth)?true:false; // enter quiescence search?
 
     bbBlockers  = board[1]|board[2]|board[3];
     bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
@@ -1241,8 +1138,6 @@ __kernel void perft_gpu(
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
-//    rootkic = squareunderattack(board, !stm, sqking);
-
     // get superking, rooks n queens
     bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
     // get superking, bishops n queems
@@ -1255,78 +1150,36 @@ __kernel void perft_gpu(
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
     }
-
-/*
     // generate own moves and opposite attacks
-    sqfrom  = lid;
-    pfrom   = GETPIECE(board, sqfrom);
-    kic     = GETCOLOR(pfrom);
-    // Knight and King
-    bbTemp  = (GETPTYPE(pfrom)==KNIGHT||GETPTYPE(pfrom)==KING)?AttackTables[GETPTYPE(pfrom)*64+sqfrom]:0x0UL;
-    // sliders
-    // rook or queen
-    bbMask  = (kic==stm)?bbBlockers:(bbBlockers^SETMASKBB(sqking));
-    bbTemp |= (GETPTYPE(pfrom)==ROOK||GETPTYPE(pfrom)==QUEEN)?rook_attacks(bbMask, sqfrom):0x0UL;
-    // bishop or queen
-    bbTemp |= (GETPTYPE(pfrom)==BISHOP||GETPTYPE(pfrom)==QUEEN)?bishop_attacks(bbMask, sqfrom):0x0UL;
-    // verify captures
-    bbMoves = (kic==stm)?(bbTemp&bbOpp):bbTemp;
-    // verify non captures
-    bbMoves|= (!qs&&kic==stm)?(bbTemp&~bbBlockers):BBEMPTY; 
-    // pawn attacks and forward step
-    bbMask  = (kic==stm)?bbOpp:BBFULL;
-    bbMoves |= (GETPTYPE(pfrom)==PAWN)?(AttackTables[kic*64+sqfrom]&bbMask):0x0UL;
-    bbMoves |= (GETPTYPE(pfrom)==PAWN&&kic==stm&&!qs)?(AttackTablesPawnPushes[kic*64+sqfrom]):0x0UL;
-
-    // check pawn single square
-    if (GETPTYPE(pfrom)==PAWN&&kic==stm)
-    {
-        sqto  = (kic)?sqfrom-8:sqfrom+8;
-        if (bbBlockers&SETMASKBB(sqto))
-            bbMoves ^= SETMASKBB(sqto);
-    }
-    // check pawn double square
-    if (GETPTYPE(pfrom)==PAWN&&(GETRRANK(sqfrom,kic)==RANK_2)&&kic==stm)
-    {
-        sqcpt = (kic)?sqfrom-8:sqfrom+8;
-        sqto  = (kic)?sqfrom-16:sqfrom+16;
-        if ((bbBlockers&SETMASKBB(sqcpt))||(bbBlockers&SETMASKBB(sqto)))
-            bbMoves ^= SETMASKBB(sqto);
-    }
-*/
-    // generate own moves and opposite attacks
-
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     kic     = GETCOLOR(pfrom);
     bbMask  = bbBlockers&SETMASKBB(sqfrom);
     // get koggestone wraps
-    bbWrap4 = wraps4[0];
     // generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbMask;
     bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift left via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 << shift4);
-    bbPro4 &=           (bbPro4 << shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 2*shift4);
-    bbPro4 &=           (bbPro4 << 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 << shift4);
+    bbPro4 &= wraps4[0];
+    bbGen4 |= bbPro4    & (bbGen4 << shift4);
+    bbPro4 &=             (bbPro4 << shift4);
+    bbGen4 |= bbPro4    & (bbGen4 << 2*shift4);
+    bbPro4 &=             (bbPro4 << 2*shift4);
+    bbGen4 |= bbPro4    & (bbGen4 << 4*shift4);
+    bbGen4  = wraps4[0] & (bbGen4 << shift4);
     bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // get koggestone wraps
-    bbWrap4 = wraps4[1];
     // set generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbMask;
     bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift right via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 >> shift4);
-    bbPro4 &=           (bbPro4 >> shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 2*shift4);
-    bbPro4 &=           (bbPro4 >> 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 >> shift4);
+    bbPro4 &= wraps4[1];
+    bbGen4 |= bbPro4    & (bbGen4 >> shift4);
+    bbPro4 &=             (bbPro4 >> shift4);
+    bbGen4 |= bbPro4    & (bbGen4 >> 2*shift4);
+    bbPro4 &=             (bbPro4 >> 2*shift4);
+    bbGen4 |= bbPro4    & (bbGen4 >> 4*shift4);
+    bbGen4  = wraps4[1] & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // consider knights
     bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
@@ -1351,6 +1204,9 @@ __kernel void perft_gpu(
       atom_or(&bbCheckers, SETMASKBB(sqfrom));
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+
+    rootkic = (bbCheckers)?true:false;
+
     // extract only own moves
     if (SETMASKBB(sqfrom)&bbOpp)
       bbMoves = BBEMPTY;
@@ -1399,7 +1255,7 @@ __kernel void perft_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
-    // gen castle moves
+    // gen castle moves queenside
     if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))
     { 
       // get king square
@@ -1418,9 +1274,10 @@ __kernel void perft_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
+    // gen castle moves kingside
     if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))
     {
-      // get castle rights kingside
+      sqfrom  = sqking;
       sqto    = sqfrom+2;
       // rook present
       bbTemp  = (GETPIECE(board, sqfrom+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
@@ -1434,13 +1291,17 @@ __kernel void perft_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
-    // move picker, extract moves x64 
+    // ################################
+    // ####     movepicker x64     ####
+    // ################################
+    // move picker, extract moves x64 parallel
     n       = 0;
     move    = MOVENONE;
     score   = -INF;
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     ppromo  = GETPTYPE(pfrom);
+
     while(bbMoves)
     {
       sqto  = popfirst1(&bbMoves);
@@ -1485,7 +1346,6 @@ __kernel void perft_gpu(
 //      undomovequick(board, tmpmove);
 //      if (kic)
 //        continue;
-
       atom_inc(&movecount);
       n++;
       // eval move
@@ -1510,12 +1370,86 @@ __kernel void perft_gpu(
     tmpscore = atom_cmpxchg(&lscore, score, score);
     if (score==tmpscore)
     {
-      localMove = move;
+      lmove = move;
       localMoveIndexScore[sd] = tmpscore;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+/*
+    // ################################
+    // ####     evaluation x64      ###
+    // ################################
+    lscore  = 0;
+    sqfrom  = lid;
+    pfrom   = GETPIECE(board, sqfrom);
+    kic     = GETCOLOR(pfrom); // get color to work on
+    pfrom   = GETPTYPE(pfrom);
+    bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
+    bbMe    =  (kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
+    bbOpp   = (!kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
+    tmpscore= 0;
+    // piece bonus
+    tmpscore+= (pfrom!=PNONE)?(kic)?-10:10:0;
+    // wood count
+    tmpscore+= (pfrom!=PNONE)?(kic)?-EvalPieceValues[pfrom]:EvalPieceValues[pfrom]:0;
+    // piece square tables
+    tmpscore+= (pfrom!=PNONE)?(kic)?-EvalTable[pfrom*64+sqfrom]:EvalTable[pfrom*64+FLIPFLOP(sqfrom)]:0;
+    // square control table
+    tmpscore+= (pfrom!=PNONE)?(kic)?-EvalControl[sqfrom]:EvalControl[FLIPFLOP(sqfrom)]:0;
+    // simple pawn structure white
+    // blocked
+    if (pfrom==PAWN&&kic==WHITE)
+    {
+      tmpscore-=(GETRANK(sqfrom)<RANK_8&&(bbOpp&SETMASKBB(sqfrom+8)))?15:0;
+        // chain
+      tmpscore+=(GETFILE(sqfrom)<FILE_H&&(bbMask&bbOpp&SETMASKBB(sqfrom-7)))?10:0;
+      tmpscore+=(GETFILE(sqfrom)>FILE_A&&(bbMask&bbOpp&SETMASKBB(sqfrom-9)))?10:0;
+      // column, TODO: popcount based
+      for(sqto=sqfrom-8;sqto>7;sqto-=8)
+        tmpscore-=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
+    }
+    // simple pawn structure black
+    // blocked
+    if (pfrom==PAWN&&kic==BLACK)
+    {
+      tmpscore+=(GETRANK(sqfrom)>RANK_1&&(bbOpp&SETMASKBB(sqfrom-8)))?15:0;
+        // chain
+      tmpscore-=(GETFILE(sqfrom)>FILE_A&&(bbMask&bbOpp&SETMASKBB(sqfrom+7)))?10:0;
+      tmpscore-=(GETFILE(sqfrom)<FILE_H&&(bbMask&bbOpp&SETMASKBB(sqfrom+9)))?10:0;
+      // column, TODO: popcount based
+      for(sqto=sqfrom+8;sqto<56;sqto+=8)
+        tmpscore+=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
+    }
+    // duble bishop
+    if (lid==0)
+    {
+      tmpscore-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
+      tmpscore+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
+    }
+    // store scores in local memory
+    barrier(CLK_LOCAL_MEM_FENCE);
+    atom_add(&lscore, tmpscore);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    score = lscore;
+    // negamaxed scores
+    score = (stm)?-score:score;
+    // checkmate
+    score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
+    // stalemate
+    score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
+
+//      // draw by 3 fold repetition
+//      for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
+//      {
+//        if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
+//        {
+//          n       = 0;
+//          score   = DRAWSCORE;
+//          break;
+//        }
+//      }
+*/
     // #################################
-    // ####     alphabeta stuff      ###
+    // ####     alphabeta flow       ###
     // #################################
     // terminal node
     if (lid==0&&sd>=search_depth)
@@ -1523,14 +1457,15 @@ __kernel void perft_gpu(
       // terminal node counter
       COUNTERS[gid*64+0]++;
       movecount = 0;
-      localMove = MOVENONE;
+      lmove = MOVENONE;
     }
     if (lid==0)
       localMoveCounter[sd]  = movecount;
 
     // terminal node
-    if (lid==0&&mode==MOVEUP&&localMove==MOVENONE)
-      mode = MOVEDOWN;
+    if (lid==0&&mode==MOVEUP&&lmove==MOVENONE)
+      mode = MOVEDOWN;    
+    barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
     // ################################
@@ -1538,15 +1473,14 @@ __kernel void perft_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       // set history
-      localMoveHistory[sd]  = localMove;
+      localMoveHistory[sd]  = lmove;
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
       localTodoIndex[sd]++;
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
     if (mode==MOVEUP)
     {
-      domove(board, localMove);
+      domove(board, lmove);
       stm = !stm; // switch site to move
       sd++;       // increase depth counter
       ply++;      // increase ply counter
@@ -1567,7 +1501,10 @@ __kernel void perft_gpu(
     // move down in tree
     if (mode==MOVEDOWN)
     {
-      while (localTodoIndex[sd]>=localMoveCounter[sd]) 
+      while (
+              // all children searched
+              localTodoIndex[sd]>=localMoveCounter[sd] 
+            ) 
       {
         sd--;
         ply--;
@@ -1592,6 +1529,7 @@ __kernel void perft_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
 //  COUNTERS[gid*64+0] = *NODECOUNTER;
+
 }
 // perft on gpu, 64 threads in parallel on one chess position
 __kernel void alphabeta_gpu(  
@@ -1607,41 +1545,39 @@ __kernel void alphabeta_gpu(
 )
 {
   __private Bitboard board[7]; // Quadbitboard + piece moved flags + hash + lastmove
+
+  // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
-  __local u8 localTodoIndex[MAXPLY];
-  __local u8 localMoveCounter[MAXPLY];
+  __local s32 localTodoIndex[MAXPLY];
+  __local s32 localMoveCounter[MAXPLY];
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
   __local Score localMoveIndexScore[MAXPLY];
+
   __local s32 mode;
   __local s32 movecount;
-  __local Move localMove;
+  __local Move lmove;
   __local Score lscore;
-  __local Move tmpmoves[64];
-  __local Score tmpscores[64];
-  __local u8 tmpcounter[64];
   __local Square sqchecker;
 
-//  __local Bitboard bbPinned;
-  Bitboard bbPinned;
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
   const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
   const Square lid = get_local_id(2);
 
-  bool stm = (bool)stm_init;
+  bool stm;
   bool kic;
-  bool rootkic = false;
-  bool qs = false;
-  Score score = 0;
-  Score tmpscore = 0;
-  s32 sd = 0;
-  s32 ply = 0;
-  s32 n = 0;
-  Move move = 0;
-  Move tmpmove = 0;
+  bool rootkic;
+  bool qs;
+  Score score;
+  Score tmpscore;
+  s32 sd;
+  s32 ply;
+  s32 n;
+  Move move;
+  Move tmpmove;
 
   Square sqking;
   Square sqfrom;
@@ -1660,8 +1596,8 @@ __kernel void alphabeta_gpu(
   Bitboard bbWork;
   Bitboard bbMask;
   Bitboard bbMoves;
+  Bitboard bbPinned;
 
-  ulong4 bbWrap4;
   ulong4 bbPro4;
   ulong4 bbGen4; 
 
@@ -1677,7 +1613,7 @@ __kernel void alphabeta_gpu(
   ply             = 0;
   sd              = 0;
   mode            = MOVEUP;
-  localMove       = MOVENONE;
+  lmove       = MOVENONE;
 
   // init ab search var stack
   if (lid==0)
@@ -1703,20 +1639,16 @@ __kernel void alphabeta_gpu(
     // ####     movegenerator x64  ####
     // ################################
     // resets
-    tmpmoves[lid] = MOVENONE;
-    tmpscores[lid] = -INF;
-    tmpcounter[lid] = 0;
     movecount = 0;
     lscore = -INF;
 
-    localMove = MOVENONE;
+    lmove = MOVENONE;
     bbPinned = BBEMPTY;
     bbAttacks = BBEMPTY;
     bbCheckers  = BBEMPTY;
 
     n = 0;
-    // enter quiescence search?
-    qs = (sd>=search_depth)?true:false;
+    qs = (sd>=search_depth)?true:false; // enter quiescence search?
 
     bbBlockers  = board[1]|board[2]|board[3];
     bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
@@ -1745,32 +1677,30 @@ __kernel void alphabeta_gpu(
     kic     = GETCOLOR(pfrom);
     bbMask  = bbBlockers&SETMASKBB(sqfrom);
     // get koggestone wraps
-    bbWrap4 = wraps4[0];
     // generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbMask;
     bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift left via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 << shift4);
-    bbPro4 &=           (bbPro4 << shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 2*shift4);
-    bbPro4 &=           (bbPro4 << 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 << 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 << shift4);
+    bbPro4 &= wraps4[0];
+    bbGen4 |= bbPro4    & (bbGen4 << shift4);
+    bbPro4 &=             (bbPro4 << shift4);
+    bbGen4 |= bbPro4    & (bbGen4 << 2*shift4);
+    bbPro4 &=             (bbPro4 << 2*shift4);
+    bbGen4 |= bbPro4    & (bbGen4 << 4*shift4);
+    bbGen4  = wraps4[0] & (bbGen4 << shift4);
     bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // get koggestone wraps
-    bbWrap4 = wraps4[1];
     // set generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbMask;
     bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift right via ulong4 vector
-    bbPro4 &= bbWrap4;
-    bbGen4 |= bbPro4  & (bbGen4 >> shift4);
-    bbPro4 &=           (bbPro4 >> shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 2*shift4);
-    bbPro4 &=           (bbPro4 >> 2*shift4);
-    bbGen4 |= bbPro4  & (bbGen4 >> 4*shift4);
-    bbGen4  = bbWrap4 & (bbGen4 >> shift4);
+    bbPro4 &= wraps4[1];
+    bbGen4 |= bbPro4    & (bbGen4 >> shift4);
+    bbPro4 &=             (bbPro4 >> shift4);
+    bbGen4 |= bbPro4    & (bbGen4 >> 2*shift4);
+    bbPro4 &=             (bbPro4 >> 2*shift4);
+    bbGen4 |= bbPro4    & (bbGen4 >> 4*shift4);
+    bbGen4  = wraps4[1] & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // consider knights
     bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
@@ -1961,7 +1891,7 @@ __kernel void alphabeta_gpu(
     tmpscore = atom_cmpxchg(&lscore, score, score);
     if (score==tmpscore)
     {
-      localMove = move;
+      lmove = move;
       localMoveIndexScore[sd] = tmpscore;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2047,7 +1977,7 @@ __kernel void alphabeta_gpu(
       mode = MOVEDOWN;
     }
     // terminal node
-    if (lid==0&&mode==MOVEUP&&localMove==MOVENONE)
+    if (lid==0&&mode==MOVEUP&&lmove==MOVENONE)
     {
       localAlphaBetaScores[sd*2+ALPHA] = score;
       movecount = 0;
@@ -2083,14 +2013,14 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       // set history
-      localMoveHistory[sd]  = localMove;
+      localMoveHistory[sd]  = lmove;
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
       localTodoIndex[sd]++;
     }
     if (mode==MOVEUP)
     {
-      domove(board, localMove);
+      domove(board, lmove);
       stm = !stm; // switch site to move
       sd++;       // increase depth counter
       ply++;      // increase ply counter
