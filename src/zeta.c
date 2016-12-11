@@ -82,7 +82,7 @@ double MaxTime  = 5*1000; // max time per move
 u64 MaxNodes    = 1;
 // game state
 bool STM        = WHITE;  // site to move
-s32 SD          = 0;      // max search depth*/
+s32 SD          = MAXPLY; // max search depth*/
 s32 GAMEPLY     = 0;      // total ply, considering depth via fen string
 s32 PLY         = 0;      // engine specifix ply counter
 Move *MoveHistory;
@@ -1539,7 +1539,7 @@ bool read_and_init_config(char configfile[])
   }
   fclose(fcfg);
 
-  SD = max_ab_depth;
+//  SD = max_ab_depth;
 
   max_nodes_to_expand = (s32)(max_memory*1024*1024/sizeof(NodeBlock));
 
@@ -2444,7 +2444,7 @@ int main(int argc, char* argv[])
           fprintf(LogFile,"Error (in setting start postition): new\n");        
         }
       }
-      SD = max_ab_depth;
+//      SD = max_ab_depth;
       // reset time control
       MaxNodes = MaxTime/1000*nodes_per_second;
       if (!xboard_mode)
@@ -2927,7 +2927,7 @@ int main(int argc, char* argv[])
     if (!strcmp(Command, "sd"))
     {
       sscanf (Line, "sd %d", &SD);
-//      SD = (SD>=max_ab_depth)?max_ab_depth:SD;
+      SD = (SD>MAXPLY)?MAXPLY:SD;
       continue;
     }
     // turn on thinking output
