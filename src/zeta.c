@@ -2009,7 +2009,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       }
       fflush(stdout);
     }
-  } while (++idf<=depth&&elapsed*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&idf<=MAXPLY);
+  } while (++idf<=depth&&elapsed*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&idf<=MAXPLY&&ABNODECOUNT>1);
 
   // compute next nps value
   nps_current =  (s32 )(ABNODECOUNT/(elapsed));
@@ -2442,7 +2442,7 @@ int main(int argc, char* argv[])
       }
       else 
       {
-        bool kic = squareunderattack(BOARD, STM, getkingpos(BOARD,STM));
+        bool kic = squareunderattack(BOARD, !STM, getkingpos(BOARD,STM));
         Move move;
         xboard_force = false;
         MOVECOUNT = 0;
@@ -2710,7 +2710,7 @@ int main(int argc, char* argv[])
       // we are on move
       if (!xboard_force)
       {
-        bool kic = squareunderattack(BOARD, STM, getkingpos(BOARD,STM));
+        bool kic = squareunderattack(BOARD, !STM, getkingpos(BOARD,STM));
         MOVECOUNT = 0;
         start = get_time();
 
