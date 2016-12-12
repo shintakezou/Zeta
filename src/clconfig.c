@@ -28,6 +28,8 @@
 extern s32 benchmarkWrapper(s32 benchsec);
 extern void read_config();
 
+// TODO: check for work group dim == 3 and workgroup size[3] >= 64
+
 // guess minimal and optimal setup for given cl device
 bool cl_guess_config(bool extreme)
 {
@@ -472,7 +474,8 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_local_int32_extended_atomics is supported.\n");
           }
         }
-        // 64 bit atomics
+/*
+        // 64 bit atomics, removed, Nvidia >= sm35 does not report the support
         if ((!strstr(ExtensionsValue, "cl_khr_int64_extended_atomics")))
         {
           fprintf(stdout, "#> Error: Device extension cl_khr_int64_extended_atomics not supported.\n");
@@ -492,7 +495,7 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_int64_extended_atomics is supported.\n");
           }
         }
-
+*/
         // get work group size size
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_MAX_WORK_GROUP_SIZE,

@@ -2130,7 +2130,7 @@ s32 benchmarkWrapper(s32 benchsec)
 //  MaxNodes = max_nodes = 8192; // search n nodes initial
   // run bench
   while (elapsed <= benchsec) {
-    if (elapsed *2 >= benchsec)
+    if (elapsed *4 >= benchsec)
       break;
     PLY = 0;
     bench = benchmark(BOARD, STM, sd);                
