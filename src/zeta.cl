@@ -983,11 +983,12 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 }
 // perft on gpu, 64 threads in parallel on one chess position
 __kernel void perft_gpu(  
-                            __global Bitboard *BOARD,
+                      const __global Bitboard *BOARD,
                             __global u64 *COUNTERS,
                             __global Hash *HashHistory,
-                            __global Bitboard *bbInBetween,
-                            __global Bitboard *bbLine,
+                      const __global Bitboard *bbInBetween,
+                      const __global Bitboard *bbLine,
+                            __global TTE *TT,
                                const s32 stm_init,
                                const s32 ply_init,
                                const s32 search_depth,
@@ -1503,12 +1504,12 @@ __kernel void perft_gpu(
 
 }
 // perft on gpu, 64 threads in parallel on one chess position
-__kernel void alphabeta_gpu(  
-                            __global Bitboard *BOARD,
+__kernel void alphabeta_gpu(
+                      const __global Bitboard *BOARD,
                             __global u64 *COUNTERS,
                             __global Hash *HashHistory,
-                            __global Bitboard *bbInBetween,
-                            __global Bitboard *bbLine,
+                      const __global Bitboard *bbInBetween,
+                      const __global Bitboard *bbLine,
                             __global TTE *TT,
                                const s32 stm_init,
                                const s32 ply_init,
