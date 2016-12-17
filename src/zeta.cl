@@ -988,7 +988,6 @@ __kernel void perft_gpu(
                             __global Hash *HashHistory,
                       const __global Bitboard *bbInBetween,
                       const __global Bitboard *bbLine,
-                            __global TTE *TT,
                                const s32 stm_init,
                                const s32 ply_init,
                                const s32 search_depth,
