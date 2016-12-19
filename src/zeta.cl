@@ -882,7 +882,7 @@ Bitboard ks_attacks_rs9(Bitboard bbBlockers, Square sq)
   Bitboard bbPro;
   Bitboard bbGen;
 
-  // directions right shifting >>9 ROOK
+  // directions right shifting >>9 BISHOP
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbPro  &= BBNOTHFILE;
@@ -902,7 +902,7 @@ Bitboard ks_attacks_rs7(Bitboard bbBlockers, Square sq)
   Bitboard bbPro;
   Bitboard bbGen;
 
-  // directions right shifting <<7 ROOK
+  // directions right shifting >>7 BISHOP
   bbPro   = ~bbBlockers;
   bbGen   = SETMASKBB(sq);
   bbPro  &= BBNOTAFILE;
