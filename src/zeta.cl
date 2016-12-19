@@ -1017,6 +1017,7 @@ __kernel void perft_gpu(
   const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
   const Square lid = get_local_id(2);
 
+  bool tmpb;
   bool stm;
   bool kic;
   bool rootkic;
@@ -1112,6 +1113,7 @@ __kernel void perft_gpu(
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
+
     // get superking, rooks n queens
     bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
     // get superking, bishops n queems
@@ -1159,7 +1161,7 @@ __kernel void perft_gpu(
     bbGen4  = wraps4[1] & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // consider knights
-    bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
+    bbTemp  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbTemp;
     // verify captures
     n       = (kic==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
@@ -1171,7 +1173,8 @@ __kernel void perft_gpu(
 
     // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
-    atom_or(&bbAttacks, (kic==stm)?BBEMPTY:bbMoves);
+    if (kic!=stm)
+      atom_or(&bbAttacks, bbMoves);
     // get king checkers
     if (bbMoves&SETMASKBB(sqking))
     {
@@ -1188,22 +1191,24 @@ __kernel void perft_gpu(
     n = count1s(bbCheckers);
 
     // double check, king moves only
-    if (n>=2&&GETPTYPE(pfrom)!=KING)
-      bbMoves = BBEMPTY;
+    tmpb = (n>=2&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves = (tmpb)?BBEMPTY:bbMoves;
 
     // consider pinned pieces
-    if (SETMASKBB(sqfrom)&bbPinned)
-      bbMoves&=bbLine[sqfrom*64+sqking];
+    tmpb = (SETMASKBB(sqfrom)&bbPinned)?true:false;
+    bbMoves &= (tmpb)?bbLine[sqfrom*64+sqking]:BBFULL;
 
     // consider king and opp attacks
-    if (GETPTYPE(pfrom)==KING)
-      bbMoves&=~bbAttacks;
+    tmpb = (GETPTYPE(pfrom)==KING)?true:false;
+    bbMoves &= (tmpb)?~bbAttacks:BBFULL;
 
     // consider single checker
-    if (n==1&&GETPTYPE(pfrom)!=KING)
-      bbMoves&= bbInBetween[sqchecker*64+sqking]|bbCheckers;
+    tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
 
-    // gen en passant moves 
+// 570k, 470K
+
+    // gen en passant moves, TODO reimplement
     bbTemp = BBEMPTY;
     sqep   = GETSQEP(board[QBBLAST]); 
     if (sqep)
@@ -1212,7 +1217,7 @@ __kernel void perft_gpu(
       bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
       bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
     }
-    // check for en passant pawns
+    // check for en passant pawns, TODO: ep legality check wo domove/undomove/kic, maybe paralellx64???:TODO
     if (bbTemp&SETMASKBB(sqfrom))
     {
       pfrom   = GETPIECE(board, sqfrom);
@@ -1230,9 +1235,13 @@ __kernel void perft_gpu(
       {
         bbMoves |= SETMASKBB(sqto);
       }
+//      bbMoves |= SETMASKBB(((stm)?sqep-8:sqep+8));
     }
+
+    // TODO: speedup
     // gen castle moves queenside
-    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))
+    tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
+    if (tmpb)
     { 
       // get king square
       sqfrom  = sqking;
@@ -1251,7 +1260,8 @@ __kernel void perft_gpu(
       }
     }
     // gen castle moves kingside
-    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))
+    tmpb =  (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))?true:false;
+    if (tmpb)
     {
       sqfrom  = sqking;
       sqto    = sqfrom+2;
@@ -1267,6 +1277,8 @@ __kernel void perft_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
+// 385K, 420K / wo ep move gen
+
     // ################################
     // ####     movepicker x64     ####
     // ################################
@@ -1340,16 +1352,22 @@ __kernel void perft_gpu(
       score = tmpscore;
       move = tmpmove;
     }
+
+// 150K, 260K wo ep check
+
+    // get sorted next move and store to local memory
+    barrier(CLK_LOCAL_MEM_FENCE);
     // get sorted next move and store to local memory
     atom_max(&lscore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
     tmpscore = atom_cmpxchg(&lscore, score, score);
-    if (score==tmpscore)
+    if (score==lscore)
     {
       lmove = move;
       localMoveIndexScore[sd] = tmpscore;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+
 /*
     // ################################
     // ####     evaluation x64      ###
@@ -1424,6 +1442,9 @@ __kernel void perft_gpu(
 //        }
 //      }
 */
+
+// 110K, 230K 
+
     // #################################
     // ####     alphabeta flow       ###
     // #################################
@@ -1502,7 +1523,8 @@ __kernel void perft_gpu(
         mode = MOVEUP;
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
-//  COUNTERS[gid*64+0] = *NODECOUNTER;
+//  COUNTERS[gid*64+1] += lscore;
+//  COUNTERS[gid*64+2] |= bbMoves^bbAttacks;
 }
 // perft on gpu, 64 threads in parallel on one chess position
 __kernel void alphabeta_gpu(
@@ -1542,6 +1564,7 @@ __kernel void alphabeta_gpu(
   const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
   const Square lid = get_local_id(2);
 
+  bool tmpb;
   bool stm;
   bool kic;
   bool rootkic;
@@ -1643,6 +1666,7 @@ __kernel void alphabeta_gpu(
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
+
     // get superking, rooks n queens
     bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
     // get superking, bishops n queems
@@ -1690,7 +1714,7 @@ __kernel void alphabeta_gpu(
     bbGen4  = wraps4[1] & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // consider knights
-    bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
+    bbTemp  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbTemp;
     // verify captures
     n       = (kic==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
@@ -1702,7 +1726,8 @@ __kernel void alphabeta_gpu(
 
     // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
-    atom_or(&bbAttacks, (kic==stm)?BBEMPTY:bbMoves);
+    if (kic!=stm)
+      atom_or(&bbAttacks, bbMoves);
     // get king checkers
     if (bbMoves&SETMASKBB(sqking))
     {
@@ -1719,22 +1744,22 @@ __kernel void alphabeta_gpu(
     n = count1s(bbCheckers);
 
     // double check, king moves only
-    if (n>=2&&GETPTYPE(pfrom)!=KING)
-      bbMoves = BBEMPTY;
+    tmpb = (n>=2&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves = (tmpb)?BBEMPTY:bbMoves;
 
     // consider pinned pieces
-    if (SETMASKBB(sqfrom)&bbPinned)
-      bbMoves&=bbLine[sqfrom*64+sqking];
+    tmpb = (SETMASKBB(sqfrom)&bbPinned)?true:false;
+    bbMoves &= (tmpb)?bbLine[sqfrom*64+sqking]:BBFULL;
 
     // consider king and opp attacks
-    if (GETPTYPE(pfrom)==KING)
-      bbMoves&=~bbAttacks;
+    tmpb = (GETPTYPE(pfrom)==KING)?true:false;
+    bbMoves &= (tmpb)?~bbAttacks:BBFULL;
 
     // consider single checker
-    if (n==1&&GETPTYPE(pfrom)!=KING)
-      bbMoves&= bbInBetween[sqchecker*64+sqking]|bbCheckers;
+    tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
 
-    // gen en passant moves 
+    // gen en passant moves, TODO reimplement
     bbTemp = BBEMPTY;
     sqep   = GETSQEP(board[QBBLAST]); 
     if (sqep)
@@ -1743,7 +1768,7 @@ __kernel void alphabeta_gpu(
       bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
       bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
     }
-    // check for en passant pawns
+    // check for en passant pawns, TODO: ep legality check wo domove/undomove/kic, maybe paralellx64???:TODO
     if (bbTemp&SETMASKBB(sqfrom))
     {
       pfrom   = GETPIECE(board, sqfrom);
@@ -1761,9 +1786,12 @@ __kernel void alphabeta_gpu(
       {
         bbMoves |= SETMASKBB(sqto);
       }
+//      bbMoves |= SETMASKBB(((stm)?sqep-8:sqep+8));
     }
+    // TODO: speedup
     // gen castle moves queenside
-    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))
+    tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
+    if (tmpb)
     { 
       // get king square
       sqfrom  = sqking;
@@ -1782,7 +1810,8 @@ __kernel void alphabeta_gpu(
       }
     }
     // gen castle moves kingside
-    if (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))
+    tmpb =  (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))?true:false;
+    if (tmpb)
     {
       sqfrom  = sqking;
       sqto    = sqfrom+2;
@@ -1798,6 +1827,7 @@ __kernel void alphabeta_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
+
     // ################################
     // ####     movepicker x64     ####
     // ################################
@@ -1808,11 +1838,6 @@ __kernel void alphabeta_gpu(
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     ppromo  = GETPTYPE(pfrom);
-
-    // get move from hash table
-    move = board[QBBHASH]&(ttindex-1);
-    ttmove = ((TT[move].hash==(board[QBBHASH]^TT[move].bestmove))&&TT[move].flag>FAILLOW)?(Move)((TT[move].bestmove)&SMTTMOVE):MOVENONE;
-    move    = MOVENONE;
 
     while(bbMoves)
     {
@@ -1834,17 +1859,17 @@ __kernel void alphabeta_gpu(
       pcpt  = GETPIECE(board, sqcpt);
       pto   = pfrom;
       // set pawn prommotion, queen
-      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+//      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
 
       // handle all pawn promo, repeat loop
-//      if (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)
-//      {
-//        ppromo++;
-//        ppromo=(ppromo==KING)?BISHOP:ppromo; // skip king
-//        pto = MAKEPIECE(ppromo,GETCOLOR(pfrom));
-//        bbMoves |= (ppromo<QUEEN)?SETMASKBB(sqto):BBEMPTY;
-//        ppromo=(ppromo==QUEEN)?PAWN:ppromo; // reset ppromo for further sqto
-//      }
+      if (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)
+      {
+        ppromo++;
+        ppromo=(ppromo==KING)?BISHOP:ppromo; // skip king
+        pto = MAKEPIECE(ppromo,GETCOLOR(pfrom));
+        bbMoves |= (ppromo<QUEEN)?SETMASKBB(sqto):BBEMPTY;
+        ppromo=(ppromo==QUEEN)?PAWN:ppromo; // reset ppromo for further sqto
+      }
 
       // make move
       tmpmove  = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
@@ -1867,14 +1892,6 @@ __kernel void alphabeta_gpu(
       // MVV-LVA
       tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
       tmpscore = tmpscore*10000+lid*64+n;
-
-      // set tt move score
-      if ((ttmove&SMTTMOVE)==(tmpmove&SMTTMOVE))
-      {
-        tmpscore = INF-100;
-        COUNTERS[gid*64+3]++; // count tt hit
-      }
-
       // ignore moves already searched
       if (tmpscore>=localMoveIndexScore[sd])
         continue;
@@ -1884,11 +1901,14 @@ __kernel void alphabeta_gpu(
       score = tmpscore;
       move = tmpmove;
     }
+
+    // get sorted next move and store to local memory
+    barrier(CLK_LOCAL_MEM_FENCE);
     // get sorted next move and store to local memory
     atom_max(&lscore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
     tmpscore = atom_cmpxchg(&lscore, score, score);
-    if (score==tmpscore)
+    if (score==lscore)
     {
       lmove = move;
       localMoveIndexScore[sd] = tmpscore;
