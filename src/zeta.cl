@@ -1079,7 +1079,7 @@ __kernel void perft_gpu(
     COUNTERS[gid*64+1]              = (u64)-INF;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
-
+  barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
   // ####       main loop        ####
   // ################################
@@ -1437,7 +1437,6 @@ __kernel void perft_gpu(
     }
     if (lid==0)
       localMoveCounter[sd]  = movecount;
-
     // terminal node
     if (lid==0&&mode==MOVEUP&&lmove==MOVENONE)
       mode = MOVEDOWN;    
@@ -1478,22 +1477,21 @@ __kernel void perft_gpu(
     if (mode==MOVEDOWN)
     {
       while (
+              sd >= 0 &&
               // all children searched
               localTodoIndex[sd]>=localMoveCounter[sd] 
             ) 
       {
         sd--;
         ply--;
-        if (sd<0)  // this is the end
-            break;
+        // switch site to move
+        stm = !stm;
         undomove( board, 
                   localMoveHistory[sd],
                   (sd<0)?BOARD[QBBLAST]:localMoveHistory[sd-1],
                   localCrHistory[sd], 
                   localHashHistory[sd]
                 );
-        // switch site to move
-        stm = !stm;
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1505,7 +1503,6 @@ __kernel void perft_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
 //  COUNTERS[gid*64+0] = *NODECOUNTER;
-
 }
 // perft on gpu, 64 threads in parallel on one chess position
 __kernel void alphabeta_gpu(
