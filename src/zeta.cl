@@ -1839,6 +1839,11 @@ __kernel void alphabeta_gpu(
     pfrom   = GETPIECE(board, sqfrom);
     ppromo  = GETPTYPE(pfrom);
 
+    // get move from hash table
+    move = board[QBBHASH]&(ttindex-1);
+    ttmove = ((TT[move].hash==(board[QBBHASH]^TT[move].bestmove))&&TT[move].flag>FAILLOW)?(Move)((TT[move].bestmove)&SMTTMOVE):MOVENONE;
+    move    = MOVENONE;
+
     while(bbMoves)
     {
       sqto  = popfirst1(&bbMoves);
@@ -1892,6 +1897,12 @@ __kernel void alphabeta_gpu(
       // MVV-LVA
       tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
       tmpscore = tmpscore*10000+lid*64+n;
+    
+      if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
+      {
+        tmpscore = INF-100;
+        COUNTERS[gid*64+3]++;
+      }
       // ignore moves already searched
       if (tmpscore>=localMoveIndexScore[sd])
         continue;
