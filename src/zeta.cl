@@ -1342,7 +1342,7 @@ __kernel void perft_gpu(
       tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?sqfrom:FLIPFLOP(sqfrom))]+EvalControl[((stm)?sqfrom:FLIPFLOP(sqfrom))];
       // MVV-LVA
       tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
-      tmpscore = tmpscore*10000+lid*64+n;
+      tmpscore = tmpscore*1000+lid*64+n;
       // ignore moves already searched
       if (tmpscore>=localMoveIndexScore[sd])
         continue;
@@ -1361,10 +1361,10 @@ __kernel void perft_gpu(
     atom_max(&lscore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
     tmpscore = atom_cmpxchg(&lscore, score, score);
-    if (score==lscore)
+    if (tmpscore==score)
     {
       lmove = move;
-      localMoveIndexScore[sd] = tmpscore;
+      localMoveIndexScore[sd] = score;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1896,7 +1896,7 @@ __kernel void alphabeta_gpu(
       tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?sqfrom:FLIPFLOP(sqfrom))]+EvalControl[((stm)?sqfrom:FLIPFLOP(sqfrom))];
       // MVV-LVA
       tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
-      tmpscore = tmpscore*10000+lid*64+n;
+      tmpscore = tmpscore*1000+lid*64+n;
     
       if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
       {
@@ -1919,10 +1919,10 @@ __kernel void alphabeta_gpu(
     atom_max(&lscore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
     tmpscore = atom_cmpxchg(&lscore, score, score);
-    if (score==lscore)
+    if (tmpscore==score)
     {
       lmove = move;
-      localMoveIndexScore[sd] = tmpscore;
+      localMoveIndexScore[sd] = score;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
