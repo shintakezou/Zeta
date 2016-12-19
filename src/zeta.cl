@@ -1089,13 +1089,16 @@ __kernel void perft_gpu(
     // ####     movegenerator x64  ####
     // ################################
     // resets
-    movecount = 0;
-    lscore = -INF;
+    if (lid==0)
+    {
+      movecount = 0;
+      lscore = -INF;
+      lmove = MOVENONE;
+      bbAttacks = BBEMPTY;
+      bbCheckers  = BBEMPTY;
+    }
 
-    lmove = MOVENONE;
     bbPinned = BBEMPTY;
-    bbAttacks = BBEMPTY;
-    bbCheckers  = BBEMPTY;
 
     n = 0;
     qs = (sd>=search_depth)?true:false; // enter quiescence search?
@@ -1125,11 +1128,12 @@ __kernel void perft_gpu(
     sqfrom  = lid;
     pfrom   = GETPIECE(board, sqfrom);
     kic     = GETCOLOR(pfrom);
-    bbMask  = bbBlockers&SETMASKBB(sqfrom);
     // get koggestone wraps
     // generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbMask;
-    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
+    bbGen4  = (ulong4)bbBlockers&SETMASKBB(sqfrom);
+    bbPro4  = (ulong4)(~bbBlockers);
+    bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
+//    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift left via ulong4 vector
     bbPro4 &= wraps4[0];
     bbGen4 |= bbPro4    & (bbGen4 << shift4);
@@ -1141,8 +1145,10 @@ __kernel void perft_gpu(
     bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
     // get koggestone wraps
     // set generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbMask;
-    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
+    bbGen4  = (ulong4)bbBlockers&SETMASKBB(sqfrom);
+    bbPro4  = (ulong4)(~bbBlockers);
+    bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
+//    bbPro4  = (SETMASKBB(sqfrom)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift right via ulong4 vector
     bbPro4 &= wraps4[1];
     bbGen4 |= bbPro4    & (bbGen4 >> shift4);
@@ -1155,16 +1161,14 @@ __kernel void perft_gpu(
     // consider knights
     bbTemp  = (GETPTYPE(pfrom)==KNIGHT&&(bbBlockers&SETMASKBB(sqfrom)))?BBFULL:bbTemp;
     // verify captures
-    n       = (bbMe&SETMASKBB(sqfrom))?(s32)stm:(s32)!stm;
+    n       = (kic==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
     bbMask  = AttackTables[n*64+sqfrom];
-    bbMoves = (SETMASKBB(sqfrom)&bbMe)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    bbMoves = (kic==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
     // verify non captures
-    if (SETMASKBB(sqfrom)&bbMe)
-    {
-      bbMask = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
-      bbMoves|= (!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
-    }
+    bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+sqfrom]):bbMask;
+    bbMoves|= (kic==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+
     // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
     atom_or(&bbAttacks, (kic==stm)?BBEMPTY:bbMoves);
@@ -1179,11 +1183,12 @@ __kernel void perft_gpu(
     rootkic = (bbCheckers)?true:false;
 
     // extract only own moves
-    if (SETMASKBB(sqfrom)&bbOpp)
-      bbMoves = BBEMPTY;
+    bbMoves = (kic==stm)?bbMoves:BBEMPTY;
+
+    n = count1s(bbCheckers);
 
     // double check, king moves only
-    if (count1s(bbCheckers)>=2&&GETPTYPE(pfrom)!=KING)
+    if (n>=2&&GETPTYPE(pfrom)!=KING)
       bbMoves = BBEMPTY;
 
     // consider pinned pieces
@@ -1195,7 +1200,7 @@ __kernel void perft_gpu(
       bbMoves&=~bbAttacks;
 
     // consider single checker
-    if (count1s(bbCheckers)==1&&GETPTYPE(pfrom)!=KING)
+    if (n==1&&GETPTYPE(pfrom)!=KING)
       bbMoves&= bbInBetween[sqchecker*64+sqking]|bbCheckers;
 
     // gen en passant moves 
