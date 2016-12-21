@@ -58,9 +58,9 @@ typedef struct
   u8 depth;
 } TTE;
 // TT node type flags
-#define EXACTSCORE      2
-#define FAILHIGH        1
 #define FAILLOW         0
+#define EXACTSCORE      1
+#define FAILHIGH        2
 // search modes
 #define INIT            0
 #define MOVEUP          1
@@ -2072,7 +2072,6 @@ __kernel void alphabeta_gpu(
     // move down in tree
     if (mode==MOVEDOWN)
     {
-      flag = FAILLOW;
       while (
               // all children searched
               localTodoIndex[sd]>=localMoveCounter[sd] 
@@ -2081,23 +2080,6 @@ __kernel void alphabeta_gpu(
               localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
             ) 
       {
-        barrier(CLK_LOCAL_MEM_FENCE);
-        // do alphabeta negamax scoring
-        if (lid==0&&sd>0)
-        {
-          score = -localAlphaBetaScores[sd*2+ALPHA];
-          if (score>localAlphaBetaScores[(sd-1)*2+ALPHA]&&!ISINF(score))
-          {
-            flag = EXACTSCORE;
-            localAlphaBetaScores[(sd-1)*2+ALPHA]=score;
-          }
-          // get bestmove, TODO: via upcoming hashtable, collect PV
-          if (sd==1&&score>(Score)COUNTERS[gid*64+1]&&!ISINF(score))
-          {
-            COUNTERS[gid*64+1] = (u64)score;
-            COUNTERS[gid*64+2] = localMoveHistory[sd-1];
-          }
-        }
         sd--;
         ply--;
         stm = !stm; // switch site to move
@@ -2110,16 +2092,19 @@ __kernel void alphabeta_gpu(
                   localHashHistory[sd]
                 );
 
-        if (lid==0&&localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
-          flag = FAILHIGH;
+        score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
         // save to hash table
-        if (lid==0&&sd<search_depth&&flag>FAILLOW) // no qsearch
+        if (lid==0&&sd<search_depth) // no qsearch
         {
-          score = localAlphaBetaScores[sd*2+ALPHA];
+          flag = FAILLOW;
+          if (score>localAlphaBetaScores[sd*2+ALPHA])
+            flag = EXACTSCORE;
+          if (score>=localAlphaBetaScores[sd*2+BETA])
+            flag = FAILHIGH;
           tmpmove = board[QBBHASH]&(ttindex-1);
           move  = (TTMove)(localMoveHistory[sd]&SMTTMOVE);
           // one bucket, depth replace
-          if (search_depth>TT[tmpmove].depth)
+          if ((u8)search_depth>=TT[tmpmove].depth&&flag>FAILLOW)
           {
             TT[tmpmove].hash      = board[QBBHASH]^move;
             TT[tmpmove].bestmove  = move;
@@ -2128,7 +2113,21 @@ __kernel void alphabeta_gpu(
             TT[tmpmove].depth     = (u8)search_depth;
           }
         }
-
+        // do alphabeta negamax scoring
+        if (lid==0&&sd>=0)
+        {
+          if (score>localAlphaBetaScores[sd*2+ALPHA]&&!ISINF(score))
+          {
+            localAlphaBetaScores[sd*2+ALPHA]=score;
+          }
+          // get bestmove, TODO: via upcoming hashtable, collect PV
+          if (sd==0&&score>(Score)COUNTERS[gid*64+1]&&!ISINF(score))
+          {
+            COUNTERS[gid*64+1] = (u64)score;
+            COUNTERS[gid*64+2] = localMoveHistory[sd];
+          }
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
