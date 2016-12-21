@@ -389,7 +389,7 @@ u8 popfirst1(u64 *a)
 //  bb_temp&=bb_temp-1;       // clear lsb
 
 // apply move on board, quick during move generation
-void domovequick(__local Bitboard *board, Move move)
+void domovequick(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
@@ -415,7 +415,7 @@ void domovequick(__local Bitboard *board, Move move)
   board[QBBP3]    |= ((pto>>3)&0x1)<<sqto;
 }
 // restore board again, quick during move generation
-void undomovequick(__local Bitboard *board, Move move)
+void undomovequick(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
@@ -994,7 +994,9 @@ __kernel void perft_gpu(
                                const u64 max_nodes
 )
 {
-  __local Bitboard board[7]; // Quadbitboard + piece moved flags + hash + lastmove
+  // Quadbitboard + piece moved flags + hash + lastmove
+  __private Bitboard board[7]; 
+  __local Bitboard lboard[7];
 
   // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
@@ -1060,13 +1062,13 @@ __kernel void perft_gpu(
   if (lid==0)
   {
     // get init quadbitboard plus plus
-    board[QBBBLACK] = BOARD[QBBBLACK];
-    board[QBBP1]    = BOARD[QBBP1];
-    board[QBBP2]    = BOARD[QBBP2];
-    board[QBBP3]    = BOARD[QBBP3];
-    board[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
-    board[QBBHASH]  = BOARD[QBBHASH]; // hash
-    board[QBBLAST]  = BOARD[QBBLAST]; // lastmove
+    lboard[QBBBLACK] = BOARD[QBBBLACK];
+    lboard[QBBP1]    = BOARD[QBBP1];
+    lboard[QBBP2]    = BOARD[QBBP2];
+    lboard[QBBP3]    = BOARD[QBBP3];
+    lboard[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
+    lboard[QBBHASH]  = BOARD[QBBHASH]; // hash
+    lboard[QBBLAST]  = BOARD[QBBLAST]; // lastmove
     stm             = (bool)stm_init;
     ply             = 0;
     sd              = 0;
@@ -1104,6 +1106,16 @@ __kernel void perft_gpu(
       bbAttacks = BBEMPTY;
       bbCheckers  = BBEMPTY;
     }
+
+    // get init quadbitboard plus plus
+    board[QBBBLACK] = lboard[QBBBLACK];
+    board[QBBP1]    = lboard[QBBP1];
+    board[QBBP2]    = lboard[QBBP2];
+    board[QBBP3]    = lboard[QBBP3];
+    board[QBBPMVD]  = lboard[QBBPMVD]; // piece moved flags
+    board[QBBHASH]  = lboard[QBBHASH]; // hash
+    board[QBBLAST]  = lboard[QBBLAST]; // lastmove
+
 
     bbPinned = BBEMPTY;
 
@@ -1214,7 +1226,6 @@ __kernel void perft_gpu(
 
 // 570k, 470K
 
-/*
     // gen en passant moves, TODO reimplement
     bbTemp = BBEMPTY;
     sqep   = GETSQEP(board[QBBLAST]); 
@@ -1244,7 +1255,6 @@ __kernel void perft_gpu(
       }
 //      bbMoves |= SETMASKBB(((stm)?sqep-8:sqep+8));
     }
-*/
     // TODO: speedup
     // gen castle moves queenside
     tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
@@ -1477,11 +1487,11 @@ __kernel void perft_gpu(
       {
         // set history
         localMoveHistory[sd]  = lmove;
-        localCrHistory[sd]    = board[QBBPMVD];
-        localHashHistory[sd]  = board[QBBHASH];
+        localCrHistory[sd]    = lboard[QBBPMVD];
+        localHashHistory[sd]  = lboard[QBBHASH];
         localTodoIndex[sd]++;
 
-        domove(board, lmove);
+        domove(lboard, lmove);
         stm = !stm; // switch site to move
         sd++;       // increase depth counter
         ply++;      // increase ply counter
@@ -1507,7 +1517,7 @@ __kernel void perft_gpu(
           sd--;
           ply--;
           stm = !stm; // switch site to move
-          undomove( board, 
+          undomove( lboard, 
                     localMoveHistory[sd],
                     (sd<=0)?BOARD[QBBLAST]:localMoveHistory[sd-1],
                     localCrHistory[sd], 
@@ -1539,7 +1549,9 @@ __kernel void alphabeta_gpu(
                                const u64 ttindex
 )
 {
-  __local Bitboard board[7]; // Quadbitboard + piece moved flags + hash + lastmove
+  // Quadbitboard + piece moved flags + hash + lastmove
+  __private Bitboard board[7]; 
+  __local Bitboard lboard[7];
 
   // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
@@ -1611,13 +1623,13 @@ __kernel void alphabeta_gpu(
   if (lid==0)
   {
     // get init quadbitboard plus plus
-    board[QBBBLACK] = BOARD[QBBBLACK];
-    board[QBBP1]    = BOARD[QBBP1];
-    board[QBBP2]    = BOARD[QBBP2];
-    board[QBBP3]    = BOARD[QBBP3];
-    board[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
-    board[QBBHASH]  = BOARD[QBBHASH]; // hash
-    board[QBBLAST]  = BOARD[QBBLAST]; // lastmove
+    lboard[QBBBLACK] = BOARD[QBBBLACK];
+    lboard[QBBP1]    = BOARD[QBBP1];
+    lboard[QBBP2]    = BOARD[QBBP2];
+    lboard[QBBP3]    = BOARD[QBBP3];
+    lboard[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
+    lboard[QBBHASH]  = BOARD[QBBHASH]; // hash
+    lboard[QBBLAST]  = BOARD[QBBLAST]; // lastmove
     stm             = (bool)stm_init;
     ply             = 0;
     sd              = 0;
@@ -1654,6 +1666,16 @@ __kernel void alphabeta_gpu(
       bbAttacks = BBEMPTY;
       bbCheckers  = BBEMPTY;
     }
+
+    // get init quadbitboard plus plus
+    board[QBBBLACK] = lboard[QBBBLACK];
+    board[QBBP1]    = lboard[QBBP1];
+    board[QBBP2]    = lboard[QBBP2];
+    board[QBBP3]    = lboard[QBBP3];
+    board[QBBPMVD]  = lboard[QBBPMVD]; // piece moved flags
+    board[QBBHASH]  = lboard[QBBHASH]; // hash
+    board[QBBLAST]  = lboard[QBBLAST]; // lastmove
+
 
     bbPinned = BBEMPTY;
 
@@ -1762,7 +1784,6 @@ __kernel void alphabeta_gpu(
     tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
     bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
 
-/*
     // gen en passant moves, TODO reimplement
     bbTemp = BBEMPTY;
     sqep   = GETSQEP(board[QBBLAST]); 
@@ -1792,7 +1813,6 @@ __kernel void alphabeta_gpu(
       }
 //      bbMoves |= SETMASKBB(((stm)?sqep-8:sqep+8));
     }
-*/
     // TODO: speedup
     // gen castle moves queenside
     tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
@@ -2047,11 +2067,11 @@ __kernel void alphabeta_gpu(
       {
         // set history
         localMoveHistory[sd]  = lmove;
-        localCrHistory[sd]    = board[QBBPMVD];
-        localHashHistory[sd]  = board[QBBHASH];
+        localCrHistory[sd]    = lboard[QBBPMVD];
+        localHashHistory[sd]  = lboard[QBBHASH];
         localTodoIndex[sd]++;
 
-        domove(board, lmove);
+        domove(lboard, lmove);
         stm = !stm; // switch site to move
         sd++;       // increase depth counter
         ply++;      // increase ply counter
@@ -2083,7 +2103,7 @@ __kernel void alphabeta_gpu(
           stm = !stm; // switch site to move
           if (sd<0)  // this is the end
               break;
-          undomove( board, 
+          undomove( lboard, 
                     localMoveHistory[sd],
                     (sd<=0)?BOARD[QBBLAST]:localMoveHistory[sd-1],
                     localCrHistory[sd], 
@@ -2099,12 +2119,12 @@ __kernel void alphabeta_gpu(
               flag = EXACTSCORE;
             if (score>=localAlphaBetaScores[sd*2+BETA])
               flag = FAILHIGH;
-            tmpmove = board[QBBHASH]&(ttindex-1);
+            tmpmove = lboard[QBBHASH]&(ttindex-1);
             move  = (TTMove)(localMoveHistory[sd]&SMTTMOVE);
             // one bucket, depth replace
             if ((u8)search_depth>=TT[tmpmove].depth&&flag>FAILLOW)
             {
-              TT[tmpmove].hash      = board[QBBHASH]^move;
+              TT[tmpmove].hash      = lboard[QBBHASH]^move;
               TT[tmpmove].bestmove  = move;
               TT[tmpmove].score     = (TTScore)score;
               TT[tmpmove].flag      = flag;
