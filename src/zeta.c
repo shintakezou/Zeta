@@ -23,6 +23,7 @@
 #include <stdlib.h>     // for malloc free
 #include <string.h>     // for string compare 
 #include <getopt.h>     // for getopt_long
+#include <math.h>       // for pow
 
 #include "bitboard.h"   // bit functions
 #include "timer.h"
@@ -2011,6 +2012,14 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     }
   } while (++idf<=depth&&elapsed*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&idf<=MAXPLY&&ABNODECOUNT>1);
 
+
+  if ((!xboard_mode)||xboard_debug)
+  {
+    fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, ebf: %lf, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed, TTHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+    if (LogFile)
+      fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, ebf: %lf, nps: %" PRIu64 "  \n", ABNODECOUNT, elapsed, TTHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+  }
+
   // compute next nps value
   nps_current =  (s32 )(ABNODECOUNT/(elapsed));
   nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
@@ -2080,6 +2089,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   score = (Score)COUNTERS[1];
   bestmove = (Move)COUNTERS[2];
   bestscore = ISINF(score)?DRAWSCORE:score;
+
   // print cli output
   fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
   fprintf(stdout, " move ");
@@ -2093,6 +2103,10 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   fprintf(stdout, "\n");
   if (LogFile)
     fprintf(LogFile, "\n");
+  fflush(stdout);        
+  if (LogFile)
+    fflush(LogFile); 
+
   fflush(stdout);        
   if (LogFile)
     fflush(LogFile);        
@@ -2555,10 +2569,7 @@ int main(int argc, char* argv[])
             if ((!xboard_mode)||xboard_debug)
             {
               printboard(BOARD);
-              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
             }
-            if (LogFile)
-              fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
 
             PLY++;
             STM = !STM;
@@ -2821,10 +2832,7 @@ int main(int argc, char* argv[])
             if ((!xboard_mode)||xboard_debug)
             {
               printboard(BOARD);
-              fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
             }
-            if (LogFile)
-              fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed/1000, TTHITS, (u64)(ABNODECOUNT/(elapsed/1000)));
 
             PLY++;
             STM = !STM;
