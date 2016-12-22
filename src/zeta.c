@@ -2109,20 +2109,17 @@ s32 benchmarkWrapper(s32 benchsec)
   // inits
   if (!gameinits())
   {
-    release_gameinits();
     return -1;
   }
   if (!read_and_init_config("config.tmp"))
   {
     release_gameinits();
-    release_configinits();
     return -1;
   }
   if (!cl_init_device("alphabeta_gpu"))
   {
     release_gameinits();
     release_configinits();
-    cl_release_device();
     return -1;
   }
   setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -2965,11 +2962,11 @@ int main(int argc, char* argv[])
       ABNODECOUNT = 0;
       MOVECOUNT = 0;
 
-      fprintf(stdout,"### doing perft depth %d: ###\n", SD);  
+      fprintf(stdout,"### doing inits for perft depth %d: ###\n", SD);  
       if (LogFile)
       {
         fprintdate(LogFile);
-        fprintf(LogFile,"### doing perft depth %d: ###\n", SD);  
+        fprintf(LogFile,"### doing inits for perft depth %d: ###\n", SD);  
       }
 
       state = cl_release_device();
@@ -2983,6 +2980,13 @@ int main(int argc, char* argv[])
       if (!state)
       {
         quitengine(EXIT_FAILURE);
+      }
+
+      fprintf(stdout,"### computing perft depth %d: ###\n", SD);  
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"### computing perft depth %d: ###\n", SD);  
       }
 
       start = get_time();
@@ -2999,12 +3003,6 @@ int main(int argc, char* argv[])
       {
         quitengine(EXIT_FAILURE);
       }
-      state = cl_init_device("alphabeta_gpu");
-      // something went wrong...
-      if (!state)
-      {
-        quitengine(EXIT_FAILURE);
-      }
 
       fprintf(stdout,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
               ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
@@ -3013,6 +3011,13 @@ int main(int argc, char* argv[])
         fprintdate(LogFile);
         fprintf(LogFile,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
               ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
+      }
+
+      state = cl_init_device("alphabeta_gpu");
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
       }
 
       fflush(stdout);

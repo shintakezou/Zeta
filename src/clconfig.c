@@ -338,11 +338,11 @@ bool cl_guess_config(bool extreme)
           }
           else
           {
-            fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
+            fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB >= %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
             if (LogFile)
             {
               fprintdate(LogFile);
-              fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
+              fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB >= %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
             }
 
             // set memory to default max
