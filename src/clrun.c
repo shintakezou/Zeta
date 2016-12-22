@@ -65,7 +65,7 @@ bool cl_init_device(char *kernelname)
   }
   if(platform==NULL)
   {
-    print_debug((char *)"NULL platform found so Exiting Application.");
+    print_debug((char *)"NULL platform found so Exiting Application.\n");
     return false;
   }
   status = clGetDeviceIDs(platform, 
@@ -800,7 +800,7 @@ void print_debug(char *debug)
   fprintdate(Stats);
   fprintf(Stats, "status:%i\n",status);
   if (status == CL_DEVICE_NOT_AVAILABLE)
-      fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE");
+      fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE\n");
   fclose(Stats);
 }
 
