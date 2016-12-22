@@ -1081,9 +1081,9 @@ __kernel void perft_gpu(
     localMoveCounter[0]             = 0;
     localTodoIndex[0]               = 0;
     localMoveIndexScore[0]          = INF;
-    localMoveHistory[0]             = board[QBBLAST];
-    localCrHistory[0]               = board[QBBPMVD];
-    localHashHistory[0]             = board[QBBHASH];
+    localMoveHistory[0]             = BOARD[QBBLAST];
+    localCrHistory[0]               = BOARD[QBBPMVD];
+    localHashHistory[0]             = BOARD[QBBHASH];
 
     COUNTERS[gid*64+1]              = (u64)-INF;
   }
@@ -1642,17 +1642,21 @@ __kernel void alphabeta_gpu(
     localMoveCounter[0]             = 0;
     localTodoIndex[0]               = 0;
     localMoveIndexScore[0]          = INF;
-    localMoveHistory[0]             = board[QBBLAST];
-    localCrHistory[0]               = board[QBBPMVD];
-    localHashHistory[0]             = board[QBBHASH];
-    COUNTERS[gid*64+1]              = (u64)-INF;
+    localMoveHistory[0]             = BOARD[QBBLAST];
+    localCrHistory[0]               = BOARD[QBBPMVD];
+    localHashHistory[0]             = BOARD[QBBHASH];
+//    COUNTERS[gid*64+0]              = 0;              // movecount, return
+    COUNTERS[gid*64+1]              = (u64)-INF;      // best score, return
+//    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
+//    COUNTERS[gid*64+3]              = 0;              // tthits, return
+//    COUNTERS[gid*64+4]              = 0;              // depth reached, return
   }
   barrier(CLK_LOCAL_MEM_FENCE);
   barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
   // ####       main loop        ####
   // ################################
-  while(mode!=EXIT)
+  while(mode!=EXIT) // node count based termination
   {
     // ################################
     // ####     movegenerator x64  ####
@@ -2090,6 +2094,10 @@ __kernel void alphabeta_gpu(
       // move down in tree
       if (mode==MOVEDOWN)
       {
+        // get reached ply
+        if (sd>(s32)COUNTERS[gid*64+4])
+          COUNTERS[gid*64+4] = (u64)sd;
+
         while (
                 // all children searched
                 localTodoIndex[sd]>=localMoveCounter[sd] 
@@ -2141,11 +2149,15 @@ __kernel void alphabeta_gpu(
           {
             COUNTERS[gid*64+1] = (u64)score;
             COUNTERS[gid*64+2] = localMoveHistory[sd];
+
           }
         }
+        // root node finished, exit
         mode = (sd<0)?EXIT:MOVEUP;
       }
-    }
+      // node count based termination
+      mode = (COUNTERS[0]>max_nodes)?EXIT:mode;
+    } // end x1
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
 //  COUNTERS[gid*64+0] = *NODECOUNTER;
