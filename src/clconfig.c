@@ -33,11 +33,12 @@ extern void read_config();
 // guess minimal and optimal setup for given cl device
 bool cl_guess_config(bool extreme)
 {
+  bool failed = false;
   cl_int status = 0;
   size_t paramSize;
   char *deviceName;
   char *ExtensionsValue;
-  size_t *warpsize;
+  size_t wgsize;
   cl_device_id *devices;
   u32 i,j,k;
   u32 deviceunits = 0;
@@ -47,6 +48,9 @@ bool cl_guess_config(bool extreme)
   s32 npstmp = 0;
   s32 devicecounter = 0;
   s32 benchsec = 4;
+  u64 ttbits = 0;
+  u64 mem = 0;
+  u64 slots = 0;
     
   fprintf(stdout,"#> ### Query the OpenCL Platforms on Host...\n");
   if (LogFile)
@@ -108,7 +112,7 @@ bool cl_guess_config(bool extreme)
           fprintdate(LogFile);
           fprintf(LogFile, "#> Error: Getting Platform Info.(clGetPlatformInfo)\n");
         }
-        return false;
+        continue;
       }
       // get current platform
       platform = platforms[i];
@@ -177,6 +181,7 @@ bool cl_guess_config(bool extreme)
       // for each present OpenCL device do
       for(j=0; j < deviceListSize; j++)
       {
+        failed = false;
         warpmulti = 1;
         // get device name size
         status = clGetDeviceInfo (devices[j],
@@ -194,7 +199,7 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting Device Name Size (clGetDeviceInfo)\n");
           }
-          continue;
+          failed |= true;
         }
         deviceName = (char *)malloc(1 * paramSize);
         // get device name
@@ -213,28 +218,32 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting Device Name (clGetDeviceInfo)\n");
           }
-          continue;
+          failed |= true;
         }
-        fprintf(stdout, "#> ### Query and check the OpenCL Device...\n");
-        if (LogFile)
+        else
         {
-          fprintdate(LogFile);
-          fprintf(LogFile, "#> ### Query and check the OpenCL Device...\n");
+          fprintf(stdout, "#> ### Query and check the OpenCL Device...\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> ### Query and check the OpenCL Device...\n");
+          }
+          fprintf(stdout, "#> Device: %i, Device name: %s \n", j, deviceName);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Device: %i, Device name: %s \n", j, deviceName);
+          }
         }
-        fprintf(stdout, "#> Device: %i, Device name: %s \n", j, deviceName);
-        if (LogFile)
-        {
-          fprintdate(LogFile);
-          fprintf(LogFile, "#> Device: %i, Device name: %s \n", j, deviceName);
-        }
+
+        // get endianess, only little endian tested
         cl_bool endianlittle = CL_FALSE;
-        // get endianess, only little supported
         status = clGetDeviceInfo (devices[j],
-                        CL_DEVICE_ENDIAN_LITTLE,
-                        sizeof(cl_bool),
-                        &endianlittle,
-                        NULL
-                        );
+                                  CL_DEVICE_ENDIAN_LITTLE,
+                                  sizeof(cl_bool),
+                                  &endianlittle,
+                                  NULL
+                                  );
 
         if(status!=CL_SUCCESS) 
         {  
@@ -244,27 +253,31 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting Device Endianess (clGetDeviceInfo)\n");
           }
-          continue;
-        }
-        if (endianlittle == CL_TRUE)
-        {
-          fprintf(stdout, "#> OK, Device Endianness is little\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, Device Endianness is little\n");
-          }
+          failed |= true;
         }
         else
         {
-          fprintf(stdout, "#> Error: Device Endianness is not little\n");
-          if (LogFile)
+          if (endianlittle == CL_TRUE)
           {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Device Endianness is not little\n");
+            fprintf(stdout, "#> OK, Device Endianness is little\n");
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> OK, Device Endianness is little\n");
+            }
           }
-          continue;
+          else
+          {
+            fprintf(stdout, "#> Error: Device Endianness is not little\n");
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> Error: Device Endianness is not little\n");
+            }
+            failed |= true;
+          }
         }
+
         // get compute units
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_MAX_COMPUTE_UNITS,
@@ -281,15 +294,19 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_COMPUTE_UNITS (clGetDeviceInfo)\n");
           }
-          continue;
-        } 
-        fprintf(stdout, "#> OK, CL_DEVICE_MAX_COMPUTE_UNITS: %i \n",deviceunits);
-        if (LogFile)
-        {
-          fprintdate(LogFile);
-          fprintf(LogFile, "#> OK, CL_DEVICE_MAX_COMPUTE_UNITS: %i \n",deviceunits);
+          failed |= true;
         }
-        // get max memory allocation size
+        else
+        {
+          fprintf(stdout, "#> OK, CL_DEVICE_MAX_COMPUTE_UNITS: %i \n",deviceunits);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_COMPUTE_UNITS: %i \n",deviceunits);
+          }
+        }
+
+        // get max memory allocation size, for hash table
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_MAX_MEM_ALLOC_SIZE ,
                                   sizeof(cl_ulong),
@@ -305,32 +322,50 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_MEM_ALLOC_SIZE (clGetDeviceInfo)\n");
           }
-          continue;
-        } 
-        // check for min 64 mb memory
-        if (devicememalloc < MINDEVICEMB*1024*1024 ) {
-          fprintf(stdout, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
-          }
-          continue;
+          failed |= true;
         }
         else
         {
-          fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
-          if (LogFile)
+          // check for min 64 mb memory
+          if (devicememalloc < MINDEVICEMB*1024*1024 ) {
+            fprintf(stdout, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> Error, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " < %" PRIu64 " MB\n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
+            }
+            failed |= true;
+          }
+          else
           {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
+            fprintf(stdout, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB > %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
+            }
+
+            // set memory to default max
+            if (devicememalloc > MAXDEVICEMB*1024*1024 )
+              devicememalloc = MAXDEVICEMB*1024*1024; 
+            // initialize transposition table
+            ttbits = 0;
+            mem = devicememalloc/(sizeof(TTE));
+            while ( mem >>= 1)   // get msb
+              ttbits++;
+            mem = 1UL<<ttbits;
+            ttbits=mem;
+            devicememalloc = mem*sizeof(TTE); // set correct hash size
+            devicememalloc = (devicememalloc==0)?1:devicememalloc;
           }
         }
-        // get max memory allocation size
+        // get global memory size, for calculating slots
+        slots = 1;
+        u64 devicememglobal = 1;
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_GLOBAL_MEM_SIZE,
                                   sizeof(cl_ulong),
-                                  &devicememalloc,
+                                  &devicememglobal,
                                   NULL
                                   );
 
@@ -342,22 +377,21 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting CL_DEVICE_GLOBAL_MEM_SIZE (clGetDeviceInfo)\n");
           }
-          continue;
+          failed |= true;
         } 
         else
         {
-          fprintf(stdout, "#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememalloc/1024/1024);
+          fprintf(stdout, "#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememglobal/1024/1024);
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememalloc/1024/1024);
+            fprintf(LogFile, "#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememglobal/1024/1024);
           }
+
+          slots = devicememglobal/devicememalloc;
+          slots = (slots>MAXSLOTS)?MAXSLOTS:slots;
         }
-        // use 1/4 of global memory
-        devicememalloc/=4;
-        // set memory to default max
-        if (devicememalloc > MAXDEVICEMB*1024*1024 )
-          devicememalloc = MAXDEVICEMB*1024*1024; 
+
         // check for needed device extensions
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_EXTENSIONS,
@@ -374,7 +408,7 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting CL_DEVICE_EXTENSIONS size (clGetDeviceInfo)\n");
           }
-          continue;
+          failed |= true;
         } 
         ExtensionsValue = (char *)malloc(1 * paramSize);
         status = clGetDeviceInfo (devices[j],
@@ -392,7 +426,7 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting CL_DEVICE_EXTENSIONS value (clGetDeviceInfo)\n");
           }
-          continue;
+          failed |= true;
         } 
 /*
         // global in32 atomics
@@ -443,7 +477,7 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Device extension cl_khr_local_int32_base_atomics not supported.\n");
           }
-          continue;
+          failed |= true;
         }
         else
         {
@@ -463,7 +497,7 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
           }
-          continue;
+          failed |= true;
         }
         else
         {
@@ -474,17 +508,17 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_local_int32_extended_atomics is supported.\n");
           }
         }
-/*
+
         // 64 bit atomics, removed, Nvidia >= sm35 does not report the support
         if ((!strstr(ExtensionsValue, "cl_khr_int64_extended_atomics")))
         {
-          fprintf(stdout, "#> Error: Device extension cl_khr_int64_extended_atomics not supported.\n");
+          fprintf(stdout, "#> Unknown: Device extension cl_khr_int64_extended_atomics maybe not supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Device extension cl_khr_int64_extended_atomics not supported.\n");
+            fprintf(LogFile, "#> Unknown: Device extension cl_khr_int64_extended_atomics maybe not supported.\n");
           }
-          continue;
+//          failed |= true;
         }
         else
         {
@@ -495,31 +529,12 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_int64_extended_atomics is supported.\n");
           }
         }
-*/
-        // get work group size size
-        status = clGetDeviceInfo (devices[j],
-                                  CL_DEVICE_MAX_WORK_GROUP_SIZE,
-                                  0,
-                                  NULL,
-                                  &paramSize
-                                  );
 
-        if(status!=CL_SUCCESS) 
-        {  
-          fprintf(stdout, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE param size (clGetDeviceInfo)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE param size (clGetDeviceInfo)\n");
-          }
-          continue;
-        }
-        warpsize = (size_t *)malloc(1 * paramSize);
-        // get device name
+        // get work group size
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_MAX_WORK_GROUP_SIZE,
-                                  paramSize,
-                                  warpsize,
+                                  sizeof(size_t),
+                                  &wgsize,
                                   NULL
                                   );
 
@@ -531,27 +546,146 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE (clGetDeviceInfo)\n");
           }
-          continue;
+          failed |= true;
         }
-        if ((s32)*warpsize<64)
+        if ((s32)wgsize<64)
         {
-          fprintf(stdout, "#> Error, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i < 64\n", (s32)*warpsize);
+          fprintf(stdout, "#> Error, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i < 64\n", (s32)wgsize);
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i < 64\n", (s32)*warpsize);
+            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i < 64\n", (s32)wgsize);
           }
-          continue;
+          failed |= true;
         }
         else
         {
-          fprintf(stdout, "#> OK, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i >= 64\n", (s32)*warpsize);
+          fprintf(stdout, "#> OK, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i >= 64\n", (s32)wgsize);
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i >= 64\n", (s32)*warpsize);
+            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_WORK_GROUP_SIZE: %i >= 64\n", (s32)wgsize);
           }
         }
+
+        // get work group item dims
+        cl_uint dims = 0;
+        status = clGetDeviceInfo (devices[j],
+                                  CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
+                                  sizeof(cl_uint),
+                                  &dims,
+                                  NULL
+                                  );
+
+        if(status!=CL_SUCCESS) 
+        {  
+          fprintf(stdout, "#> Error: CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS (clGetDeviceInfo)\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error: CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS(clGetDeviceInfo)\n");
+          }
+          failed |= true;
+        }
+        if (dims<3)
+        {
+          fprintf(stdout, "#> Error,  CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS: %i < 3\n", dims);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error,  CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS: %i < 3\n", dims);
+          }
+          failed |= true;
+        }
+        else
+        {
+          fprintf(stdout, "#> OK, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS: %i >= 3\n", dims);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS: %i >= 3\n", dims);
+          }
+        }
+
+        // get work group item sizes
+        size_t items[dims];
+        status = clGetDeviceInfo (devices[j],
+                                  CL_DEVICE_MAX_WORK_ITEM_SIZES,
+                                  dims * sizeof(size_t),
+                                  &items,
+                                  NULL
+                                  );
+
+        if(status!=CL_SUCCESS) 
+        {  
+          fprintf(stdout, "#> Error: CL_DEVICE_MAX_WORK_ITEM_SIZES (clGetDeviceInfo)\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error: CL_DEVICE_MAX_WORK_ITEM_SIZES (clGetDeviceInfo)\n");
+          }
+          failed |= true;
+        }
+        if ((s32)items[2]<64)
+        {
+          fprintf(stdout, "#> Error, CL_DEVICE_MAX_WORK_ITEM_SIZES [3]: %i < 64\n", (s32)items[2]);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error, CL_DEVICE_MAX_WORK_ITEM_SIZES [3]: %i < 64\n", (s32)items[2]);
+          }
+          failed |= true;
+        }
+        else
+        {
+          fprintf(stdout, "#> OK, CL_DEVICE_MAX_WORK_ITEM_SIZES [3]: %i >= 64\n", (s32)items[2]);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, CL_DEVICE_MAX_WORK_ITEM_SIZES [3]: %i >= 64\n", (s32)items[2]);
+          }
+        }
+  
+        // get device available info
+        cl_bool available = CL_FALSE;
+        status = clGetDeviceInfo (devices[j],
+                                  CL_DEVICE_AVAILABLE,
+                                  sizeof(cl_bool),
+                                  &available,
+                                  NULL
+                                  );
+
+        if(status!=CL_SUCCESS) 
+        {  
+          fprintf(stdout, "#> Error: CL_DEVICE_AVAILABLE (clGetDeviceInfo)\n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error: CL_DEVICE_AVAILABLE (clGetDeviceInfo)\n");
+          }
+          failed |= true;
+        }
+        if (available == CL_FALSE)
+        {
+          fprintf(stdout, "#> Error, CL_DEVICE_AVAILABLE: CL_FALSE \n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error, CL_DEVICE_AVAILABLE: CL_FALSE \n");
+          }
+          failed |= true;
+        }
+        else
+        {
+          fprintf(stdout, "#> OK, CL_DEVICE_AVAILABLE: CL_TRUE \n");
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, CL_DEVICE_AVAILABLE: CL_TRUE \n");
+          }
+        }
+        if (failed)
+          continue;
 /*
         // deprecated:
         // getting prefered warpsize resp. wavefront size, 
@@ -772,7 +906,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
+        fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
         fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
         fprintf(Cfg, "max_depth: 32;\n");
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -853,7 +987,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-            fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
+            fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
             fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
             fprintf(Cfg, "max_depth: 32;\n");
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -911,7 +1045,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-            fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
+            fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
             fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
             fprintf(Cfg, "max_depth: 32;\n");
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -978,7 +1112,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: %i; // max 3 \n", memory_slots);
+        fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
         fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
         fprintf(Cfg, "max_depth: 32;\n");
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -1005,7 +1139,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "nodes_per_second: %i;\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(stdout, "memory_slots: %i; // max 3\n", memory_slots);
+        fprintf(stdout, "memory_slots: %i; // max 3\n", (s32)slots);
         fprintf(stdout, "max_ab_depth: 1; // min 1\n");
         fprintf(stdout, "max_depth: 32;\n");
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
@@ -1021,7 +1155,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "nodes_per_second: %i;\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-          fprintf(LogFile, "memory_slots: %i; // max 3\n", memory_slots);
+          fprintf(LogFile, "memory_slots: %i; // max 3\n", (s32)slots);
           fprintf(LogFile, "max_ab_depth: 1; // min 1\n");
           fprintf(LogFile, "max_depth: 32;\n");
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
