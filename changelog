@@ -1,3 +1,17 @@
+Zeta (099a) alpha; urgency=low
+
+  * ...to be continued
+
+ -- Srdja Matovic <s.matovic@app26.de> 2017
+
+Zeta (098g) alpha; urgency=low
+
+  * fix in engine output for Arena GUI
+  * possible fix for Intel OpenCL Runtime Environment
+
+ -- Srdja Matovic <s.matovic@app26.de>  Dez 2016
+
+
 Zeta (098e) alpha; urgency=low
 
   * mostly cleanup and fixes
