@@ -21,10 +21,13 @@
 
 Zeta, experimental chess engine written in OpenCL.
 
-Supported Platforms: 64 bit x86 little endian with
-working OpenCL Runtime Environment.
+Tested Platforms:
+64 bit x86-64 with little endian OpenCL devices
+on Windows 7 64 bit and GNU/Linux 64 bit OS
 
-You will need an config.ini file to run the engine,
+First make sure you have an working OpenCL Runtime Environment.
+
+Additionally you will need an config.ini file to run the engine,
 start engine from command line with --guessconfig option,
 to create config files for all OpenCL devices.
 
@@ -55,9 +58,10 @@ analyze        // enter analyze mode
 draw           // handle draw offers
 hard/easy      // turn on/off pondering
 hint           // give user a hint move
-bk             // book Lines
+bk             // book lines
 
 Non-Xboard commands:
+perft          // perform a performance test, depth set by sd command
 selftest       // run an internal test
 help           // print usage info
 log            // turn log on
@@ -65,7 +69,10 @@ log            // turn log on
 WARNING:
 It is recommended to run the engine on an discrete GPU,
 without display connected,
-otherwise system and display can freeze during computation.
+otherwise system and display can freeze or crash during computation.
+
+Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.
+So make sure to use an discrete GPU or set proper time controls.
 
 Windows OS have an internal gpu timeout, double click the .reg file 
 "SetWindowsGPUTimeoutTo20s.reg"
