@@ -37,13 +37,13 @@ char *Line;                   // for fgetting the input on stdin
 char *Command;                // for pasring the xboard command
 char *Fen;                    // for storing the fen chess baord string
 // counters
-u64 ABNODECOUNT = 0;
-u64 TTHITS = 0;
-u64 MOVECOUNT = 0;
+u64 ABNODECOUNT         = 0;
+u64 TTHITS              = 0;
+u64 MOVECOUNT           = 0;
 // config file
 u64 threadsX            =  1;
 u64 threadsY            =  1;
-u64 threadsZ            = 64;
+u64 threadsZ            = 64; // fix value
 u64 totalWorkUnits      =  1;
 s32 nodes_per_second    =  0;
 s32 max_nodes           =  0;
@@ -54,8 +54,8 @@ u64 memory_slots        =  1;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 // further config
-u64 max_nps_per_move= 0;
-s32 search_depth    = 0;
+u64 max_nps_per_move    =  0;
+s32 search_depth        =  0;
 // xboard flags
 bool xboard_mode    = false;  // chess GUI sets to true
 bool xboard_force   = false;  // if true aplly only moves, do not think
@@ -82,6 +82,7 @@ bool STM        = WHITE;  // site to move
 s32 SD          = MAXPLY; // max search depth*/
 s32 GAMEPLY     = 0;      // total ply, considering depth via fen string
 s32 PLY         = 0;      // engine specifix ply counter
+// game histories
 Move *MoveHistory;
 Hash *HashHistory;
 Hash *CRHistory;
@@ -94,8 +95,9 @@ Bitboard BOARD[7];
   1   piece type first bit
   2   piece type second bit
   3   piece type third bit
-  4   hash
-  5   lastmove
+  4   piece moved flags, for castle rigths
+  5   zobrist hash
+  6   lastmove
 */
 // for exchange with OpenCL device
 Bitboard *GLOBAL_BOARD = NULL;
@@ -284,7 +286,6 @@ Bitboard bbLine[64*64] =
 0x0,0x0,0x0,0x0,0x0,0x0,0x4040404040404040,0x0,0x4020100804020100,0x0,0x0,0x0,0x0,0x0,0x4040404040404040,0x0,0x0,0x4020100804020100,0x0,0x0,0x0,0x0,0x4040404040404040,0x0,0x0,0x0,0x4020100804020100,0x0,0x0,0x0,0x4040404040404040,0x0,0x0,0x0,0x0,0x4020100804020100,0x0,0x0,0x4040404040404040,0x0,0x0,0x0,0x0,0x0,0x4020100804020100,0x0,0x4040404040404040,0x0,0x0,0x0,0x0,0x0,0x0,0x4020100804020100,0x4040404040404040,0x4080000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0x0,0xff00000000000000,
 0x8040201008040201,0x0,0x0,0x0,0x0,0x0,0x0,0x8080808080808080,0x0,0x8040201008040201,0x0,0x0,0x0,0x0,0x0,0x8080808080808080,0x0,0x0,0x8040201008040201,0x0,0x0,0x0,0x0,0x8080808080808080,0x0,0x0,0x0,0x8040201008040201,0x0,0x0,0x0,0x8080808080808080,0x0,0x0,0x0,0x0,0x8040201008040201,0x0,0x0,0x8080808080808080,0x0,0x0,0x0,0x0,0x0,0x8040201008040201,0x0,0x8080808080808080,0x0,0x0,0x0,0x0,0x0,0x0,0x8040201008040201,0x8080808080808080,0xff00000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0xff00000000000000,0x0
 };
-
 // generate rook moves via koggestone shifts
 Bitboard ks_attacks_ls1(Bitboard bbBlockers, Square sq)
 {
@@ -490,7 +491,9 @@ Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
 Square getkingpos(Bitboard *board, bool side)
 {
   Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
+
   bbTemp &= board[1]&board[2]&~board[3]; // get king
+
   return first1(bbTemp);
 }
 // is square attacked by an enemy piece, via superpiece approach
@@ -620,7 +623,7 @@ static bool gameinits(void)
   TT = (TTE*)calloc(mem,sizeof(TTE));
   if (TT==NULL) 
   {
-    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory", max_memory);
+    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
     return false;
   }
   return true;
@@ -1535,7 +1538,6 @@ bool read_and_init_config(char configfile[])
   { 
     sscanf(line, "threadsX: %" PRIu64 ";", &threadsX);
     sscanf(line, "threadsY: %" PRIu64 ";", &threadsY);
-//    sscanf(line, "threadsZ: %" PRIu64 ";", &threadsZ);
     sscanf(line, "nodes_per_second: %d;", &nodes_per_second);
     sscanf(line, "max_nodes: %d;", &max_nodes);
     sscanf(line, "max_memory: %" PRIu64 ";", &max_memory);
@@ -1545,22 +1547,12 @@ bool read_and_init_config(char configfile[])
   }
   fclose(fcfg);
 
-//  max_nodes_to_expand = (s32)(max_memory*1024*1024/sizeof(NodeBlock));
-
-/*
-  FILE 	*Stats;
-  Stats = fopen("zeta.debug", "a");
-  fprintf(Stats, "max_nodes_to_expand: %i ", max_nodes_to_expand);
-  fclose(Stats);
-*/
   if (max_nodes==0)
-  {
     MaxNodes = nodes_per_second; 
-  }
   else
     MaxNodes = max_nodes;
 
-  threadsZ = 64;
+  threadsZ = 64;  // fix value, engine runs 64 threads in on OpenCL device
   totalWorkUnits = threadsX*threadsY;
 
   // allocate memory
@@ -1575,19 +1567,6 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-/*
-  NODES = (NodeBlock*)calloc((MAXMOVES+1), sizeof(NodeBlock));
-  if (NODES==NULL)
-  {
-    fprintf(stdout, "memory alloc, NODES, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, NODES, failed\n");
-    }
-    return false;
-  }
-*/
   COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
   if (COUNTERS==NULL)
   {
@@ -1610,7 +1589,6 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-
   // initialize transposition table
   u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
   u64 ttbits = 0;
@@ -1622,7 +1600,7 @@ bool read_and_init_config(char configfile[])
     free(TT);
   TT = (TTE*)calloc(mem,sizeof(TTE));
   if (TT==NULL)
-    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory", max_memory);
+    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
 
 
   return true;
@@ -1784,10 +1762,13 @@ static void print_help(void)
 {
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Supported Platforms: 64 bit x86 little endian with\n");
-  fprintf(stdout,"working OpenCL Runtime Environment.\n");
+  fprintf(stdout,"Tested Platforms:\n");
+  fprintf(stdout,"64 bit x86-64 with little endian OpenCL devices\n");
+  fprintf(stdout,"on Windows 7 64 bit and GNU/Linux 64 bit OS\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"You will need an config.ini file to run the engine,\n");
+  fprintf(stdout,"First make sure you have an working OpenCL Runtime Environment.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Additionally you will need an config.ini file to run the engine,\n");
   fprintf(stdout,"start engine from command line with --guessconfig option,\n");
   fprintf(stdout,"to create config files for all OpenCL devices.\n");
   fprintf(stdout,"\n");
@@ -1818,12 +1799,10 @@ static void print_help(void)
   fprintf(stdout,"draw           // handle draw offers\n");
   fprintf(stdout,"hard/easy      // turn on/off pondering\n");
   fprintf(stdout,"hint           // give user a hint move\n");
-  fprintf(stdout,"bk             // book Lines\n");
+  fprintf(stdout,"bk             // book lines\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Non-Xboard commands:\n");
-/*
   fprintf(stdout,"perft          // perform a performance test, depth set by sd command\n");
-*/
   fprintf(stdout,"selftest       // run an internal test\n");
   fprintf(stdout,"help           // print usage info\n");
   fprintf(stdout,"log            // turn log on\n");
@@ -1831,7 +1810,10 @@ static void print_help(void)
   fprintf(stdout,"WARNING:\n");
   fprintf(stdout,"It is recommended to run the engine on an discrete GPU,\n");
   fprintf(stdout,"without display connected,\n");
-  fprintf(stdout,"otherwise system and display can freeze during computation.\n");
+  fprintf(stdout,"otherwise system and display can freeze or crash during computation.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.\n");
+  fprintf(stdout,"So make sure to use an discrete GPU or set proper time controls.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Windows OS have an internal gpu timeout, double click the .reg file \n");
   fprintf(stdout,"\"SetWindowsGPUTimeoutTo20s.reg\"\n");
@@ -2204,7 +2186,7 @@ int main(int argc, char* argv[])
       LogFile = fopen("zeta.log", "a");
       if (LogFile==NULL) 
       {
-        fprintf(stdout,"Error (opening logfile zeta.log): --log");
+        fprintf(stdout,"Error (opening logfile zeta.log): --log\n");
       }
     }
   }
@@ -3059,7 +3041,7 @@ int main(int argc, char* argv[])
         LogFile = fopen("zeta.log", "a");
         if (LogFile==NULL ) 
         {
-          fprintf(stdout,"Error (opening logfile zeta.log): log");
+          fprintf(stdout,"Error (opening logfile zeta.log): log\n");
         }
       }
       continue;

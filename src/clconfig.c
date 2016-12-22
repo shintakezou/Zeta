@@ -907,8 +907,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
-        fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
-        fprintf(Cfg, "max_depth: 32;\n");
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
@@ -919,8 +917,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
         fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
         fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
-        fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
-        fprintf(Cfg,"max_depth => max alphabeta search depth\n");
         fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
         fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
         fclose(Cfg);
@@ -988,8 +984,6 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
-            fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
-            fprintf(Cfg, "max_depth: 32;\n");
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
             fprintf(Cfg,"\n");
@@ -1000,8 +994,6 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
             fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
             fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
-            fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
-            fprintf(Cfg,"max_depth => max alphabeta search depth\n");
             fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
             fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
@@ -1046,8 +1038,6 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
-            fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
-            fprintf(Cfg, "max_depth: 32;\n");
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
             fprintf(Cfg,"\n");
@@ -1058,8 +1048,6 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
             fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
             fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
-            fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
-            fprintf(Cfg,"max_depth => max alphabeta search depth\n");
             fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
             fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
@@ -1113,8 +1101,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
-        fprintf(Cfg, "max_ab_depth: 1; // min 1\n");
-        fprintf(Cfg, "max_depth: 32;\n");
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
@@ -1125,8 +1111,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
         fprintf(Cfg,"max_memory => allocate n MB of memory on device for the node tree\n");
         fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
-        fprintf(Cfg,"max_ab_depth => in evaluation phase perform an depth n alphabeta search\n");
-        fprintf(Cfg,"max_depth => max alphabeta search depth\n");
         fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
         fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
         fclose(Cfg);
@@ -1140,8 +1124,6 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(stdout, "memory_slots: %i; // max 3\n", (s32)slots);
-        fprintf(stdout, "max_ab_depth: 1; // min 1\n");
-        fprintf(stdout, "max_depth: 32;\n");
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
         fprintf(stdout, "opencl_device_id: %i;\n\n",j);
         if (LogFile)
@@ -1156,8 +1138,6 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
           fprintf(LogFile, "memory_slots: %i; // max 3\n", (s32)slots);
-          fprintf(LogFile, "max_ab_depth: 1; // min 1\n");
-          fprintf(LogFile, "max_depth: 32;\n");
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
           fprintf(LogFile, "opencl_device_id: %i;\n\n",j);
         }
