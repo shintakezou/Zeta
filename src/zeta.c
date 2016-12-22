@@ -121,7 +121,7 @@ bool read_and_init_config();
 extern bool cl_init_device(char *kernelname);
 extern bool cl_init_objects();
 extern bool cl_run_perft(bool stm, s32 depth);
-extern bool cl_run_alphabeta(bool stm, s32 depth);
+extern bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes);
 extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
@@ -1935,7 +1935,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     {
       quitengine(EXIT_FAILURE);
     }
-    state = cl_run_alphabeta(stm, idf);
+    state = cl_run_alphabeta(stm, idf, MaxNodes/totalWorkUnits);
     // something went wrong...
     if (!state)
     {
@@ -1961,6 +1961,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       ABNODECOUNT+=   COUNTERS[i*64+0];
       TTHITS+=        COUNTERS[i*64+3];
     }
+
     // timers
     end = get_time();
     elapsed = end-start;
@@ -1992,7 +1993,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       }
       fflush(stdout);
     }
-  } while (++idf<=depth&&elapsed*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&idf<=MAXPLY&&ABNODECOUNT>1);
+  } while (++idf<=depth&&elapsed*1000*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&ABNODECOUNT>1&&idf<=MAXPLY);
 
 
   if ((!xboard_mode)||xboard_debug)
@@ -2054,7 +2055,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     return -1;
   }
   // run  benchmark
-  if (!cl_run_alphabeta(stm, depth))
+  if (!cl_run_alphabeta(stm, depth, MaxNodes))
   {
     return -1;
   }

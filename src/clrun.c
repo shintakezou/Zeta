@@ -324,7 +324,7 @@ bool cl_init_objects() {
 	return true;
 }
 // run OpenCL bestfirst kernel, every search
-bool cl_run_alphabeta(bool stm, s32 depth)
+bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
 {
   s32 i = 0;
   // set kernel arguments
@@ -441,8 +441,8 @@ bool cl_run_alphabeta(bool stm, s32 depth)
   status = clSetKernelArg(
                           kernel, 
                           i, 
-                          sizeof(cl_long), 
-                          (void *)&MaxNodes);
+                          sizeof(cl_ulong), 
+                          (void *)&nodes);
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (max_nodes)\n");
@@ -611,7 +611,7 @@ bool cl_run_perft(bool stm, s32 depth)
   status = clSetKernelArg(
                           kernel, 
                           i, 
-                          sizeof(cl_long), 
+                          sizeof(cl_ulong), 
                           (void *)&MaxNodes);
   if(status!=CL_SUCCESS) 
   { 
