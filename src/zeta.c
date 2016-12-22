@@ -2399,6 +2399,7 @@ int main(int argc, char* argv[])
           fprintf(LogFile,"Error (in setting start postition): new\n");        
         }
       }
+      SD = MAXPLY; // reset search depth
       // reset time control
       MaxNodes = MaxTime/1000*nodes_per_second;
       if (!xboard_mode)
