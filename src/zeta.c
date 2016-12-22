@@ -2026,8 +2026,6 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   TTHITS = 0;
   MOVECOUNT   = 0;
 
-  start = get_time();
-
   // init board
   memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // clear counters
@@ -2044,13 +2042,14 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     }
     exit(EXIT_FAILURE);
   }
+  start = get_time();
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY*sizeof(Hash));
   }
   // inits
-  if (!cl_init_objects("alphabeta_gpu"))
+  if (!cl_init_objects())
   {
     return -1;
   }
@@ -2123,23 +2122,20 @@ s32 benchmarkWrapper(s32 benchsec)
     release_configinits();
     return -1;
   }
-  setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-
   printboard(BOARD);
-  elapsed = 0;
-//  MaxNodes = max_nodes = 8192; // search n nodes initial
+  MaxNodes = 8192; // search n nodes initial
   // run bench
-  while (elapsed <= benchsec) {
-    if (elapsed *4 >= benchsec)
-      break;
-    PLY = 0;
+  elapsed = 0;
+  while (elapsed <= benchsec) 
+  {
+    setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     bench = benchmark(BOARD, STM, sd);                
     if (bench != 0 )
       break;
+    if (elapsed*4 >= benchsec)
+      break;
     sd++;
-//    max_nodes*=2; // search double the nodes for next iteration
-//    MaxNodes = max_nodes;
-    setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    MaxNodes = (u64)(ABNODECOUNT/elapsed)*(u64)benchsec;
   }
   // release inits
   cl_release_device();

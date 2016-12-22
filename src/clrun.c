@@ -751,6 +751,13 @@ bool cl_release_device() {
 		return false; 
 	}
 
+	status = clReleaseMemObject(GLOBAL_TT_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT_Buffer)\n");
+		return false; 
+	}
+
   // release cl objects
   status = clReleaseKernel(kernel);
   if(status!=CL_SUCCESS)
