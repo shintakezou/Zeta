@@ -1565,8 +1565,8 @@ __kernel void alphabeta_gpu(
 
   // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
-  __local s32 localTodoIndex[MAXPLY];
-  __local s32 localMoveCounter[MAXPLY];
+//  __local s32 localTodoIndex[MAXPLY];
+//  __local s32 localMoveCounter[MAXPLY];
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
@@ -1593,8 +1593,6 @@ __kernel void alphabeta_gpu(
   bool qs;
   bool stm;
 
-  u8 flag;
-
   Square sqking;
   Square sqfrom;
   Square sqto;
@@ -1604,7 +1602,6 @@ __kernel void alphabeta_gpu(
   Piece pfrom;
   Piece pto;
   Piece pcpt;
-  Piece ppromo;
 
   Score score;
   Score tmpscore;
@@ -1652,16 +1649,12 @@ __kernel void alphabeta_gpu(
     // init ab search var stack
     localAlphaBetaScores[0*2+ALPHA] =-INF;
     localAlphaBetaScores[0*2+BETA]  = INF;
-    localMoveCounter[0]             = 0;
-    localTodoIndex[0]               = 0;
     localMoveIndexScore[0]          = INF;
     localMoveHistory[0]             = BOARD[QBBLAST];
     localCrHistory[0]               = BOARD[QBBPMVD];
     localHashHistory[0]             = BOARD[QBBHASH];
     localAlphaBetaScores[sd*2+ALPHA] =-INF;
     localAlphaBetaScores[sd*2+BETA]  = INF;
-    localMoveCounter[sd]             = 0;
-    localTodoIndex[sd]               = 0;
     localMoveIndexScore[sd]          = INF;
     localMoveHistory[sd]             = MOVENONE;
     localCrHistory[sd]               = BBEMPTY;
@@ -1884,7 +1877,6 @@ __kernel void alphabeta_gpu(
     n       = 0;
     score   = -INF;
     pfrom   = GETPIECE(board, lid);
-//    ppromo  = GETPTYPE(pfrom);
 
     // get move from hash table
     move = board[QBBHASH]&(ttindex-1);
@@ -1912,16 +1904,6 @@ __kernel void alphabeta_gpu(
       pto   = pfrom;
       // set pawn prommotion, queen
       pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
-
-      // handle all pawn promo, repeat loop
-//      if (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)
-//      {
-//        ppromo++;
-//        ppromo=(ppromo==KING)?BISHOP:ppromo; // skip king
-//        pto = MAKEPIECE(ppromo,GETCOLOR(pfrom));
-//        bbMoves |= (ppromo<QUEEN)?SETMASKBB(sqto):BBEMPTY;
-//        ppromo=(ppromo==QUEEN)?PAWN:ppromo; // reset ppromo for further sqto
-//      }
 
       // make move
       tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
@@ -2088,8 +2070,6 @@ __kernel void alphabeta_gpu(
         movecount = 0;
 			  mode = MOVEDOWN;
       }
-      // store move count
-      localMoveCounter[sd]  = movecount;
       if (mode==MOVEUP)
         COUNTERS[gid*64+0]++; // nodecounter
     }
@@ -2105,7 +2085,6 @@ __kernel void alphabeta_gpu(
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
       HashHistory[gid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
-      localTodoIndex[sd]++;
     }
     // domove x64
     if (mode==MOVEUP)
@@ -2118,8 +2097,6 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       // set values for next depth
-      localMoveCounter[sd]              = 0;
-      localTodoIndex[sd]                = 0;
       localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
       localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
       localMoveIndexScore[sd]           = INF;
@@ -2145,7 +2122,7 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEDOWN)
     {
 
-      flag = FAILLOW; // hash table flag
+      u8 flag = FAILLOW; // hash table flag;
 
       score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
