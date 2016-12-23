@@ -448,7 +448,7 @@ void undomovequick(Bitboard *board, Move move)
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 }
 // apply move on board
-void domove(__local Bitboard *board, Move move)
+void domove(Bitboard *board, Move move)
 {
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
@@ -589,7 +589,7 @@ void domove(__local Bitboard *board, Move move)
   board[QBBLAST] = move;
 }
 // restore board again
-void undomove(__local Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
+void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
 {
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
@@ -996,7 +996,7 @@ __kernel void perft_gpu(
 {
   // Quadbitboard + piece moved flags + hash + lastmove
   __private Bitboard board[7]; 
-  __local Bitboard lboard[7];
+//  __local Bitboard lboard[7];
 
   // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
@@ -1007,9 +1007,9 @@ __kernel void perft_gpu(
   __local Hash localHashHistory[MAXPLY];
   __local Score localMoveIndexScore[MAXPLY];
 
-  __local bool stm;
-  __local s32 sd;
-  __local s32 ply;
+  bool stm;
+  s32 sd;
+  s32 ply;
 
   __local s32 mode;
   __local s32 movecount;
@@ -1059,19 +1059,20 @@ __kernel void perft_gpu(
   ulong4 bbPro4;
   ulong4 bbGen4; 
 
+  // get init quadbitboard plus plus
+  board[QBBBLACK] = BOARD[QBBBLACK];
+  board[QBBP1]    = BOARD[QBBP1];
+  board[QBBP2]    = BOARD[QBBP2];
+  board[QBBP3]    = BOARD[QBBP3];
+  board[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
+  board[QBBHASH]  = BOARD[QBBHASH]; // hash
+  board[QBBLAST]  = BOARD[QBBLAST]; // lastmove
+  stm             = (bool)stm_init;
+  ply             = 0;
+  sd              = 1;
+
   if (lid==0)
   {
-    // get init quadbitboard plus plus
-    lboard[QBBBLACK] = BOARD[QBBBLACK];
-    lboard[QBBP1]    = BOARD[QBBP1];
-    lboard[QBBP2]    = BOARD[QBBP2];
-    lboard[QBBP3]    = BOARD[QBBP3];
-    lboard[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
-    lboard[QBBHASH]  = BOARD[QBBHASH]; // hash
-    lboard[QBBLAST]  = BOARD[QBBLAST]; // lastmove
-    stm             = (bool)stm_init;
-    ply             = 0;
-    sd              = 0;
     mode            = MOVEUP;
     lmove           = MOVENONE;
 
@@ -1084,8 +1085,16 @@ __kernel void perft_gpu(
     localMoveHistory[0]             = BOARD[QBBLAST];
     localCrHistory[0]               = BOARD[QBBPMVD];
     localHashHistory[0]             = BOARD[QBBHASH];
+    localAlphaBetaScores[sd*2+ALPHA]=-INF;
+    localAlphaBetaScores[sd*2+BETA] = INF;
+    localMoveCounter[sd]            = 0;
+    localTodoIndex[sd]              = 0;
+    localMoveIndexScore[sd]         = INF;
+    localMoveHistory[sd]            = MOVENONE;
+    localCrHistory[sd]              = BBEMPTY;
+    localHashHistory[sd]            = BBEMPTY;
 
-    COUNTERS[gid*64+1]              = (u64)-INF;
+    COUNTERS[gid*64+1]              = (u64)-INF; 
   }
   barrier(CLK_LOCAL_MEM_FENCE);
   barrier(CLK_GLOBAL_MEM_FENCE);
@@ -1097,6 +1106,7 @@ __kernel void perft_gpu(
     // ################################
     // ####     movegenerator x64  ####
     // ################################
+
     // resets
     if (lid==0)
     {
@@ -1108,6 +1118,7 @@ __kernel void perft_gpu(
     }
 
     // get init quadbitboard plus plus
+/*
     board[QBBBLACK] = lboard[QBBBLACK];
     board[QBBP1]    = lboard[QBBP1];
     board[QBBP2]    = lboard[QBBP2];
@@ -1115,12 +1126,11 @@ __kernel void perft_gpu(
     board[QBBPMVD]  = lboard[QBBPMVD]; // piece moved flags
     board[QBBHASH]  = lboard[QBBHASH]; // hash
     board[QBBLAST]  = lboard[QBBLAST]; // lastmove
-
-
+*/
     bbPinned = BBEMPTY;
 
     n = 0;
-    qs = (sd>=search_depth)?true:false; // enter quiescence search?
+    qs = (sd>search_depth)?true:false; // enter quiescence search?
 
     bbBlockers  = board[1]|board[2]|board[3];
     bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
@@ -1384,7 +1394,6 @@ __kernel void perft_gpu(
       localMoveIndexScore[sd] = score;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-
 /*
     // ################################
     // ####     evaluation x64      ###
@@ -1468,7 +1477,7 @@ __kernel void perft_gpu(
     if (lid==0)
     {
       // terminal node
-      if (sd>=search_depth)
+      if (sd>search_depth)
       {
         // terminal node counter
         COUNTERS[gid*64+0]++;
@@ -1479,56 +1488,57 @@ __kernel void perft_gpu(
       // terminal node
       if (mode==MOVEUP&&lmove==MOVENONE)
         mode = MOVEDOWN;
-      // ################################
-      // ####         moveup         ####
-      // ################################
-      // move up in tree
-      if (mode==MOVEUP)
-      {
-        // set history
-        localMoveHistory[sd]  = lmove;
-        localCrHistory[sd]    = lboard[QBBPMVD];
-        localHashHistory[sd]  = lboard[QBBHASH];
-        localTodoIndex[sd]++;
-
-        domove(lboard, lmove);
-        stm = !stm; // switch site to move
-        sd++;       // increase depth counter
-        ply++;      // increase ply counter
-
-        // set values for next depth
-        localMoveCounter[sd]              = 0;
-        localTodoIndex[sd]                = 0;
-        localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
-        localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-        localMoveIndexScore[sd]           = INF;
-      }
-      // ################################
-      // ####        movedown        ####
-      // ################################
-      // move down in tree
-      if (mode==MOVEDOWN)
-      {
-        while (
-                // all children searched
-                localTodoIndex[sd]>=localMoveCounter[sd] 
-              ) 
-        {
-          sd--;
-          ply--;
-          stm = !stm; // switch site to move
-          undomove( lboard, 
-                    localMoveHistory[sd],
-                    (sd<=0)?BOARD[QBBLAST]:localMoveHistory[sd-1],
-                    localCrHistory[sd], 
-                    localHashHistory[sd]
-                  );
-          if (sd<0)  // this is the end
-              break;
-        }
-        mode = (sd<0)?EXIT:MOVEUP;
-      }
     }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // ################################
+    // ####         moveup         ####
+    // ################################
+    // move up in tree
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set history
+      localMoveHistory[sd]  = lmove;
+      localCrHistory[sd]    = board[QBBPMVD];
+      localHashHistory[sd]  = board[QBBHASH];
+      localTodoIndex[sd]++;
+    }
+    // domove x64
+    if (mode==MOVEUP)
+    {
+      domove(board, lmove);
+      stm = !stm; // switch site to move
+      sd++;       // increase depth counter
+      ply++;      // increase ply counter
+    }
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set values for next depth
+      localMoveCounter[sd]              = 0;
+      localTodoIndex[sd]                = 0;
+      localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
+      localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
+      localMoveIndexScore[sd]           = INF;
+    }
+    // ################################
+    // ####        movedown        ####
+    // ################################
+    // move down in tree
+    // undomove x64
+    if (mode==MOVEDOWN)
+    {
+      sd--;
+      ply--;
+      stm = !stm; // switch site to move
+      undomove( board, 
+                localMoveHistory[sd],
+                localMoveHistory[sd-1],
+                localCrHistory[sd], 
+                localHashHistory[sd]
+              );
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (lid==0)
+      mode = (sd<1)?EXIT:MOVEUP;
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
 //  COUNTERS[gid*64+1] += lscore;
@@ -1551,7 +1561,7 @@ __kernel void alphabeta_gpu(
 {
   // Quadbitboard + piece moved flags + hash + lastmove
   __private Bitboard board[7]; 
-  __local Bitboard lboard[7];
+//  __local Bitboard lboard[7];
 
   // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
@@ -1562,12 +1572,13 @@ __kernel void alphabeta_gpu(
   __local Hash localHashHistory[MAXPLY];
   __local Score localMoveIndexScore[MAXPLY];
 
-  __local bool stm;
+  bool stm;
 
   __local Square sqchecker;
 
-  __local s32 sd;
-  __local s32 ply;
+  s32 sd;
+  s32 ply;
+
   __local s32 mode;
   __local s32 movecount;
 
@@ -1620,22 +1631,22 @@ __kernel void alphabeta_gpu(
   ulong4 bbPro4;
   ulong4 bbGen4; 
 
+  // get init quadbitboard plus plus
+  board[QBBBLACK] = BOARD[QBBBLACK];
+  board[QBBP1]    = BOARD[QBBP1];
+  board[QBBP2]    = BOARD[QBBP2];
+  board[QBBP3]    = BOARD[QBBP3];
+  board[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
+  board[QBBHASH]  = BOARD[QBBHASH]; // hash
+  board[QBBLAST]  = BOARD[QBBLAST]; // lastmove
+  stm             = (bool)stm_init;
+  ply             = 0;
+  sd              = 1;
+
   if (lid==0)
   {
-    // get init quadbitboard plus plus
-    lboard[QBBBLACK] = BOARD[QBBBLACK];
-    lboard[QBBP1]    = BOARD[QBBP1];
-    lboard[QBBP2]    = BOARD[QBBP2];
-    lboard[QBBP3]    = BOARD[QBBP3];
-    lboard[QBBPMVD]  = BOARD[QBBPMVD]; // piece moved flags
-    lboard[QBBHASH]  = BOARD[QBBHASH]; // hash
-    lboard[QBBLAST]  = BOARD[QBBLAST]; // lastmove
-    stm             = (bool)stm_init;
-    ply             = 0;
-    sd              = 0;
     mode            = MOVEUP;
     lmove           = MOVENONE;
-
     // init ab search var stack
     localAlphaBetaScores[0*2+ALPHA] =-INF;
     localAlphaBetaScores[0*2+BETA]  = INF;
@@ -1645,6 +1656,14 @@ __kernel void alphabeta_gpu(
     localMoveHistory[0]             = BOARD[QBBLAST];
     localCrHistory[0]               = BOARD[QBBPMVD];
     localHashHistory[0]             = BOARD[QBBHASH];
+    localAlphaBetaScores[sd*2+ALPHA] =-INF;
+    localAlphaBetaScores[sd*2+BETA]  = INF;
+    localMoveCounter[sd]             = 0;
+    localTodoIndex[sd]               = 0;
+    localMoveIndexScore[sd]          = INF;
+    localMoveHistory[sd]             = MOVENONE;
+    localCrHistory[sd]               = BBEMPTY;
+    localHashHistory[sd]             = BBEMPTY;
 //    COUNTERS[gid*64+0]              = 0;              // movecount, return
     COUNTERS[gid*64+1]              = (u64)-INF;      // best score, return
 //    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
@@ -1672,6 +1691,7 @@ __kernel void alphabeta_gpu(
     }
 
     // get init quadbitboard plus plus
+/*
     board[QBBBLACK] = lboard[QBBBLACK];
     board[QBBP1]    = lboard[QBBP1];
     board[QBBP2]    = lboard[QBBP2];
@@ -1679,12 +1699,12 @@ __kernel void alphabeta_gpu(
     board[QBBPMVD]  = lboard[QBBPMVD]; // piece moved flags
     board[QBBHASH]  = lboard[QBBHASH]; // hash
     board[QBBLAST]  = lboard[QBBLAST]; // lastmove
-
+*/
 
     bbPinned = BBEMPTY;
 
     n = 0;
-    qs = (sd>=search_depth)?true:false; // enter quiescence search?
+    qs = (sd>search_depth)?true:false; // enter quiescence search?
 
     bbBlockers  = board[1]|board[2]|board[3];
     bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
@@ -1962,6 +1982,7 @@ __kernel void alphabeta_gpu(
     pfrom   = GETPIECE(board, sqfrom);
     kic     = GETCOLOR(pfrom); // get color to work on
     pfrom   = GETPTYPE(pfrom);
+    bbBlockers = board[1]|board[2]|board[3];
     bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
     bbMe    =  (kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
     bbOpp   = (!kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
@@ -1975,25 +1996,25 @@ __kernel void alphabeta_gpu(
     // square control table
     tmpscore+= (pfrom!=PNONE)?(kic)?-EvalControl[sqfrom]:EvalControl[FLIPFLOP(sqfrom)]:0;
     // simple pawn structure white
-    // blocked
     if (pfrom==PAWN&&kic==WHITE)
     {
+      // blocked
       tmpscore-=(GETRANK(sqfrom)<RANK_8&&(bbOpp&SETMASKBB(sqfrom+8)))?15:0;
         // chain
-      tmpscore+=(GETFILE(sqfrom)<FILE_H&&(bbMask&bbOpp&SETMASKBB(sqfrom-7)))?10:0;
-      tmpscore+=(GETFILE(sqfrom)>FILE_A&&(bbMask&bbOpp&SETMASKBB(sqfrom-9)))?10:0;
+      tmpscore+=(GETFILE(sqfrom)<FILE_H&&(bbMask&bbMe&SETMASKBB(sqfrom-7)))?10:0;
+      tmpscore+=(GETFILE(sqfrom)>FILE_A&&(bbMask&bbMe&SETMASKBB(sqfrom-9)))?10:0;
       // column, TODO: popcount based
       for(sqto=sqfrom-8;sqto>7;sqto-=8)
         tmpscore-=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
     }
     // simple pawn structure black
-    // blocked
     if (pfrom==PAWN&&kic==BLACK)
     {
+      // blocked
       tmpscore+=(GETRANK(sqfrom)>RANK_1&&(bbOpp&SETMASKBB(sqfrom-8)))?15:0;
         // chain
-      tmpscore-=(GETFILE(sqfrom)>FILE_A&&(bbMask&bbOpp&SETMASKBB(sqfrom+7)))?10:0;
-      tmpscore-=(GETFILE(sqfrom)<FILE_H&&(bbMask&bbOpp&SETMASKBB(sqfrom+9)))?10:0;
+      tmpscore-=(GETFILE(sqfrom)>FILE_A&&(bbMask&bbMe&SETMASKBB(sqfrom+7)))?10:0;
+      tmpscore-=(GETFILE(sqfrom)<FILE_H&&(bbMask&bbMe&SETMASKBB(sqfrom+9)))?10:0;
       // column, TODO: popcount based
       for(sqto=sqfrom+8;sqto<56;sqto+=8)
         tmpscore+=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
@@ -2016,16 +2037,17 @@ __kernel void alphabeta_gpu(
     // stalemate
     score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
-//      // draw by 3 fold repetition
-//      for (s32 i=ply+ply_init-2;i>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&index>0;i-=2)
-//      {
-//        if (board[QBBHASH]==global_hashhistory[pid*MAXGAMEPLY+i])
-//        {
-//          n       = 0;
-//          score   = DRAWSCORE;
-//          break;
-//        }
-//      }
+    // draw by 3 fold repetition
+    for (n=ply+ply_init-2;lid==0&&n>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&sd>1;n-=2)
+    {
+      if (board[QBBHASH]==HashHistory[gid*MAXGAMEPLY+n])
+      {
+        movecount = 0;
+        lmove = MOVENONE;
+        score = DRAWSCORE;
+        break;
+      }
+    }
     // #################################
     // ####      alphabeta flow  x1  ###
     // #################################
@@ -2037,10 +2059,15 @@ __kernel void alphabeta_gpu(
         movecount = 0;
         mode = MOVEDOWN;
       }
-      // terminal node
-      if (mode==MOVEUP&&lmove==MOVENONE)
+      // leaf node
+      if (mode==MOVEUP&&movecount==0)
       {
         localAlphaBetaScores[sd*2+ALPHA] = score;
+        mode = MOVEDOWN;
+      }
+      // last child node
+      else if (mode==MOVEUP&&lmove==MOVENONE&&movecount>0)
+      {
         movecount = 0;
         mode = MOVEDOWN;
       }
@@ -2050,8 +2077,6 @@ __kernel void alphabeta_gpu(
       {
   //      localAlphaBetaScores[sd*2+ALPHA] = localAlphaBetaScores[sd*2+BETA]; // fail hard
         localAlphaBetaScores[sd*2+ALPHA] = score; // fail soft
-        movecount = 0;
-			  mode = MOVEDOWN;
       }
       // stand pat in qsearch
       // set alpha
@@ -2060,104 +2085,114 @@ __kernel void alphabeta_gpu(
         if (score>localAlphaBetaScores[sd*2+ALPHA])
           localAlphaBetaScores[sd*2+ALPHA]=score;
 		  }
+      // apply alphabeta pruning
+      if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
+      {
+        movecount = 0;
+			  mode = MOVEDOWN;
+      }
       // store move count
       localMoveCounter[sd]  = movecount;
-      COUNTERS[gid*64+0]++; // nodecounter
-      // ################################
-      // ####         moveup         ####
-      // ################################
-      // move up in tree
       if (mode==MOVEUP)
+        COUNTERS[gid*64+0]++; // nodecounter
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // ################################
+    // ####         moveup         ####
+    // ################################
+    // move up in tree
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set history
+      localMoveHistory[sd]  = lmove;
+      localCrHistory[sd]    = board[QBBPMVD];
+      localHashHistory[sd]  = board[QBBHASH];
+      HashHistory[gid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
+      localTodoIndex[sd]++;
+    }
+    // domove x64
+    if (mode==MOVEUP)
+    {
+      domove(board, lmove);
+      stm = !stm; // switch site to move
+      sd++;       // increase depth counter
+      ply++;      // increase ply counter
+    }
+    if (lid==0&&mode==MOVEUP)
+    {
+      // set values for next depth
+      localMoveCounter[sd]              = 0;
+      localTodoIndex[sd]                = 0;
+      localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
+      localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
+      localMoveIndexScore[sd]           = INF;
+    }
+    // ################################
+    // ####        movedown        ####
+    // ################################
+    // undomove x64
+    if (mode==MOVEDOWN)
+    {
+      sd--;
+      ply--;
+      stm = !stm; // switch site to move
+
+      undomove( board, 
+                localMoveHistory[sd],
+                localMoveHistory[sd-1],
+                localCrHistory[sd], 
+                localHashHistory[sd]
+              );
+    }
+    // do negamax scoring and hash table
+    if (lid==0&&mode==MOVEDOWN)
+    {
+
+      flag = FAILLOW; // hash table flag
+
+      score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
+
+      // do alphabeta negamax scoring
+      if (score>localAlphaBetaScores[sd*2+ALPHA]&&!ISINF(score))
       {
-        // set history
-        localMoveHistory[sd]  = lmove;
-        localCrHistory[sd]    = lboard[QBBPMVD];
-        localHashHistory[sd]  = lboard[QBBHASH];
-        localTodoIndex[sd]++;
 
-        domove(lboard, lmove);
-        stm = !stm; // switch site to move
-        sd++;       // increase depth counter
-        ply++;      // increase ply counter
+        flag = EXACTSCORE; // hash table flag
 
-        // set values for next depth
-        localMoveCounter[sd]              = 0;
-        localTodoIndex[sd]                = 0;
-        localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
-        localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-        localMoveIndexScore[sd]           = INF;
-      }
-      // ################################
-      // ####        movedown        ####
-      // ################################
-      // move down in tree
-      // move down in tree
-      if (mode==MOVEDOWN)
-      {
-        // get reached ply
-        if (sd>(s32)COUNTERS[gid*64+4])
-          COUNTERS[gid*64+4] = (u64)sd;
-
-        while (
-                // all children searched
-                localTodoIndex[sd]>=localMoveCounter[sd] 
-                ||
-                // apply alphabeta pruning downwards the tree
-                localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
-              ) 
+        localAlphaBetaScores[sd*2+ALPHA]=score;
+        // get bestmove, TODO: via upcoming hashtable, collect PV
+        if (sd==1&&!ISINF(score))
         {
-          sd--;
-          ply--;
-          stm = !stm; // switch site to move
-          if (sd<0)  // this is the end
-              break;
-          undomove( lboard, 
-                    localMoveHistory[sd],
-                    (sd<=0)?BOARD[QBBLAST]:localMoveHistory[sd-1],
-                    localCrHistory[sd], 
-                    localHashHistory[sd]
-                  );
-
-          score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
-          // save to hash table
-          if (sd<search_depth) // no qsearch
-          {
-            flag = FAILLOW;
-            if (score>localAlphaBetaScores[sd*2+ALPHA])
-              flag = EXACTSCORE;
-            if (score>=localAlphaBetaScores[sd*2+BETA])
-              flag = FAILHIGH;
-            tmpmove = lboard[QBBHASH]&(ttindex-1);
-            move  = (TTMove)(localMoveHistory[sd]&SMTTMOVE);
-            // one bucket, depth replace
-            if ((u8)search_depth>=TT[tmpmove].depth&&flag>FAILLOW)
-            {
-              TT[tmpmove].hash      = lboard[QBBHASH]^move;
-              TT[tmpmove].bestmove  = move;
-              TT[tmpmove].score     = (TTScore)score;
-              TT[tmpmove].flag      = flag;
-              TT[tmpmove].depth     = (u8)search_depth;
-            }
-          }
-          // do alphabeta negamax scoring
-          if (score>localAlphaBetaScores[sd*2+ALPHA]&&!ISINF(score))
-          {
-            localAlphaBetaScores[sd*2+ALPHA]=score;
-          }
-          // get bestmove, TODO: via upcoming hashtable, collect PV
-          if (sd==0&&score>(Score)COUNTERS[gid*64+1]&&!ISINF(score))
-          {
-            COUNTERS[gid*64+1] = (u64)score;
-            COUNTERS[gid*64+2] = localMoveHistory[sd];
-
-          }
+          COUNTERS[gid*64+1] = (u64)score;
+          COUNTERS[gid*64+2] = localMoveHistory[sd];
         }
-        // root node finished, exit
-        mode = (sd<0)?EXIT:MOVEUP;
       }
+      if (score>=localAlphaBetaScores[sd*2+BETA])
+        flag = FAILHIGH; // hash table flag 
+
+      // save to hash table
+      if (!qs&&flag>FAILLOW) // no qsearch
+      {
+        tmpmove = board[QBBHASH]&(ttindex-1);
+        move  = (TTMove)(localMoveHistory[sd]&SMTTMOVE);
+        // one bucket, depth replace
+        if ((u8)search_depth>TT[tmpmove].depth)
+        {
+          TT[tmpmove].hash      = board[QBBHASH]^move;
+          TT[tmpmove].bestmove  = move;
+          TT[tmpmove].score     = (TTScore)score;
+          TT[tmpmove].flag      = EXACTSCORE;
+          TT[tmpmove].depth     = (u8)search_depth;
+        }
+      }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (lid==0)
+    {
+      // root node finished, exit
+      mode = (sd<1)?EXIT:MOVEUP;
       // node count based termination
       mode = (COUNTERS[0]>max_nodes)?EXIT:mode;
-    } // end x1
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
 //  COUNTERS[gid*64+0] = *NODECOUNTER;
