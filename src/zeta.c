@@ -1552,7 +1552,6 @@ bool read_and_init_config(char configfile[])
   else
     MaxNodes = max_nodes;
 
-  threadsZ = 64;  // fix value, engine runs 64 threads in on OpenCL device
   totalWorkUnits = threadsX*threadsY;
 
   // allocate memory
