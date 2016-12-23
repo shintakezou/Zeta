@@ -43,7 +43,7 @@ u64 MOVECOUNT           = 0;
 // config file
 u64 threadsX            =  1;
 u64 threadsY            =  1;
-u64 threadsZ            = 64; // fix value
+const u64 threadsZ      = 64; // fix value, run z threads per work-group
 u64 totalWorkUnits      =  1;
 s32 nodes_per_second    =  0;
 s32 max_nodes           =  0;
