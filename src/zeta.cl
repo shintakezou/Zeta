@@ -150,7 +150,7 @@ typedef struct
 #define SMCRBLACKK          0x9000000000000000UL
 // move helpers
 #define MAKEPIECE(p,c)     ((((Piece)p)<<1)|(Piece)c)
-#define JUSTMOVE(move)     (move&SMMOVE)
+#define JUSTMOVE(move)     (move&SMTTMOVE)
 #define GETCOLOR(p)        ((p)&0x1)
 #define GETPTYPE(p)        (((p)>>1)&0x7)      // 3 bit piece type encoding
 #define GETSQFROM(mv)      ((mv)&0x3F)         // 6 bit square
@@ -1561,12 +1561,9 @@ __kernel void alphabeta_gpu(
 {
   // Quadbitboard + piece moved flags + hash + lastmove
   __private Bitboard board[7]; 
-//  __local Bitboard lboard[7];
 
   // iterative search var stack
   __local Score localAlphaBetaScores[MAXPLY*2];
-//  __local s32 localTodoIndex[MAXPLY];
-//  __local s32 localMoveCounter[MAXPLY];
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
@@ -1676,6 +1673,7 @@ __kernel void alphabeta_gpu(
     // ################################
     // ####     movegenerator x64  ####
     // ################################
+
     // resets
     if (lid==0)
     {
@@ -1685,17 +1683,6 @@ __kernel void alphabeta_gpu(
       bbAttacks = BBEMPTY;
       bbCheckers  = BBEMPTY;
     }
-
-    // get init quadbitboard plus plus
-/*
-    board[QBBBLACK] = lboard[QBBBLACK];
-    board[QBBP1]    = lboard[QBBP1];
-    board[QBBP2]    = lboard[QBBP2];
-    board[QBBP3]    = lboard[QBBP3];
-    board[QBBPMVD]  = lboard[QBBPMVD]; // piece moved flags
-    board[QBBHASH]  = lboard[QBBHASH]; // hash
-    board[QBBLAST]  = lboard[QBBLAST]; // lastmove
-*/
 
     bbPinned = BBEMPTY;
 
@@ -1732,7 +1719,6 @@ __kernel void alphabeta_gpu(
     bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
     bbPro4  = (ulong4)(~bbBlockers);
     bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
-//    bbPro4  = (SETMASKBB(lid)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift left via ulong4 vector
     bbPro4 &= wraps4[0];
     bbGen4 |= bbPro4    & (bbGen4 << shift4);
@@ -1741,13 +1727,12 @@ __kernel void alphabeta_gpu(
     bbPro4 &=             (bbPro4 << 2*shift4);
     bbGen4 |= bbPro4    & (bbGen4 << 4*shift4);
     bbGen4  = wraps4[0] & (bbGen4 << shift4);
-    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3; // collect vector moves
     // get koggestone wraps
     // set generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
     bbPro4  = (ulong4)(~bbBlockers);
     bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
-//    bbPro4  = (SETMASKBB(lid)&bbMe)?(ulong4)(~bbBlockers):(ulong4)(~bbBlockers^SETMASKBB(sqking));
     // kogge stone shift right via ulong4 vector
     bbPro4 &= wraps4[1];
     bbGen4 |= bbPro4    & (bbGen4 >> shift4);
@@ -1756,7 +1741,7 @@ __kernel void alphabeta_gpu(
     bbPro4 &=             (bbPro4 >> 2*shift4);
     bbGen4 |= bbPro4    & (bbGen4 >> 4*shift4);
     bbGen4  = wraps4[1] & (bbGen4 >> shift4);
-    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3; // collect vector moves
     // consider knights
     bbTemp  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbTemp;
     // verify captures
@@ -1803,7 +1788,7 @@ __kernel void alphabeta_gpu(
     tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
     bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
 
-    // gen en passant moves, TODO reimplement
+    // gen en passant moves, TODO: reimplement, x64?
     bbTemp = BBEMPTY;
     sqep   = GETSQEP(board[QBBLAST]); 
     if (sqep)
@@ -1812,10 +1797,9 @@ __kernel void alphabeta_gpu(
       bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
       bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
     }
-    // check for en passant pawns, TODO: ep legality check wo domove/undomove/kic, maybe paralellx64???:TODO
+    // check for en passant pawns
     if (bbTemp&SETMASKBB(lid))
     {
-      pfrom   = GETPIECE(board, lid);
       pto     = pfrom;
       sqcpt   = sqep;
       pcpt    = GETPIECE(board, sqcpt);
@@ -1830,7 +1814,6 @@ __kernel void alphabeta_gpu(
       {
         bbMoves |= SETMASKBB(sqto);
       }
-//      bbMoves |= SETMASKBB(((stm)?sqep-8:sqep+8));
     }
     // TODO: speedup
     // gen castle moves queenside
@@ -1839,7 +1822,6 @@ __kernel void alphabeta_gpu(
     { 
       // get king square
       sqto    = lid-2;
-      pfrom   = GETPIECE(board, lid);
       // rook present
       bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
       // check for empty squares
@@ -1876,8 +1858,6 @@ __kernel void alphabeta_gpu(
     // move picker, extract moves x64 parallel
     n       = 0;
     score   = -INF;
-    pfrom   = GETPIECE(board, lid);
-
     // get move from hash table
     move = board[QBBHASH]&(ttindex-1);
     ttmove = ((TT[move].hash==(board[QBBHASH]^TT[move].bestmove))&&TT[move].flag>FAILLOW)?(Move)((TT[move].bestmove)&SMTTMOVE):MOVENONE;
@@ -1910,13 +1890,6 @@ __kernel void alphabeta_gpu(
       tmpmove |= (GETPTYPE(pfrom)==KING&&lid-sqto==2)?MOVEISCRQ:MOVENONE;
       tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-lid==2)?MOVEISCRK:MOVENONE;
 
-      // domove
-//      domovequick(board, tmpmove);
-//      // king in check, illegal move
-//      kic = squareunderattack(board, !stm, getkingsq(board, stm));
-//      undomovequick(board, tmpmove);
-//      if (kic)
-//        continue;
       atom_inc(&movecount);
       n++;
       // eval move
@@ -1926,7 +1899,8 @@ __kernel void alphabeta_gpu(
       // MVV-LVA
       tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
       tmpscore = tmpscore*1000+lid*64+n;
-    
+
+      // set hash table move score
       if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
         tmpscore = INF-100;
       // ignore moves already searched
@@ -2038,6 +2012,9 @@ __kernel void alphabeta_gpu(
         movecount = 0;
         mode = MOVEDOWN;
       }
+      // nodecounter
+      if (mode==MOVEUP)
+        COUNTERS[gid*64+0]++;
       // leaf node
       if (mode==MOVEUP&&movecount==0)
       {
@@ -2070,8 +2047,6 @@ __kernel void alphabeta_gpu(
         movecount = 0;
 			  mode = MOVEDOWN;
       }
-      if (mode==MOVEUP)
-        COUNTERS[gid*64+0]++; // nodecounter
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
