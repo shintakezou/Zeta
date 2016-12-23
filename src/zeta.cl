@@ -2093,7 +2093,7 @@ __kernel void alphabeta_gpu(
                 localHashHistory[sd]
               );
     }
-    // do negamax scoring and hash table
+    // do negamax scoring and hash table, x1
     if (lid==0&&mode==MOVEDOWN)
     {
 
