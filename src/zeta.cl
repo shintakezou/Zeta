@@ -1908,6 +1908,7 @@ __kernel void alphabeta_gpu(
     score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
     // draw by 3 fold repetition, x1
+/*
     for (n=ply+ply_init-2;lid==0&&n>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&sd>1;n-=2)
     {
       if (board[QBBHASH]==HashHistory[gid*MAXGAMEPLY+n])
@@ -1918,6 +1919,7 @@ __kernel void alphabeta_gpu(
         break;
       }
     }
+*/
     // #################################
     // ####      alphabeta flow  x1  ###
     // #################################
@@ -1959,7 +1961,6 @@ __kernel void alphabeta_gpu(
       // apply alphabeta pruning
       if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
       {
-        movecount = 0;
 			  mode = MOVEDOWN;
       }
     }
@@ -1975,9 +1976,6 @@ __kernel void alphabeta_gpu(
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
       HashHistory[gid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
-
-      // nodecounter
-      COUNTERS[gid*64+0]++;
     }
     // domove x64
     if (mode==MOVEUP)
@@ -2055,6 +2053,8 @@ __kernel void alphabeta_gpu(
         }
       }
 */
+      // nodecounter
+      COUNTERS[gid*64+0]++;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
