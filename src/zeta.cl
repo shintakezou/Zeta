@@ -1908,7 +1908,6 @@ __kernel void alphabeta_gpu(
     score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
     // draw by 3 fold repetition, x1
-/*
     for (n=ply+ply_init-2;lid==0&&n>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&sd>1;n-=2)
     {
       if (board[QBBHASH]==HashHistory[gid*MAXGAMEPLY+n])
@@ -1919,12 +1918,12 @@ __kernel void alphabeta_gpu(
         break;
       }
     }
-*/
     // #################################
     // ####      alphabeta flow  x1  ###
     // #################################
     if (lid==0)
     {
+      flag = FAILLOW; // hash table flag
       // check bounds
       if (sd>=MAXPLY)
       {
@@ -1935,6 +1934,12 @@ __kernel void alphabeta_gpu(
       if (mode==MOVEUP&&movecount==0)
       {
         localAlphaBetaScores[sd*2+ALPHA]=score;
+
+        if (-score>localAlphaBetaScores[(sd-1)*2+ALPHA])
+          flag = EXACTSCORE; // hash table flag
+        if (-score>=localAlphaBetaScores[(sd-1)*2+BETA])
+          flag = FAILHIGH; // hash table flag
+
         mode = MOVEDOWN;
       }
       // last child node
@@ -1961,6 +1966,7 @@ __kernel void alphabeta_gpu(
       // apply alphabeta pruning
       if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
       {
+        flag = FAILHIGH; // hash table flag
 			  mode = MOVEDOWN;
       }
     }
@@ -1995,7 +2001,26 @@ __kernel void alphabeta_gpu(
     // ################################
     // ####        movedown        ####
     // ################################
-    // undomove x64
+    // save to hash table, x1
+//    if (lid==0&&mode==MOVEDOWN&&(!(lmove==MOVENONE&&movecount>0)))
+    if (lid==0&&mode==MOVEDOWN)
+    {
+      // save to hash table
+      if (!qs&&flag>FAILLOW) // no qsearch
+      {
+        tmpmove = board[QBBHASH]&(ttindex-1);
+        move  = localMoveHistory[sd]&SMTTMOVE;
+        // one bucket, depth replace
+        if ((u8)search_depth>=TT[tmpmove].depth)
+        {
+          TT[tmpmove].hash      = board[QBBHASH]^move;
+          TT[tmpmove].bestmove  = (TTMove)move;
+          TT[tmpmove].score     = (TTScore)score;
+          TT[tmpmove].flag      = flag;
+          TT[tmpmove].depth     = (u8)search_depth;
+        }
+      }
+    }    // undomove x64
     if (mode==MOVEDOWN)
     {
       sd--;
@@ -2009,22 +2034,15 @@ __kernel void alphabeta_gpu(
                 localHashHistory[sd]
               );
     }
-    // do negamax scoring and hash table, x1
+    // do negamax scoring
     if (lid==0&&mode==MOVEDOWN)
     {
 
-      flag = FAILLOW; // hash table flag
-
       score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
-
       // do alphabeta negamax scoring
       if (score>localAlphaBetaScores[sd*2+ALPHA]&&!ISINF(score))
       {
-
-        flag = EXACTSCORE; // hash table flag
-
         localAlphaBetaScores[sd*2+ALPHA]=score;
-
         // get bestmove, TODO: via upcoming hashtable, collect PV
         if (sd==1&&!ISINF(score))
         {
@@ -2032,29 +2050,9 @@ __kernel void alphabeta_gpu(
           COUNTERS[gid*64+2] = localMoveHistory[sd];
         }
       }
-
-/*
-      if (score>=localAlphaBetaScores[sd*2+BETA]&&!ISINF(score))
-        flag = FAILHIGH; // hash table flag
-
-      // save to hash table
-      if (!qs&&flag>FAILLOW) // no qsearch
-      {
-        tmpmove = board[QBBHASH]&(ttindex-1);
-        move  = (TTMove)(localMoveHistory[sd]&SMTTMOVE);
-        // one bucket, depth replace
-        if ((u8)search_depth>=TT[tmpmove].depth)
-        {
-          TT[tmpmove].hash      = board[QBBHASH]^move;
-          TT[tmpmove].bestmove  = move;
-          TT[tmpmove].score     = (TTScore)score;
-          TT[tmpmove].flag      = flag;
-          TT[tmpmove].depth     = (u8)search_depth;
-        }
-      }
-*/
       // nodecounter
-      COUNTERS[gid*64+0]++;
+      if(!(lmove==MOVENONE&&movecount>0))
+        COUNTERS[gid*64+0]++;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
@@ -2065,6 +2063,7 @@ __kernel void alphabeta_gpu(
       mode = (COUNTERS[0]>max_nodes)?EXIT:mode;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+//    barrier(CLK_GLOBAL_MEM_FENCE);
   } // end main loop
 //  COUNTERS[gid*64+0] = *NODECOUNTER;
 }
