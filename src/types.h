@@ -43,11 +43,12 @@ typedef u64 Bitboard;
 typedef u64 Cr;
 typedef u64 Hash;
 
-typedef u32 TTMove;
-typedef s32 Score;
-typedef s16 TTScore;
-typedef u8 Square;
-typedef u8 Piece;
+typedef u32     TTMove;
+typedef s32     MoveScore;
+typedef s16     Score;
+typedef s16     TTScore;
+typedef u8      Square;
+typedef u8      Piece;
 
 typedef u8 File;
 typedef u8 Rank;
@@ -87,8 +88,8 @@ typedef u8 Rank;
 #define BLACK               1
 #define WHITE               0
 // scores
-#define INF                 1000000000
-#define MATESCORE            999000000
+#define INF                 32000
+#define MATESCORE           30000
 #define DRAWSCORE           0
 #define STALEMATESCORE      0
 // piece type enumeration
