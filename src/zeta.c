@@ -49,7 +49,7 @@ s32 nodes_per_second    =  0;
 s32 max_nodes           =  0;
 s32 nps_current         =  0;
 s32 max_nodes_to_expand =  1;
-u64 max_memory          =  0;
+u64 max_memory          =  1;
 u64 memory_slots        =  1;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
@@ -620,7 +620,7 @@ static bool gameinits(void)
     ttbits++;
   mem = 1ULL<<ttbits;   // get number of tt entries
   ttbits=mem;
-  TT = (TTE*)calloc(mem,sizeof(TTE));
+  TT = (TTE *)calloc(mem,sizeof(TTE));
   if (TT==NULL) 
   {
     fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
@@ -2149,6 +2149,7 @@ s32 benchmarkWrapper(s32 benchsec)
 int main(int argc, char* argv[])
 {
   // config file
+  bool state;
   char configfile[256] = "config.ini";
   // xboard states
   s32 xboard_protover = 0;      // Zeta works with protocoll version >= v2
@@ -2389,6 +2390,18 @@ int main(int argc, char* argv[])
     {
       release_gameinits();
       gameinits();
+      state = cl_release_device();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+      state = cl_init_device("alphabeta_gpu");
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
       if (!setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
       {
         fprintf(stdout,"Error (in setting start postition): new\n");        

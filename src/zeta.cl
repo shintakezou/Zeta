@@ -150,7 +150,7 @@ typedef struct
 #define SMCRBLACKK          0x9000000000000000UL
 // move helpers
 #define MAKEPIECE(p,c)     ((((Piece)p)<<1)|(Piece)c)
-#define JUSTMOVE(move)     (move&SMTTMOVE)
+#define JUSTMOVE(move)     (move&SMMOVE)
 #define GETCOLOR(p)        ((p)&0x1)
 #define GETPTYPE(p)        (((p)>>1)&0x7)      // 3 bit piece type encoding
 #define GETSQFROM(mv)      ((mv)&0x3F)         // 6 bit square
@@ -1860,7 +1860,7 @@ __kernel void alphabeta_gpu(
     score   = -INF;
     // get move from hash table
     move = board[QBBHASH]&(ttindex-1);
-    ttmove = ((TT[move].hash==(board[QBBHASH]^TT[move].bestmove))&&TT[move].flag>FAILLOW)?(Move)((TT[move].bestmove)&SMTTMOVE):MOVENONE;
+    ttmove = ((TT[move].hash==(board[QBBHASH]^TT[move].bestmove))&&TT[move].flag>FAILLOW)?(Move)(JUSTMOVE(TT[move].bestmove)):MOVENONE;
     move    = MOVENONE;
 
     while(bbMoves)
@@ -1924,7 +1924,7 @@ __kernel void alphabeta_gpu(
       lmove = move;
       localMoveIndexScore[sd] = score;
       // TT hit counter
-      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(lmove))
+      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
         COUNTERS[gid*64+3]++;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
