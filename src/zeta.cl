@@ -1917,6 +1917,9 @@ __kernel void alphabeta_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
       mode = (sd<1)?EXIT:MOVEUP;
+      // node count based termination
+    if (lid==0)
+      mode = (COUNTERS[0]>max_nodes)?EXIT:mode;
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
     // ################################
