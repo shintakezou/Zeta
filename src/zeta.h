@@ -50,6 +50,7 @@ extern Bitboard bbLine[64*64];
 struct TTE *TT;
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
+cl_mem   GLOBAL_globalbbMoves_Buffer;
 cl_mem	 GLOBAL_COUNTERS_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 cl_mem	 GLOBAL_bbInBetween_Buffer;

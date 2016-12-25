@@ -200,6 +200,18 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+  GLOBAL_globalbbMoves_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE,
+                                    sizeof(Move) * totalWorkUnits * MAXPLY * 64,
+                                    NULL, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_globalbbMoves_Buffer)\n");
+    return false;
+  }
+
   GLOBAL_HASHHISTORY_Buffer = clCreateBuffer(
                             			     context, 
                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
@@ -348,6 +360,18 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_COUNTERS_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_globalbbMoves_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_globalbbMoves_Buffer)\n");
     return false;
   }
   i++;
@@ -530,6 +554,18 @@ bool cl_run_perft(bool stm, s32 depth)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_COUNTERS_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_globalbbMoves_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_globalbbMoves_Buffer)\n");
     return false;
   }
   i++;
