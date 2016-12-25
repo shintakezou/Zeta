@@ -1992,7 +1992,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       }
       fflush(stdout);
     }
-  } while (++idf<=depth&&elapsed*1000*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&ABNODECOUNT>1&&idf<=MAXPLY);
+  } while (++idf<=depth&&elapsed*1000*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&ABNODECOUNT>=1&&idf<=MAXPLY);
 
 
   if ((!xboard_mode)||xboard_debug)
