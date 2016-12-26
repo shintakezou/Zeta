@@ -152,7 +152,7 @@ typedef struct
 #define SMCRBLACKK          0x9000000000000000UL
 // move helpers
 #define MAKEPIECE(p,c)     ((((Piece)p)<<1)|(Piece)c)
-#define JUSTMOVE(move)     (move&SMMOVE)
+#define JUSTMOVE(move)     (move&SMTTMOVE)
 #define GETCOLOR(p)        ((p)&0x1)
 #define GETPTYPE(p)        (((p)>>1)&0x7)      // 3 bit piece type encoding
 #define GETSQFROM(mv)      ((mv)&0x3F)         // 6 bit square
@@ -1469,6 +1469,8 @@ __kernel void alphabeta_gpu(
   __local Hash localHashHistory[MAXPLY];
   __local MoveScore localMoveIndexScore[MAXPLY];
 
+  __local u8 flag; // hash table flag
+
   __local s32 mode;
   __local s32 movecount;
   __local Move lmove;
@@ -1882,6 +1884,10 @@ __kernel void alphabeta_gpu(
               localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
             ) 
       {
+
+        if (lid==0)
+          flag = FAILLOW;
+
         sd--;
         ply--;
         stm = !stm; // switch site to move
@@ -1907,9 +1913,27 @@ __kernel void alphabeta_gpu(
               COUNTERS[gid*64+1] = (u64)score;
               COUNTERS[gid*64+2] = localMoveHistory[sd];
             }
+            flag = EXACTSCORE;
           }
+          if (score>=localAlphaBetaScores[sd*2+BETA]&&!ISINF(score))
+            flag = FAILHIGH;
           // nodecounter
           COUNTERS[gid*64+0]++;
+          // save to hash table
+          if (sd<=search_depth&&flag>FAILLOW) // no qsearch
+          {
+            tmpmove = board[QBBHASH]&(ttindex-1);
+            move  = localMoveHistory[sd]&SMTTMOVE;
+            // one bucket, depth replace
+            if ((u8)search_depth>=TT[tmpmove].depth)
+            {
+              TT[tmpmove].hash      = board[QBBHASH]^move;
+              TT[tmpmove].bestmove  = (TTMove)move;
+              TT[tmpmove].score     = (TTScore)score;
+              TT[tmpmove].flag      = flag;
+              TT[tmpmove].depth     = (u8)search_depth;
+            }
+          }
         }
         barrier(CLK_LOCAL_MEM_FENCE);
       }
@@ -1928,6 +1952,10 @@ __kernel void alphabeta_gpu(
     // move picker, extract moves x64 parallel
     if (mode==MOVEUP)
     {
+      // load from hash table
+      move = board[QBBHASH]&(ttindex-1);
+      Move ttmove = ((TT[move].hash==(board[QBBHASH]^((Move)TT[move].bestmove&SMTTMOVE))))?(Move)(JUSTMOVE(TT[move].bestmove)):MOVENONE;
+
       n       = 0;
       move    = MOVENONE;
       mscore  = -INFMOVESCORE;
@@ -1970,6 +1998,9 @@ __kernel void alphabeta_gpu(
         // MVV-LVA
         tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
         tmpmscore = tmpmscore*10000+lid*64+n;
+        // set hash table move score
+        if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
+          tmpmscore = INFMOVESCORE-100;
         // ignore moves already searched
         if (tmpmscore>=localMoveIndexScore[sd])
           continue;
@@ -1987,6 +2018,9 @@ __kernel void alphabeta_gpu(
       {
         lmove = move;
         localMoveIndexScore[sd] = mscore;
+        // TT hit counter
+        if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
+          COUNTERS[gid*64+3]++;      
       }
       barrier(CLK_LOCAL_MEM_FENCE);
     }
