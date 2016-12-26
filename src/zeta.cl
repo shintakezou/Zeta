@@ -997,11 +997,14 @@ __kernel void perft_gpu(
   __local Hash localHashHistory[MAXPLY];
   __local MoveScore localMoveIndexScore[MAXPLY];
 
+  __local Square sqchecker;
+
   __local s32 mode;
   __local s32 movecount;
-  __local Move lmove;
+
   __local MoveScore lscore;
-  __local Square sqchecker;
+
+  __local Move lmove;
 
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
@@ -1093,7 +1096,7 @@ __kernel void perft_gpu(
 //    COUNTERS[gid*64+4]              = 0;              // depth reached, return
   }
   barrier(CLK_LOCAL_MEM_FENCE);
-  barrier(CLK_GLOBAL_MEM_FENCE);
+//  barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
   // ####       main loop        ####
   // ################################
@@ -1307,7 +1310,7 @@ __kernel void perft_gpu(
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
-    // ####        movedown        ####
+    // ####       movedown x64     ####
     // ################################
     // move down in tree
     // undomove x64
@@ -1335,80 +1338,79 @@ __kernel void perft_gpu(
     if (lid==0)
       mode = (sd<1)?EXIT:MOVEUP;
     barrier(CLK_LOCAL_MEM_FENCE);
+    if (mode==EXIT)
+      break;
     barrier(CLK_GLOBAL_MEM_FENCE);
     // ################################
     // ####     movepicker x64     ####
     // ################################
     // move picker, extract moves x64 parallel
-    if (mode==MOVEUP)
+    n       = 0;
+    move    = MOVENONE;
+    mscore  = -INFMOVESCORE;
+    pfrom   = GETPIECE(board, lid);
+
+    // get moves from global stack
+    bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
+
+    while(bbMoves)
     {
-      n       = 0;
-      move    = MOVENONE;
-      mscore  = -INFMOVESCORE;
-      pfrom   = GETPIECE(board, lid);
-
-      // get moves from global stack
-      bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
-
-      while(bbMoves)
+      sqto  = popfirst1(&bbMoves);
+      sqcpt = sqto; 
+      // set en passant target square
+      sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(lid,stm)==2)?sqto:0x0; 
+      // get piece captured
+      pcpt  = GETPIECE(board, sqcpt);
+      // check for en passant capture square
+      if (GETPTYPE(pfrom)==PAWN&&stm&&lid-sqto!=8&&lid-sqto!=16&&pcpt==PNONE)
       {
-        sqto  = popfirst1(&bbMoves);
-        sqcpt = sqto; 
-        // set en passant target square
-        sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(lid,stm)==2)?sqto:0x0; 
-        // get piece captured
-        pcpt  = GETPIECE(board, sqcpt);
-        // check for en passant capture square
-        if (GETPTYPE(pfrom)==PAWN&&stm&&lid-sqto!=8&&lid-sqto!=16&&pcpt==PNONE)
-        {
-          sqcpt = (stm)? sqto+8:sqto-8;
-        }
-        if (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-lid!=8&&sqto-lid!=16&&pcpt==PNONE)
-        {
-          sqcpt = (stm)? sqto+8:sqto-8;
-        }
-        pcpt  = GETPIECE(board, sqcpt);
-        pto   = pfrom;
-        // set pawn prommotion, queen
-        // TODO: fix pawn promo during perft
-        pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
-        // make move
-        tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
-        tmpmove |= (GETPTYPE(pfrom)==KING&&lid-sqto==2)?MOVEISCRQ:MOVENONE;
-        tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-lid==2)?MOVEISCRK:MOVENONE;
-        n++;
-        // eval move
-        // wood count and piece square tables, pto-pfrom   
-        tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
-        tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
-        // MVV-LVA
-        tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
-        tmpmscore = tmpmscore*10000+lid*64+n;
-        // ignore moves already searched
-        if (tmpmscore>=localMoveIndexScore[sd])
-          continue;
-        // get move with highest score
-        if (tmpmscore<=mscore)
-          continue;
-        mscore = tmpmscore;
-        move = tmpmove;
+        sqcpt = (stm)? sqto+8:sqto-8;
       }
-      // get sorted next move and store to local memory
-      atom_max(&lscore, mscore);
-      barrier(CLK_LOCAL_MEM_FENCE);
-      tmpmscore = atom_cmpxchg(&lscore, mscore, mscore);
-      if (tmpmscore==mscore)
+      if (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-lid!=8&&sqto-lid!=16&&pcpt==PNONE)
       {
-        lmove = move;
-        localMoveIndexScore[sd] = mscore;
+        sqcpt = (stm)? sqto+8:sqto-8;
       }
-      barrier(CLK_LOCAL_MEM_FENCE);
+      pcpt  = GETPIECE(board, sqcpt);
+      pto   = pfrom;
+      // set pawn prommotion, queen
+      // TODO: fix pawn promo during perft
+      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+      // make move
+      tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      tmpmove |= (GETPTYPE(pfrom)==KING&&lid-sqto==2)?MOVEISCRQ:MOVENONE;
+      tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-lid==2)?MOVEISCRK:MOVENONE;
+      n++;
+      // eval move
+      // wood count and piece square tables, pto-pfrom   
+      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
+      // MVV-LVA
+      tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
+      tmpmscore = tmpmscore*10000+lid*64+n;
+      // ignore moves already searched
+      if (tmpmscore>=localMoveIndexScore[sd])
+        continue;
+      // get move with highest score
+      if (tmpmscore<=mscore)
+        continue;
+      mscore = tmpmscore;
+      move = tmpmove;
     }
+    // get sorted next move and store to local memory
+    atom_max(&lscore, mscore);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    tmpmscore = atom_cmpxchg(&lscore, mscore, mscore);
+    if (tmpmscore==mscore)
+    {
+      lmove = move;
+      localMoveIndexScore[sd] = mscore;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
     // ################################
     // move up in tree
-    if (lid==0&&mode==MOVEUP)
+    if (lid==0)
     {
       // clear move from bb moves
       globalbbMoves[gid*MAXPLY*64+sd*64+GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
@@ -1418,15 +1420,14 @@ __kernel void perft_gpu(
       localHashHistory[sd]  = board[QBBHASH];
       localTodoIndex[sd]++;
     }
+
     // domove x64
-    if (mode==MOVEUP)
-    {
-      domove(board, lmove);
-      stm = !stm; // switch site to move
-      sd++;       // increase depth counter
-      ply++;      // increase ply counter
-    }
-    if (lid==0&&mode==MOVEUP)
+    domove(board, lmove);
+    stm = !stm; // switch site to move
+    sd++;       // increase depth counter
+    ply++;      // increase ply counter
+
+    if (lid==0)
     {
       // set values for next depth
       localMoveCounter[sd]              = 0;
@@ -1471,11 +1472,14 @@ __kernel void alphabeta_gpu(
 
   __local u8 flag; // hash table flag
 
+  __local Square sqchecker;
+
   __local s32 mode;
   __local s32 movecount;
-  __local Move lmove;
+
   __local MoveScore lscore;
-  __local Square sqchecker;
+
+  __local Move lmove;
 
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
@@ -1567,7 +1571,7 @@ __kernel void alphabeta_gpu(
 //    COUNTERS[gid*64+4]              = 0;              // depth reached, return
   }
   barrier(CLK_LOCAL_MEM_FENCE);
-  barrier(CLK_GLOBAL_MEM_FENCE);
+//  barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
   // ####       main loop        ####
   // ################################
@@ -1870,7 +1874,7 @@ __kernel void alphabeta_gpu(
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
-    // ####        movedown        ####
+    // ####       movedown x64     ####
     // ################################
     // move down in tree
     // undomove x64
@@ -1945,90 +1949,89 @@ __kernel void alphabeta_gpu(
     if (lid==0)
       mode = (COUNTERS[0]>max_nodes)?EXIT:mode;
     barrier(CLK_LOCAL_MEM_FENCE);
+    if (mode==EXIT) // this is the end
+      break;
     barrier(CLK_GLOBAL_MEM_FENCE);
     // ################################
     // ####     movepicker x64     ####
     // ################################
     // move picker, extract moves x64 parallel
-    if (mode==MOVEUP)
+    // load from hash table
+    move = board[QBBHASH]&(ttindex-1);
+    Move ttmove = ((TT[move].hash==(board[QBBHASH]^((Move)TT[move].bestmove&SMTTMOVE))))?(Move)(JUSTMOVE(TT[move].bestmove)):MOVENONE;
+
+    n       = 0;
+    move    = MOVENONE;
+    mscore  = -INFMOVESCORE;
+    pfrom   = GETPIECE(board, lid);
+
+    // get moves from global stack
+    bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
+
+    while(bbMoves)
     {
-      // load from hash table
-      move = board[QBBHASH]&(ttindex-1);
-      Move ttmove = ((TT[move].hash==(board[QBBHASH]^((Move)TT[move].bestmove&SMTTMOVE))))?(Move)(JUSTMOVE(TT[move].bestmove)):MOVENONE;
-
-      n       = 0;
-      move    = MOVENONE;
-      mscore  = -INFMOVESCORE;
-      pfrom   = GETPIECE(board, lid);
-
-      // get moves from global stack
-      bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
-
-      while(bbMoves)
+      sqto  = popfirst1(&bbMoves);
+      sqcpt = sqto; 
+      // set en passant target square
+      sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(lid,stm)==2)?sqto:0x0; 
+      // get piece captured
+      pcpt  = GETPIECE(board, sqcpt);
+      // check for en passant capture square
+      if (GETPTYPE(pfrom)==PAWN&&stm&&lid-sqto!=8&&lid-sqto!=16&&pcpt==PNONE)
       {
-        sqto  = popfirst1(&bbMoves);
-        sqcpt = sqto; 
-        // set en passant target square
-        sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(lid,stm)==2)?sqto:0x0; 
-        // get piece captured
-        pcpt  = GETPIECE(board, sqcpt);
-        // check for en passant capture square
-        if (GETPTYPE(pfrom)==PAWN&&stm&&lid-sqto!=8&&lid-sqto!=16&&pcpt==PNONE)
-        {
-          sqcpt = (stm)? sqto+8:sqto-8;
-        }
-        if (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-lid!=8&&sqto-lid!=16&&pcpt==PNONE)
-        {
-          sqcpt = (stm)? sqto+8:sqto-8;
-        }
-        pcpt  = GETPIECE(board, sqcpt);
-        pto   = pfrom;
-        // set pawn prommotion, queen
-        // TODO: fix pawn promo during perft
-        pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
-        // make move
-        tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
-        tmpmove |= (GETPTYPE(pfrom)==KING&&lid-sqto==2)?MOVEISCRQ:MOVENONE;
-        tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-lid==2)?MOVEISCRK:MOVENONE;
-        n++;
-        // eval move
-        // wood count and piece square tables, pto-pfrom   
-        tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
-        tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
-        // MVV-LVA
-        tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
-        tmpmscore = tmpmscore*10000+lid*64+n;
-        // set hash table move score
-        if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
-          tmpmscore = INFMOVESCORE-100;
-        // ignore moves already searched
-        if (tmpmscore>=localMoveIndexScore[sd])
-          continue;
-        // get move with highest score
-        if (tmpmscore<=mscore)
-          continue;
-        mscore = tmpmscore;
-        move = tmpmove;
+        sqcpt = (stm)? sqto+8:sqto-8;
       }
-      // get sorted next move and store to local memory
-      atom_max(&lscore, mscore);
-      barrier(CLK_LOCAL_MEM_FENCE);
-      tmpmscore = atom_cmpxchg(&lscore, mscore, mscore);
-      if (tmpmscore==mscore)
+      if (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-lid!=8&&sqto-lid!=16&&pcpt==PNONE)
       {
-        lmove = move;
-        localMoveIndexScore[sd] = mscore;
-        // TT hit counter
-        if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
-          COUNTERS[gid*64+3]++;      
+        sqcpt = (stm)? sqto+8:sqto-8;
       }
-      barrier(CLK_LOCAL_MEM_FENCE);
+      pcpt  = GETPIECE(board, sqcpt);
+      pto   = pfrom;
+      // set pawn prommotion, queen
+      // TODO: fix pawn promo during perft
+      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+      // make move
+      tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      tmpmove |= (GETPTYPE(pfrom)==KING&&lid-sqto==2)?MOVEISCRQ:MOVENONE;
+      tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-lid==2)?MOVEISCRK:MOVENONE;
+      n++;
+      // eval move
+      // wood count and piece square tables, pto-pfrom   
+      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
+      // MVV-LVA
+      tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
+      tmpmscore = tmpmscore*10000+lid*64+n;
+      // set hash table move score
+      if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
+        tmpmscore = INFMOVESCORE-100;
+      // ignore moves already searched
+      if (tmpmscore>=localMoveIndexScore[sd])
+        continue;
+      // get move with highest score
+      if (tmpmscore<=mscore)
+        continue;
+      mscore = tmpmscore;
+      move = tmpmove;
     }
+    // get sorted next move and store to local memory
+    atom_max(&lscore, mscore);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    tmpmscore = atom_cmpxchg(&lscore, mscore, mscore);
+    if (tmpmscore==mscore)
+    {
+      lmove = move;
+      localMoveIndexScore[sd] = mscore;
+      // TT hit counter
+      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
+        COUNTERS[gid*64+3]++;      
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
     // ################################
     // move up in tree
-    if (lid==0&&mode==MOVEUP)
+    if (lid==0)
     {
       // clear move from bb moves
       globalbbMoves[gid*MAXPLY*64+sd*64+GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
@@ -2038,15 +2041,14 @@ __kernel void alphabeta_gpu(
       localHashHistory[sd]  = board[QBBHASH];
       localTodoIndex[sd]++;
     }
+
     // domove x64
-    if (mode==MOVEUP)
-    {
-      domove(board, lmove);
-      stm = !stm; // switch site to move
-      sd++;       // increase depth counter
-      ply++;      // increase ply counter
-    }
-    if (lid==0&&mode==MOVEUP)
+    domove(board, lmove);
+    stm = !stm; // switch site to move
+    sd++;       // increase depth counter
+    ply++;      // increase ply counter
+
+    if (lid==0)
     {
       // set values for next depth
       localMoveCounter[sd]              = 0;
