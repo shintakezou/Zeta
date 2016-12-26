@@ -2039,6 +2039,7 @@ __kernel void alphabeta_gpu(
       localMoveHistory[sd]  = lmove;
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
+      HashHistory[gid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
       localTodoIndex[sd]++;
     }
 
