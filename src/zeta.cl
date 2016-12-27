@@ -999,7 +999,7 @@ __kernel void perft_gpu(
 
   __local Square sqchecker;
 
-  __local s32 mode;
+  __local u8 mode;
   __local s32 movecount;
 
   __local MoveScore lscore;
@@ -1009,8 +1009,8 @@ __kernel void perft_gpu(
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
-  const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
-  const Square lid = get_local_id(2);
+  const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
+  const Square lid = (Square)get_local_id(2);
 
   bool tmpb;
   bool kic;
@@ -1285,7 +1285,7 @@ __kernel void perft_gpu(
       }
     }
     // store move bitboards in global memory for movepicker
-    globalbbMoves[gid*MAXPLY*64+sd*64+lid] = bbMoves;
+    globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
     // movecount in local memory
     atom_add(&movecount, count1s(bbMoves));
 
@@ -1413,8 +1413,8 @@ __kernel void perft_gpu(
     if (lid==0)
     {
       // clear move from bb moves
-      globalbbMoves[gid*MAXPLY*64+sd*64+GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
-      // set history
+      globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
+      // set historsy
       localMoveHistory[sd]  = lmove;
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
@@ -1484,8 +1484,8 @@ __kernel void alphabeta_gpu(
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
-  const s32 gid = get_global_id(0) * get_global_size(1) + get_global_id(1);
-  const Square lid = get_local_id(2);
+  const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
+  const Square lid = (Square)get_local_id(2);
 
   bool tmpb;
   bool kic;
@@ -1760,7 +1760,7 @@ __kernel void alphabeta_gpu(
     }
 
     // store move bitboards in global memory for movepicker
-    globalbbMoves[gid*MAXPLY*64+sd*64+lid] = bbMoves;
+    globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
     // movecount in local memory
     atom_add(&movecount, count1s(bbMoves));
 
@@ -2034,7 +2034,7 @@ __kernel void alphabeta_gpu(
     if (lid==0)
     {
       // clear move from bb moves
-      globalbbMoves[gid*MAXPLY*64+sd*64+GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
+      globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
       // set history
       localMoveHistory[sd]  = lmove;
       localCrHistory[sd]    = board[QBBPMVD];
