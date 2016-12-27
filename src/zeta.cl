@@ -1185,6 +1185,8 @@ __kernel void perft_gpu(
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
     bbMoves|= (kic==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
 
+// 1145k, 3496k
+
     // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
     if (kic!=stm)
@@ -1196,6 +1198,8 @@ __kernel void perft_gpu(
       atom_or(&bbCheckers, SETMASKBB(lid));
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+
+// 777k, 489k
 
     rootkic = (bbCheckers)?true:false;
 
@@ -1219,6 +1223,8 @@ __kernel void perft_gpu(
     // consider single checker
     tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
     bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
+
+// 776k, 495k
 
     // gen en passant moves, TODO reimplement as x64???
     bbTemp = BBEMPTY;
@@ -1247,6 +1253,9 @@ __kernel void perft_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
+
+// 125k, 315k
+
     // TODO: speedup
     // gen castle moves queenside
     tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
@@ -1284,12 +1293,17 @@ __kernel void perft_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
+
+// 125k, 315k
+
     // store move bitboards in global memory for movepicker
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
     // movecount in local memory
     atom_add(&movecount, count1s(bbMoves));
 
     barrier(CLK_LOCAL_MEM_FENCE);
+// 92k, 258k
+
     // #################################
     // ####     alphabeta flow x1    ###
     // #################################
@@ -1309,6 +1323,8 @@ __kernel void perft_gpu(
         mode = MOVEDOWN;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+// 88k, 246k
+
     // ################################
     // ####       movedown x64     ####
     // ################################
@@ -1406,6 +1422,8 @@ __kernel void perft_gpu(
       localMoveIndexScore[sd] = mscore;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+// 56k, 144k
+
     // ################################
     // ####         moveup         ####
     // ################################
@@ -1440,6 +1458,7 @@ __kernel void perft_gpu(
   } // end main loop
 //  COUNTERS[gid*64+1] += lscore;
 //  COUNTERS[gid*64+2] |= bbMoves^bbAttacks;
+// 36k, 88k
 }
 // alphabeta search on gpu, 64 threads in parallel on one chess position
 // move gen with pawn queen promo only
