@@ -1815,32 +1815,35 @@ __kernel void alphabeta_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
     atom_add(&lscore, (MoveScore)score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    score = (Score)lscore;
-    // negamaxed scores
-    score = (stm)?-score:score;
-    // checkmate
-    score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
-    // stalemate
-    score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
-    // draw by 3 fold repetition, x1
-    for (n=ply+ply_init-2;lid==0&&n>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&sd>1;n-=2)
-    {
-      if (board[QBBHASH]==HashHistory[gid*MAXGAMEPLY+n])
-      {
-        movecount = 0;
-        lmove = MOVENONE;
-        score = DRAWSCORE;
-        break;
-      }
-    }
-    lscore = -INFMOVESCORE;
-    barrier(CLK_LOCAL_MEM_FENCE);
     // #################################
-    // ####     alphabeta flow x1    ###
+    // ####     negmax and scoring   ###
     // #################################
     if (lid==0)
     {
+      score = (Score)lscore;
+      // negamaxed scores
+      score = (stm)?-score:score;
+      // checkmate
+      score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
+      // stalemate
+      score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
+
+      // draw by 3 fold repetition, x1
+      for (n=ply+ply_init-2;lid==0&&n>=ply+ply_init-(s32)GETHMC(board[QBBLAST])&&!qs&&sd>1;n-=2)
+      {
+        if (board[QBBHASH]==HashHistory[gid*MAXGAMEPLY+n])
+        {
+          movecount = 0;
+          lmove = MOVENONE;
+          score = DRAWSCORE;
+          break;
+        }
+      }
+      lscore = -INFMOVESCORE;
+      // #################################
+      // ####     alphabeta flow x1    ###
+      // #################################
       // check bounds
       if (sd>=MAXPLY)
         movecount = 0;
