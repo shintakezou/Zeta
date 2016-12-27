@@ -35,6 +35,10 @@ s32 temp = 0;
 u64 templong = 0;
 u64 ttbits = 0;
 
+char *coptions = "";
+//char *coptions = "-cl-strict-aliasing";
+//char *coptions = "-cl-opt-disable";
+
 void print_debug(char *debug);
 
 // initialize OpenCL device, called once per game
@@ -127,7 +131,7 @@ bool cl_init_device(char *kernelname)
       return false;
     }   
     // create program for all the devices specified */
-    status = clBuildProgram(program, 1, &devices[opencl_device_id], NULL, NULL, NULL);
+    status = clBuildProgram(program, 1, &devices[opencl_device_id], coptions, NULL, NULL);
     // get build log and print
     if(status!=CL_SUCCESS) 
     { 
