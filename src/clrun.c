@@ -770,6 +770,13 @@ bool cl_release_device() {
     return false; 
   }
 
+  status = clReleaseMemObject(GLOBAL_globalbbMoves_Buffer);
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves_Buffer)\n");
+    return false; 
+  }
+
 	status = clReleaseMemObject(GLOBAL_HASHHISTORY_Buffer);
   if(status!=CL_SUCCESS)
 	{
