@@ -1048,6 +1048,7 @@ __kernel void perft_gpu(
   Bitboard bbMask;
   Bitboard bbMoves;
   Bitboard bbPinned;
+  Bitboard bbChecked;
 
   ulong4 bbPro4;
   ulong4 bbGen4; 
@@ -1117,6 +1118,7 @@ __kernel void perft_gpu(
     }
 
     bbPinned = BBEMPTY;
+    bbChecked = BBEMPTY;
 
     n = 0;
     qs = (sd>search_depth)?true:false; // enter quiescence search?
@@ -1133,8 +1135,6 @@ __kernel void perft_gpu(
 
     // get superking, rooks n queens
     bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
-    // get superking, bishops n queems
-    bbWork|= bishop_attacks(BBEMPTY, sqking) & ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
     // get pinned pieces
     while (bbWork)
     {
@@ -1142,6 +1142,18 @@ __kernel void perft_gpu(
       bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
+      bbChecked |= rook_attacks(bbBlockers^SETMASKBB(sqking), sqto);
+    }
+    // get superking, bishops n queems
+    bbWork = bishop_attacks(BBEMPTY, sqking) & ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    // get pinned pieces
+    while (bbWork)
+    {
+      sqto = popfirst1(&bbWork);
+      bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
+      if (count1s(bbTemp)==1)
+        bbPinned |= bbTemp;
+      bbChecked |= bishop_attacks(bbBlockers^SETMASKBB(sqking), sqto);
     }
     // generate own moves and opposite attacks
     pfrom   = GETPIECE(board, lid);
@@ -1150,7 +1162,7 @@ __kernel void perft_gpu(
     // generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
     bbPro4  = (ulong4)(~bbBlockers);
-    bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
+//    bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
     // kogge stone shift left via ulong4 vector
     bbPro4 &= wraps4[0];
     bbGen4 |= bbPro4    & (bbGen4 << shift4);
@@ -1164,7 +1176,7 @@ __kernel void perft_gpu(
     // set generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
     bbPro4  = (ulong4)(~bbBlockers);
-    bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
+//    bbPro4 ^= (kic==stm)?BBEMPTY:SETMASKBB(sqking);
     // kogge stone shift right via ulong4 vector
     bbPro4 &= wraps4[1];
     bbGen4 |= bbPro4    & (bbGen4 >> shift4);
@@ -1219,6 +1231,8 @@ __kernel void perft_gpu(
     // consider king and opp attacks
     tmpb = (GETPTYPE(pfrom)==KING)?true:false;
     bbMoves &= (tmpb)?~bbAttacks:BBFULL;
+    tmpb = (n>=1&&GETPTYPE(pfrom)==KING)?true:false;
+    bbMoves &= (tmpb)?~bbChecked:BBFULL;
 
     // consider single checker
     tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
