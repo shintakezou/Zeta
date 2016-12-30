@@ -2065,6 +2065,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   // timers
   end = get_time();
   elapsed = end-start;
+  elapsed += 1;
   elapsed/=1000;
 
   // collect counters
@@ -3005,6 +3006,7 @@ int main(int argc, char* argv[])
 
       end = get_time();   
       elapsed = end-start;
+      elapsed += 1;
       elapsed/=1000;
 
       state = cl_release_device();
