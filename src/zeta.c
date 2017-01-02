@@ -1874,7 +1874,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
   Score score;
-  Score xboard_score;
+  s32 xboard_score;
   Move bestmove = MOVENONE;
   Score bestscore = 0;
   s32 idf = 1;
@@ -1974,8 +1974,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       bestscore = ISINF(score)?DRAWSCORE:score;
       // xboard mate scores
       xboard_score = bestscore;
-      xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore-PLY):xboard_score;
-      xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore+PLY):xboard_score;
+      xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
+      xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
       // print xboard output
       if (xboard_post==true||xboard_mode == false)
       {
