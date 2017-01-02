@@ -35,7 +35,7 @@ extern s32 opencl_device_id;
 extern s32 opencl_platform_id;
 extern s32 max_nodes_to_expand;
 extern u64 max_memory;
-extern s32 memory_slots;
+extern u64 memory_slots;
 extern u64 MaxNodes;
 // globals
 extern FILE *LogFile;
@@ -55,7 +55,9 @@ cl_mem	 GLOBAL_COUNTERS_Buffer;
 cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 cl_mem	 GLOBAL_bbInBetween_Buffer;
 cl_mem	 GLOBAL_bbLine_Buffer;
-cl_mem   GLOBAL_TT_Buffer;
+cl_mem   GLOBAL_TT1_Buffer;
+cl_mem   GLOBAL_TT2_Buffer;
+cl_mem   GLOBAL_TT3_Buffer;
 // OpenCL runtime objects
 cl_context          context;
 cl_device_id        *devices;

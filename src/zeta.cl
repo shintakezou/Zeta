@@ -1483,12 +1483,15 @@ __kernel void alphabeta_gpu(
                             __global Hash *HashHistory,
                       const __global Bitboard *bbInBetween,
                       const __global Bitboard *bbLine,
-                            __global TTE *TT,
+                            __global TTE *TT1,
+                            __global TTE *TT2,
+                            __global TTE *TT3,
                                const s32 stm_init,
                                const s32 ply_init,
                                const s32 search_depth,
                                const u64 max_nodes,
-                               const u64 ttindex
+                               const u64 ttindex,
+                               const u64 slots
 )
 {
   // Quadbitboard + piece moved flags + hash + lastmove
@@ -1850,7 +1853,7 @@ __kernel void alphabeta_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // #################################
-    // ####     negmax and scoring   ###
+    // ####   negmax and scoring x1  ###
     // #################################
     if (lid==0)
     {
@@ -1891,20 +1894,16 @@ __kernel void alphabeta_gpu(
       // return beta
       if (mode==MOVEUP&&qs&&!rootkic&&score>=localAlphaBetaScores[sd*2+BETA])
       {
-  //      localAlphaBetaScores[sd*2+ALPHA] = localAlphaBetaScores[sd*2+BETA]; // fail hard
+//        localAlphaBetaScores[sd*2+ALPHA] = localAlphaBetaScores[sd*2+BETA]; // fail hard
         localAlphaBetaScores[sd*2+ALPHA] = score; // fail soft
         movecount = 0;
         mode = MOVEDOWN;
       }
       // stand pat in qsearch
       // set alpha
-      if (mode==MOVEUP&&qs&&!rootkic)
-      {
-        if (score>localAlphaBetaScores[sd*2+ALPHA])
-        { 
-          localAlphaBetaScores[sd*2+ALPHA]=score;
-        }
-		  }
+      if (mode==MOVEUP&&qs&&!rootkic&&score>localAlphaBetaScores[sd*2+ALPHA])
+        localAlphaBetaScores[sd*2+ALPHA]=score;
+
       // store move counter in local memory
       localMoveCounter[sd]  = movecount;
     }
@@ -1940,7 +1939,7 @@ __kernel void alphabeta_gpu(
         if (sd<1)  // this is the end
             break;
 
-        // do alphabeta negamax scoring
+        // do alphabeta negamax scoring x1
         if (lid==0)
         {
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
@@ -1964,14 +1963,30 @@ __kernel void alphabeta_gpu(
           {
             tmpmove = board[QBBHASH]&(ttindex-1);
             move  = localMoveHistory[sd]&SMTTMOVE;
-            // one bucket, depth replace
-            if ((u8)search_depth>=TT[tmpmove].depth)
+            // three memory slots, depth replace
+            if ((u8)search_depth>=TT1[tmpmove].depth)
             {
-              TT[tmpmove].hash      = board[QBBHASH]^move;
-              TT[tmpmove].bestmove  = (TTMove)move;
-              TT[tmpmove].score     = (TTScore)score;
-              TT[tmpmove].flag      = flag;
-              TT[tmpmove].depth     = (u8)search_depth;
+              TT1[tmpmove].hash      = board[QBBHASH]^move;
+              TT1[tmpmove].bestmove  = (TTMove)move;
+              TT1[tmpmove].score     = (TTScore)score;
+              TT1[tmpmove].flag      = flag;
+              TT1[tmpmove].depth     = (u8)search_depth;
+            }
+            else if (slots>=2&&(u8)search_depth>=TT2[tmpmove].depth)
+            {
+              TT2[tmpmove].hash      = board[QBBHASH]^move;
+              TT2[tmpmove].bestmove  = (TTMove)move;
+              TT2[tmpmove].score     = (TTScore)score;
+              TT2[tmpmove].flag      = flag;
+              TT2[tmpmove].depth     = (u8)search_depth;
+            }
+            else if (slots>=3&&(u8)search_depth>=TT2[tmpmove].depth)
+            {
+              TT3[tmpmove].hash      = board[QBBHASH]^move;
+              TT3[tmpmove].bestmove  = (TTMove)move;
+              TT3[tmpmove].score     = (TTScore)score;
+              TT3[tmpmove].flag      = flag;
+              TT3[tmpmove].depth     = (u8)search_depth;
             }
           }
         }
@@ -1994,7 +2009,13 @@ __kernel void alphabeta_gpu(
     // move picker, extract moves x64 parallel
     // load from hash table
     move = board[QBBHASH]&(ttindex-1);
-    Move ttmove = ((TT[move].hash==(board[QBBHASH]^((Move)TT[move].bestmove&SMTTMOVE))))?(Move)(JUSTMOVE(TT[move].bestmove)):MOVENONE;
+    Move ttmove = MOVENONE;
+    if (TT1[move].hash==(board[QBBHASH]^((Move)TT1[move].bestmove&SMTTMOVE)))
+      ttmove = (Move)(JUSTMOVE(TT1[move].bestmove));
+    else if (slots>=2&&TT2[move].hash==(board[QBBHASH]^((Move)TT2[move].bestmove&SMTTMOVE)))
+      ttmove = (Move)(JUSTMOVE(TT2[move].bestmove));
+    else if (slots>=3&&TT3[move].hash==(board[QBBHASH]^((Move)TT3[move].bestmove&SMTTMOVE)))
+      ttmove = (Move)(JUSTMOVE(TT3[move].bestmove));
 
     n       = 0;
     move    = MOVENONE;
