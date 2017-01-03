@@ -1243,12 +1243,9 @@ __kernel void perft_gpu(
     // gen en passant moves, TODO reimplement as x64???
     bbTemp = BBEMPTY;
     sqep   = GETSQEP(board[QBBLAST]); 
-    if (sqep)
-    {
-      bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
-      bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
-      bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
-    }
+    bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
+    bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
+    bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
     // check for en passant pawns
     if (bbTemp&SETMASKBB(lid))
     {
@@ -1273,40 +1270,25 @@ __kernel void perft_gpu(
     // TODO: speedup
     // gen castle moves queenside
     tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
-    if (tmpb)
-    { 
-      // get king square
-      sqto    = lid-2;
-      pfrom   = GETPIECE(board, lid);
-      // rook present
-      bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
-      // check for empty squares
-      bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
-      // check for king and empty squares in check
-      bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
-      // store move
-      if (bbTemp&&!bbMask&&!bbWork)
-      {
-        bbMoves |= SETMASKBB(sqto);
-      }
-    }
+    // rook present
+    bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    // check for empty squares
+    bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
+    // check for king and empty squares in check
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
+    // store move
+    bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
+
     // gen castle moves kingside
     tmpb =  (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))?true:false;
-    if (tmpb)
-    {
-      sqto    = lid+2;
-      // rook present
-      bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
-      // check for empty squares
-      bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
-      // check for king and empty squares in check
-      bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
-      // store move
-      if (bbTemp&&!bbMask&&!bbWork)
-      {
-        bbMoves |= SETMASKBB(sqto);
-      }
-    }
+    // rook present
+    bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    // check for empty squares
+    bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
+    // check for king and empty squares in check
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
+    // store move
+    bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
 // 125k, 315k
 
@@ -1761,39 +1743,25 @@ __kernel void alphabeta_gpu(
     // TODO: speedup
     // gen castle moves queenside
     tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
-    if (tmpb)
-    { 
-      // get king square
-      sqto    = lid-2;
-      // rook present
-      bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
-      // check for empty squares
-      bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
-      // check for king and empty squares in check
-      bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
-      // store move
-      if (bbTemp&&!bbMask&&!bbWork)
-      {
-        bbMoves |= SETMASKBB(sqto);
-      }
-    }
+    // rook present
+    bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    // check for empty squares
+    bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
+    // check for king and empty squares in check
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
+    // store move
+    bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
+
     // gen castle moves kingside
     tmpb =  (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))?true:false;
-    if (tmpb)
-    {
-      sqto    = lid+2;
-      // rook present
-      bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
-      // check for empty squares
-      bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
-      // check for king and empty squares in check
-      bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
-      // store move
-      if (bbTemp&&!bbMask&&!bbWork)
-      {
-        bbMoves |= SETMASKBB(sqto);
-      }
-    }
+    // rook present
+    bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    // check for empty squares
+    bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
+    // check for king and empty squares in check
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
+    // store move
+    bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
     // store move bitboards in global memory for movepicker
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
