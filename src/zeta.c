@@ -2150,7 +2150,7 @@ s32 benchmarkWrapper(s32 benchsec)
     bench = benchmark(BOARD, STM, sd);                
     if (bench != 0 )
       break;
-    if (elapsed*4 >= benchsec)
+    if (elapsed*2 >= benchsec)
       break;
     sd++;
     MaxNodes = (u64)(ABNODECOUNT/elapsed)*(u64)benchsec;
