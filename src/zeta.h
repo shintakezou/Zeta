@@ -36,17 +36,19 @@ extern s32 opencl_platform_id;
 extern s32 max_nodes_to_expand;
 extern u64 max_memory;
 extern u64 memory_slots;
-extern u64 MaxNodes;
 // globals
 extern FILE *LogFile;
 extern s32 PLY;
 extern s32 SD;
+extern u64 MaxNodes;
 extern u64 ABNODECOUNT;
 extern Bitboard *GLOBAL_BOARD;
 extern u64 *COUNTERS;
 extern Move *GLOBAL_HASHHISTORY;
 extern Bitboard bbInBetween[64*64];
 extern Bitboard bbLine[64*64];
+extern s32 opencl_user_device;
+extern s32 opencl_user_platform;
 struct TTE *TT;
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;

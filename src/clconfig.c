@@ -97,6 +97,11 @@ bool cl_guess_config(bool extreme)
     for(i=0; i < numPlatforms; ++i)
     {
       char pbuff[256];
+
+      // switch to selected platform
+      if (opencl_user_platform!=-1&&opencl_user_platform!=(s32)i)
+        continue;
+
       // get platforms
       status = clGetPlatformInfo(
                                 platforms[i],
@@ -181,6 +186,11 @@ bool cl_guess_config(bool extreme)
       // for each present OpenCL device do
       for(j=0; j < deviceListSize; j++)
       {
+
+        // switch to selected device
+        if (opencl_user_device!=-1&&opencl_user_device!=(s32)j)
+          continue;
+
         failed = false;
         warpmulti = 1;
         // get device name size

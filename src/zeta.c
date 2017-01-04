@@ -53,6 +53,8 @@ u64 max_memory          =  1;
 u64 memory_slots        =  1;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
+s32 opencl_user_device  = -1;
+s32 opencl_user_platform= -1;
 // further config
 u64 max_nps_per_move    =  0;
 s32 search_depth        =  0;
@@ -126,6 +128,9 @@ extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_get_and_release_memory();
 extern bool cl_release_device();
 extern bool cl_guess_config(bool extreme);
+extern bool cl_platform_list();
+extern bool cl_device_list();
+
 // precomputed attack tables for move generation and square in check
 const Bitboard AttackTablesPawnPushes[2*64] = 
 {
@@ -1762,22 +1767,33 @@ static void print_help(void)
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Tested Platforms:\n");
-  fprintf(stdout,"64 bit x86-64 with little endian OpenCL devices\n");
+  fprintf(stdout,"64 bit x86-64 with little endian OpenCL devices with atomics support\n");
   fprintf(stdout,"on Windows 7 64 bit and GNU/Linux 64 bit OS\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"First make sure you have an working OpenCL Runtime Environment.\n");
+  fprintf(stdout,"Usage:\n");
+  fprintf(stdout,"First make sure you have an working OpenCL Runtime Environment,\n");
+  fprintf(stdout,"start the zeta executable in command line with -dl option to list\n");
+  fprintf(stdout,"all available OpenCL devices on host\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Additionally you will need an config.ini file to run the engine,\n");
-  fprintf(stdout,"start engine from command line with --guessconfig option,\n");
-  fprintf(stdout,"to create config files for all OpenCL devices.\n");
+  fprintf(stdout,"Second check the OpenCL device and create a config.ini file for the engine,\n");
+  fprintf(stdout,"zeta -p 0 -d 0 --guessconfigx\n");
+  fprintf(stdout,"Where p is the selected platform id and d is the selected device id.\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Options:\n");
+  fprintf(stdout,"Third rename the created config file to config.ini and start the engine.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"All Options:\n");
   fprintf(stdout," -l, --log          Write output/debug to file zeta.log\n");
   fprintf(stdout," -v, --version      Print Zeta version info.\n");
   fprintf(stdout," -h, --help         Print Zeta program usage help.\n");
   fprintf(stdout," -s, --selftest     Run an internal test, usefull after compile.\n");
-  fprintf(stdout," --guessconfig      Guess minimal config for all OpenCL devices\n");
-  fprintf(stdout," --guessconfigx     Guess optimal config for all OpenCL devices\n");
+  fprintf(stdout," -pl,               List all OpenCL Platforms on Host\n");
+  fprintf(stdout," -dl,               List all OpenCL Devices on Host\n");
+  fprintf(stdout," -p 0,              Set Platform ID to 0 for guessconfig \n");
+  fprintf(stdout," -d 0,              Set Device ID to 0 for guessconfig \n");
+  fprintf(stdout," --guessconfig      Guess minimal config for OpenCL devices\n");
+  fprintf(stdout," --guessconfigx     Guess optimal config for OpenCL devices\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"To play against the engine use an CECP v2 protocol capable chess GUI\n");
   fprintf(stdout,"like Arena, Cutechess, Winboard or Xboard.\n");
@@ -1792,6 +1808,7 @@ static void print_help(void)
   fprintf(stdout,"\n");
   fprintf(stdout,"The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes.\n");
   fprintf(stdout,"\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"Not supported Xboard commands:\n");
   fprintf(stdout,"analyze        // enter analyze mode\n");
   fprintf(stdout,"?              // move now\n");
@@ -1805,6 +1822,7 @@ static void print_help(void)
   fprintf(stdout,"selftest       // run an internal test\n");
   fprintf(stdout,"help           // print usage info\n");
   fprintf(stdout,"log            // turn log on\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"WARNING:\n");
   fprintf(stdout,"It is recommended to run the engine on an discrete GPU,\n");
@@ -2158,12 +2176,16 @@ int main(int argc, char* argv[])
   s32 c;
   static struct option long_options[] = 
   {
-    {"help", 0, 0, 'h'},
-    {"version", 0, 0, 'v'},
-    {"selftest", 0, 0, 's'},
-    {"log", 0, 0, 'l'},
+    {"help", 0, 0, 0},
+    {"version", 0, 0, 0},
+    {"selftest", 0, 0, 0},
+    {"log", 0, 0, 0},
     {"guessconfig", 0, 0, 0},
     {"guessconfigx", 0, 0, 0},
+    {"p", 1, 0, 0},
+    {"d", 1, 0, 0},
+    {"pl", 0, 0, 0},
+    {"dl", 0, 0, 0},
     {NULL, 0, NULL, 0}
   };
   s32 option_index = 0;
@@ -2242,6 +2264,22 @@ int main(int argc, char* argv[])
         release_engineinits();
         exit(EXIT_SUCCESS);
         break;
+      case 6:
+        // set user define platform
+        opencl_user_platform = atoi(optarg);
+       break;
+      case 7:
+        // set user define platform
+        opencl_user_device = atoi(optarg);
+       break;
+      case 8:
+        cl_platform_list();
+        exit(EXIT_SUCCESS);
+       break;
+      case 9:
+        cl_device_list();
+        exit(EXIT_SUCCESS);
+       break;
     }
   }
   // print engine info to console

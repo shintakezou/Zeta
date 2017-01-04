@@ -22,22 +22,33 @@
 Zeta, experimental chess engine written in OpenCL.
 
 Tested Platforms:
-64 bit x86-64 with little endian OpenCL devices
+64 bit x86-64 with little endian OpenCL devices with atomics support
 on Windows 7 64 bit and GNU/Linux 64 bit OS
 
-First make sure you have an working OpenCL Runtime Environment.
+Usage:
+First make sure you have an working OpenCL Runtime Environment,
+start the zeta executable in command line with -dl option to list
+all available OpenCL devices on host
 
-Additionally you will need an config.ini file to run the engine,
-start engine from command line with --guessconfig option,
-to create config files for all OpenCL devices.
+Second check the OpenCL device and create a config.ini file for the engine,
+zeta -p 0 -d 0 --guessconfigx
+Where p is the selected platform id and d is the selected device id.
 
-Options:
+Third rename the created config file to config.ini and start the engine.
+
+
+All Options:
  -l, --log          Write output/debug to file zeta.log
  -v, --version      Print Zeta version info.
  -h, --help         Print Zeta program usage help.
  -s, --selftest     Run an internal test, usefull after compile.
- --guessconfig      Guess minimal config for all OpenCL devices
- --guessconfigx     Guess optimal config for all OpenCL devices
+ -pl,               List all OpenCL Platforms on Host
+ -dl,               List all OpenCL Devices on Host
+ -p 0,              Set Platform ID to 0 for guessconfig 
+ -d 0,              Set Device ID to 0 for guessconfig 
+ --guessconfig      Guess minimal config for OpenCL devices
+ --guessconfigx     Guess optimal config for OpenCL devices
+
 
 To play against the engine use an CECP v2 protocol capable chess GUI
 like Arena, Cutechess, Winboard or Xboard.
@@ -52,6 +63,7 @@ usermove d7d5  // let engine apply usermove in coordinate algebraic
 
 The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes.
 
+
 Not supported Xboard commands:
 analyze        // enter analyze mode
 ?              // move now
@@ -65,6 +77,7 @@ perft          // perform a performance test, depth set by sd command
 selftest       // run an internal test
 help           // print usage info
 log            // turn log on
+
 
 WARNING:
 It is recommended to run the engine on an discrete GPU,
