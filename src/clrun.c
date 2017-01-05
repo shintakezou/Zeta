@@ -301,6 +301,31 @@ bool cl_init_device(char *kernelname)
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT3_Buffer)\n");
     return false;
   }
+
+  GLOBAL_Killers_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE,
+                                    sizeof(Move) * totalWorkUnits * MAXPLY,
+                                    NULL, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_Killers_Buffer)\n");
+    return false;
+  }
+
+  GLOBAL_Counters_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE,
+                                    sizeof(Move) * totalWorkUnits * 64 * 64,
+                                    NULL, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_Counters_Buffer)\n");
+    return false;
+  }
+
   return true;
 }
 // write OpenCL memory buffers, called every search run
@@ -478,6 +503,30 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT3_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_Killers_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_Killers_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_Counters_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_Counters_Buffer)\n");
     return false;
   }
   i++;
@@ -882,6 +931,20 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT3_Buffer)\n");
+		return false; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_Killers_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Killers_Buffer)\n");
+		return false; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_Counters_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counters_Buffer)\n");
 		return false; 
 	}
 
