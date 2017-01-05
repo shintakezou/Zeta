@@ -1468,8 +1468,6 @@ __kernel void alphabeta_gpu(
   __private Bitboard board[7]; 
 
   // iterative search var stack
-  __local bool localQS[MAXPLY];
-  __local bool localRootKic[MAXPLY];
   __local s32 localDepth[MAXPLY];
   __local Score localAlphaBetaScores[MAXPLY*2];
   __local s32 localTodoIndex[MAXPLY];
@@ -1501,7 +1499,6 @@ __kernel void alphabeta_gpu(
   bool stm;
 
   Square sqking;
-  Square sqfrom;
   Square sqto;
   Square sqcpt;   
   Square sqep;
@@ -1850,7 +1847,6 @@ __kernel void alphabeta_gpu(
         }
       }
       lscore = -INFMOVESCORE;
-      localQS[sd] = qs;
       // #################################
       // ####     alphabeta flow x1    ###
       // #################################
@@ -1898,6 +1894,7 @@ __kernel void alphabeta_gpu(
               localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
             ) 
       {
+
         sd--;
         ply--;
         stm = !stm; // switch site to move
@@ -1907,6 +1904,7 @@ __kernel void alphabeta_gpu(
                   localCrHistory[sd], 
                   localHashHistory[sd]
                 );
+
         if (sd<1)  // this is the end
             break;        
 
@@ -1930,13 +1928,11 @@ __kernel void alphabeta_gpu(
           }
           if (score>=localAlphaBetaScores[sd*2+BETA]&&!ISINF(score))
             flag = FAILHIGH;
-          // nodecounter
-          COUNTERS[gid*64+0]++;
           // ###################################
           // ####     save to hash table    ####
           // ###################################
           // save to hash table
-          if (!localQS[sd]&&flag>FAILLOW) // not in qsearch
+          if (sd<=localDepth[sd]&&flag>FAILLOW) // not in qsearch
           {
             tmpmove = board[QBBHASH]&(ttindex-1);
             move  = JUSTMOVE(localMoveHistory[sd]);
@@ -1967,13 +1963,15 @@ __kernel void alphabeta_gpu(
               TT3[tmpmove].depth     = (u8)(localDepth[sd]-sd);
             }
           }
-          if (!localQS[sd]&&flag==FAILHIGH&&GETPCPT(move)==PNONE)
+          if (sd<=localDepth[sd]&&flag==FAILHIGH&&GETPCPT(move)==PNONE)
           {
             // save killer move
             Killers[gid*MAXPLY+sd] = move;
             // save counter move
             Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])] = JUSTMOVE(move);
           }
+          // nodecounter
+          COUNTERS[gid*64+0]++;
         } // end scoring x1
         barrier(CLK_LOCAL_MEM_FENCE);
       } // end while movedown loop
@@ -2044,10 +2042,8 @@ __kernel void alphabeta_gpu(
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      sqfrom = (stm)?lid:FLIPFLOP(lid);
-      sqto = (stm)?sqto:FLIPFLOP(sqto);
-      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+sqto]+EvalControl[sqto];
-      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+sqfrom]+EvalControl[sqfrom];
+      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
       tmpmscore = tmpmscore*10000+n*64+lid;
@@ -2104,7 +2100,6 @@ __kernel void alphabeta_gpu(
       localHashHistory[sd]  = board[QBBHASH];
       HashHistory[gid*MAXGAMEPLY+ply+ply_init] = board[QBBHASH];
       localTodoIndex[sd]++;
-      localRootKic[sd] = rootkic;
     }
 
     // domove x64
