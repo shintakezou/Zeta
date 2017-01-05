@@ -2054,9 +2054,8 @@ __kernel void alphabeta_gpu(
       // check counter move heuristic
       if (JUSTMOVE(countermove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = EvalPieceValues[QUEEN]+1; // score as highest quiet move
+        tmpmscore = EvalPieceValues[QUEEN]+1; // score as second highest quiet move
         tmpmscore = tmpmscore*10000+n*64+lid;
-        COUNTERS[gid*64+3]++;      
       }
       // check killer move heuristic
       if (JUSTMOVE(killermove)==JUSTMOVE(tmpmove))
@@ -2067,8 +2066,7 @@ __kernel void alphabeta_gpu(
       // check tt move
       if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
       {
-//        COUNTERS[gid*64+3]++;      
-        tmpmscore = INFMOVESCORE-100;
+        tmpmscore = INFMOVESCORE-100; // score as highest move
       }
      // ignore moves already searched
       if (tmpmscore>=localMoveIndexScore[sd])
@@ -2088,8 +2086,8 @@ __kernel void alphabeta_gpu(
       lmove = move;
       localMoveIndexScore[sd] = mscore;
       // TT hit counter
-//      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
-//        COUNTERS[gid*64+3]++;      
+      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
+        COUNTERS[gid*64+3]++;      
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
