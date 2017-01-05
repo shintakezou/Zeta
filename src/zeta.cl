@@ -1995,8 +1995,9 @@ __kernel void alphabeta_gpu(
     // ################################
     // ####  load from hash table  ####
     // ################################
-    Move countermove = Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])];
+    // get killer move and counter move
     Move killermove = Killers[gid*MAXPLY+sd];
+    Move countermove = Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])];
     // load ttmove from hash table, up to 3 slots
     Move ttmove = MOVENONE;
     move = board[QBBHASH]&(ttindex-1);
