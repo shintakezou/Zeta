@@ -1468,6 +1468,7 @@ __kernel void alphabeta_gpu(
   __private Bitboard board[7]; 
 
   // iterative search var stack
+  __local bool localExt[MAXPLY];
   __local s32 localDepth[MAXPLY];
   __local Score localAlphaBetaScores[MAXPLY*2];
   __local s32 localTodoIndex[MAXPLY];
@@ -1597,12 +1598,8 @@ __kernel void alphabeta_gpu(
       bbAttacks = BBEMPTY;
       bbCheckers  = BBEMPTY;
     }
-
     bbPinned = BBEMPTY;
     bbChecked = BBEMPTY;
-
-    n = 0;
-    qs = (sd>localDepth[sd])?true:false; // enter quiescence search?
 
     bbBlockers  = board[1]|board[2]|board[3];
     bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
@@ -1672,15 +1669,11 @@ __kernel void alphabeta_gpu(
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
     bbMask  = AttackTables[n*64+lid];
     bbMoves = (kic==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
-    // verify non captures
-    bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
-    bbMoves|= (kic==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
 
     // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
     if (kic!=stm)
       atom_or(&bbAttacks, bbMoves);
-
     // get king checkers
     if (bbMoves&SETMASKBB(sqking))
     {
@@ -1688,9 +1681,24 @@ __kernel void alphabeta_gpu(
       atom_or(&bbCheckers, SETMASKBB(lid));
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-
-
     rootkic = (bbCheckers)?true:false;
+    // depth extension, checks and pawn promo
+    if(lid==0&&
+      (
+        rootkic
+       ||
+        (GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN&&GETPTYPE(GETPTO(board[QBBLAST]))==QUEEN))
+      )
+    {
+      localDepth[sd]++;
+      localExt[sd] = true;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    qs = (sd>localDepth[sd])?true:false; // enter quiescence search?
+
+    // verify non captures
+    bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
+    bbMoves|= (kic==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
 
     // extract only own moves
     bbMoves = (kic==stm)?bbMoves:BBEMPTY;
