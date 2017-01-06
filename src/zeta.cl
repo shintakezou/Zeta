@@ -126,6 +126,7 @@ typedef struct
 #define BBEMPTY             0x0000000000000000UL
 #define BBFULL              0xFFFFFFFFFFFFFFFFUL
 #define MOVENONE            0x0000000000000000UL
+#define NULLMOVE            0x0000000000000041UL
 #define HASHNONE            0x0000000000000000UL
 #define CRNONE              0x0000000000000000UL
 #define SCORENONE           0x0000000000000000UL
@@ -454,6 +455,15 @@ void domove(Bitboard *board, Move move)
   if (move==MOVENONE)
     return;
 
+  // check for nullmove
+  if (move==NULLMOVE)
+  {
+    // color flipping
+    board[QBBHASH] ^= 0x1UL;
+    board[QBBLAST] = NULLMOVE|(CMMOVE&board[QBBLAST]);
+    return;
+  }
+
   // increase half move clock
   hmc++;
 
@@ -570,7 +580,7 @@ void domove(Bitboard *board, Move move)
   }
 
   // color flipping
-  board[QBBHASH] ^= 0x1;
+  board[QBBHASH] ^= 0x1UL;
 
   // store hmc   
   move = SETHMC(move, hmc);
@@ -598,6 +608,10 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   board[QBBPMVD] = cr;
   // restore hash
   board[QBBHASH] = hash;
+
+  // check for nullmove
+  if (move==NULLMOVE)
+    return;
 
   // unset square capture, square to
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
@@ -1469,6 +1483,9 @@ __kernel void alphabeta_gpu(
 
   // iterative search var stack
   __local bool localExt[MAXPLY];
+  __local bool localQS[MAXPLY];
+  __local bool localRootKic[MAXPLY];
+  __local bool localNullMoveSearch[MAXPLY];
   __local s32 localDepth[MAXPLY];
   __local Score localAlphaBetaScores[MAXPLY*2];
   __local s32 localTodoIndex[MAXPLY];
@@ -1562,6 +1579,9 @@ __kernel void alphabeta_gpu(
     localCrHistory[0]               = BBEMPTY;
     localHashHistory[0]             = HASHNONE;
     localDepth[0]                   = search_depth;
+    localNullMoveSearch[0]          = false;
+    localQS[0]                      = false;
+    localRootKic[0]                 = false;
     localAlphaBetaScores[sd*2+ALPHA]=-INF;
     localAlphaBetaScores[sd*2+BETA] = INF;
     localMoveCounter[sd]            = 0;
@@ -1571,6 +1591,9 @@ __kernel void alphabeta_gpu(
     localCrHistory[sd]              = BBEMPTY;
     localHashHistory[sd]            = BBEMPTY;
     localDepth[sd]                  = search_depth;
+    localNullMoveSearch[sd]         = false;
+    localQS[sd]                     = false;
+    localRootKic[sd]                = false;
 
     // zeroed on hosts
 //    COUNTERS[gid*64+0]              = 0;              // movecount, return
@@ -1597,6 +1620,7 @@ __kernel void alphabeta_gpu(
       lmove = MOVENONE;
       bbAttacks = BBEMPTY;
       bbCheckers  = BBEMPTY;
+      localExt[sd] = false;
     }
     bbPinned = BBEMPTY;
     bbChecked = BBEMPTY;
@@ -1693,8 +1717,13 @@ __kernel void alphabeta_gpu(
       localDepth[sd]++;
       localExt[sd] = true;
     }
+    if (lid==0)
+    {
+      localRootKic[sd] = rootkic;
+      localQS[sd] = (sd>localDepth[sd])?true:false;
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
-    qs = (sd>localDepth[sd])?true:false; // enter quiescence search?
+    qs = localQS[sd]; // enter quiescence search?
 
     // verify non captures
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
@@ -1923,7 +1952,12 @@ __kernel void alphabeta_gpu(
         {
           u8 flag = FAILLOW;
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
-          if (score>localAlphaBetaScores[sd*2+ALPHA]&&!ISINF(score))
+
+          // nullmove hack, avoid alpha setting
+          if (JUSTMOVE(localMoveHistory[sd])==NULLMOVE&&score<localAlphaBetaScores[sd*2+BETA])
+            score = localAlphaBetaScores[sd*2+ALPHA];
+
+          if (score>localAlphaBetaScores[sd*2+ALPHA])
           {
             localAlphaBetaScores[sd*2+ALPHA]=score;
             // get bestmove, TODO: via upcoming hashtable, collect PV
@@ -1934,13 +1968,13 @@ __kernel void alphabeta_gpu(
             }
             flag = EXACTSCORE;
           }
-          if (score>=localAlphaBetaScores[sd*2+BETA]&&!ISINF(score))
+          if (score>=localAlphaBetaScores[sd*2+BETA])
             flag = FAILHIGH;
           // ###################################
           // ####     save to hash table    ####
           // ###################################
           // save to hash table
-          if (sd<=localDepth[sd]&&flag>FAILLOW) // not in qsearch
+          if (!localQS[sd]&&flag>FAILLOW&&!localNullMoveSearch[sd]) // not in qsearch
           {
             tmpmove = board[QBBHASH]&(ttindex-1);
             move  = JUSTMOVE(localMoveHistory[sd]);
@@ -1971,7 +2005,7 @@ __kernel void alphabeta_gpu(
               TT3[tmpmove].depth     = (u8)(localDepth[sd]-sd);
             }
           }
-          if (sd<=localDepth[sd]&&flag==FAILHIGH&&GETPCPT(move)==PNONE)
+          if (!localQS[sd]&&flag==FAILHIGH&&GETPCPT(move)==PNONE&&!localNullMoveSearch[sd])
           {
             // save killer move
             Killers[gid*MAXPLY+sd] = move;
@@ -2071,9 +2105,9 @@ __kernel void alphabeta_gpu(
       // check tt move
       if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = INFMOVESCORE-100; // score as highest move
+        tmpmscore = INFMOVESCORE-200; // score as second highest move
       }
-     // ignore moves already searched
+      // ignore moves already searched
       if (tmpmscore>=localMoveIndexScore[sd])
         continue;
       // get move with highest score
@@ -2081,6 +2115,19 @@ __kernel void alphabeta_gpu(
         continue;
       mscore = tmpmscore;
       move = tmpmove;
+    }
+    // hack for Nullmove
+    if (lid==0
+        &&!localQS[sd]
+        &&localMoveIndexScore[sd]==INFMOVESCORE
+        &&!localNullMoveSearch[sd]
+        &&!localRootKic[sd]
+        &&!localExt[sd]
+        &&localDepth[sd]>=2
+        )
+    {
+      move = NULLMOVE;
+      mscore = INFMOVESCORE-100; // score as highest move
     }
     // get sorted next move and store to local memory
     atom_max(&lscore, mscore);
@@ -2091,8 +2138,8 @@ __kernel void alphabeta_gpu(
       lmove = move;
       localMoveIndexScore[sd] = mscore;
       // TT hit counter
-      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
-        COUNTERS[gid*64+3]++;      
+//      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
+//        COUNTERS[gid*64+3]++;      
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
@@ -2102,7 +2149,8 @@ __kernel void alphabeta_gpu(
     if (lid==0)
     {
       // clear move from bb moves
-      globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
+      if (lmove!=NULLMOVE&&lmove!=MOVENONE)
+        globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
       // set history
       localMoveHistory[sd]  = lmove;
       localCrHistory[sd]    = board[QBBPMVD];
@@ -2126,6 +2174,17 @@ __kernel void alphabeta_gpu(
       localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
       localMoveIndexScore[sd]           = INFMOVESCORE;
       localDepth[sd]                    = localDepth[sd-1];
+      localNullMoveSearch[sd]           = localNullMoveSearch[sd-1];
+      // set values and alpha beta window for nullmove search
+      if (lmove==NULLMOVE)
+      {
+        localTodoIndex[sd]--;
+        localNullMoveSearch[sd]           = true;
+        localDepth[sd]                   -= 2;
+        localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
+        localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+BETA]+1;
+        COUNTERS[gid*64+3]++;      
+      }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
