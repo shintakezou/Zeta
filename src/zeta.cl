@@ -2010,7 +2010,7 @@ __kernel void alphabeta_gpu(
             // save killer move
             Killers[gid*MAXPLY+sd] = move;
             // save counter move
-            Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])] = JUSTMOVE(move);
+            Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])] = move;
           }
           // nodecounter
           COUNTERS[gid*64+0]++;
@@ -2089,18 +2089,17 @@ __kernel void alphabeta_gpu(
       tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
-      tmpmscore = tmpmscore*10000+n*64+lid;
+      tmpmscore = tmpmscore*10000+lid*64+n;
       // check counter move heuristic
       if (JUSTMOVE(countermove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = EvalPieceValues[QUEEN]+1; // score as second highest quiet move
-        tmpmscore = tmpmscore*10000+n*64+lid;
+        tmpmscore = EvalPieceValues[QUEEN]+1; // score as highest quiet move
+        tmpmscore = tmpmscore*10000+lid*64+n;
       }
       // check killer move heuristic
       if (JUSTMOVE(killermove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = EvalPieceValues[QUEEN]+2; // score as highest quiet move
-        tmpmscore = tmpmscore*10000+n*64+lid;
+        tmpmscore = INFMOVESCORE-300; // score as third highest move
       }
       // check tt move
       if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
