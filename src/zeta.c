@@ -1921,7 +1921,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
-    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY* sizeof(Hash));
+    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY * sizeof(Hash));
   }
 
   if (xboard_mode==false)
@@ -2063,7 +2063,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
-    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY*sizeof(Hash));
+    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY * sizeof(Hash));
   }
   // inits
   if (!cl_init_objects())
@@ -2758,8 +2758,6 @@ int main(int argc, char* argv[])
         bool kic = squareunderattack(BOARD, !STM, getkingpos(BOARD,STM));
         MOVECOUNT = 0;
         start = get_time();
-
-        HashHistory[PLY] = BOARD[QBBHASH];
 
         // check bounds
         if (PLY>=MAXGAMEPLY)

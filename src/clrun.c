@@ -219,7 +219,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_HASHHISTORY_Buffer = clCreateBuffer(
                             			     context, 
                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(Hash) * totalWorkUnits*MAXGAMEPLY,
+                                       sizeof(Hash) * totalWorkUnits * MAXGAMEPLY,
                                        GLOBAL_HASHHISTORY, 
                                        &status);
   if(status!=CL_SUCCESS) 
@@ -371,7 +371,7 @@ bool cl_init_objects() {
                                 GLOBAL_HASHHISTORY_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(Hash) * totalWorkUnits*MAXGAMEPLY,
+                                sizeof(Hash) * totalWorkUnits * MAXGAMEPLY,
                                 GLOBAL_HASHHISTORY, 
                                 0,
                                 NULL,
@@ -551,7 +551,7 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
                           (void *)&PLY);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (PLY)\n");
+    print_debug((char *)"Error: Setting kernel argument. (ply_init)\n");
     return false;
   }
   i++;
@@ -745,7 +745,7 @@ bool cl_run_perft(bool stm, s32 depth)
                           (void *)&PLY);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (PLY)\n");
+    print_debug((char *)"Error: Setting kernel argument. (ply_init)\n");
     return false;
   }
   i++;
