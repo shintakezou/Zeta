@@ -2110,13 +2110,13 @@ __kernel void alphabeta_gpu(
       // check counter move heuristic
       if (JUSTMOVE(countermove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+10); // score as second highest quiet move
+        tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+100); // score as second highest quiet move
         tmpmscore = tmpmscore*10000+(63-lid)*64+n;
       }
       // check killer move heuristic
       if (JUSTMOVE(killermove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+20); // score as highest quiet move
+        tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+200); // score as highest quiet move
         tmpmscore = tmpmscore*10000+(63-lid)*64+n;
       }
       // check tt move
@@ -2155,8 +2155,8 @@ __kernel void alphabeta_gpu(
       lmove = move;
       localMoveIndexScore[sd] = mscore;
       // TT hit counter
-//      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
-//        COUNTERS[gid*64+3]++;      
+      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
+        COUNTERS[gid*64+3]++;      
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
@@ -2202,7 +2202,6 @@ __kernel void alphabeta_gpu(
         localDepth[sd]                   -= 2;
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
         localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+BETA]+1;
-        COUNTERS[gid*64+3]++;      
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
