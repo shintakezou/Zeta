@@ -302,27 +302,27 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  GLOBAL_Killers_Buffer = clCreateBuffer(
+  GLOBAL_Killer_Buffer = clCreateBuffer(
                         		        context, 
-                                    CL_MEM_READ_WRITE,
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                     sizeof(Move) * totalWorkUnits * MAXPLY,
-                                    NULL, 
+                                    KILLERZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_Killers_Buffer)\n");
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_Killer_Buffer)\n");
     return false;
   }
 
-  GLOBAL_Counters_Buffer = clCreateBuffer(
+  GLOBAL_Counter_Buffer = clCreateBuffer(
                         		        context, 
-                                    CL_MEM_READ_WRITE,
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                     sizeof(Move) * totalWorkUnits * 64 * 64,
-                                    NULL, 
+                                    COUNTERZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_Counters_Buffer)\n");
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_Counter_Buffer)\n");
     return false;
   }
 
@@ -511,10 +511,10 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_Killers_Buffer);
+                          (void *)&GLOBAL_Killer_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_Killers_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_Killer_Buffer)\n");
     return false;
   }
   i++;
@@ -523,10 +523,10 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_Counters_Buffer);
+                          (void *)&GLOBAL_Counter_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_Counters_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_Counter_Buffer)\n");
     return false;
   }
   i++;
@@ -934,17 +934,17 @@ bool cl_release_device() {
 		return false; 
 	}
 
-	status = clReleaseMemObject(GLOBAL_Killers_Buffer);
+	status = clReleaseMemObject(GLOBAL_Killer_Buffer);
   if(status!=CL_SUCCESS)
 	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Killers_Buffer)\n");
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Killer_Buffer)\n");
 		return false; 
 	}
 
-	status = clReleaseMemObject(GLOBAL_Counters_Buffer);
+	status = clReleaseMemObject(GLOBAL_Counter_Buffer);
   if(status!=CL_SUCCESS)
 	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counters_Buffer)\n");
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counter_Buffer)\n");
 		return false; 
 	}
 
