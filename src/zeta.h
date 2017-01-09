@@ -44,6 +44,7 @@ extern u64 MaxNodes;
 extern u64 ABNODECOUNT;
 extern Bitboard *GLOBAL_BOARD;
 extern u64 *COUNTERS;
+extern u64 *COUNTERSZEROED;
 extern Move *GLOBAL_HASHHISTORY;
 extern Bitboard bbInBetween[64*64];
 extern Bitboard bbLine[64*64];

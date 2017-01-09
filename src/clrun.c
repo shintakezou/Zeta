@@ -196,7 +196,7 @@ bool cl_init_device(char *kernelname)
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                     sizeof(u64) * totalWorkUnits * 64,
-                                    COUNTERS, 
+                                    COUNTERSZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
   { 
@@ -355,7 +355,7 @@ bool cl_init_objects() {
                                 CL_TRUE,
                                 0,
                                 sizeof(cl_ulong) * totalWorkUnits * 64,
-                                COUNTERS, 
+                                COUNTERSZEROED, 
                                 0,
                                 NULL,
                                 NULL);

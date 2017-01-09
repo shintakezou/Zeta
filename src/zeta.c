@@ -106,6 +106,7 @@ Bitboard *GLOBAL_BOARD = NULL;
 // transposition hash table
 TTE *TT = NULL;
 u64 *COUNTERS = NULL;
+u64 *COUNTERSZEROED = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
 // functions 
 Score perft(Bitboard *board, bool stm, s32 depth);
@@ -1582,6 +1583,17 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
+  COUNTERSZEROED = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
+  if (COUNTERSZEROED==NULL)
+  {
+    fprintf(stdout, "memory alloc, COUNTERSZEROED, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, COUNTERSZEROED, failed\n");
+    }
+    return false;
+  }
   GLOBAL_HASHHISTORY = (Hash*)malloc((totalWorkUnits*MAXGAMEPLY) * sizeof (Hash));
   if (GLOBAL_HASHHISTORY==NULL)
   {
@@ -1850,9 +1862,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   // init board
   memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // reset counters
-  if (COUNTERS)
-    free(COUNTERS);
-  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
+  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
@@ -1904,20 +1914,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 
   // init board
   memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
-  // clear counters
-  if (COUNTERS)
-    free(COUNTERS);
-  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
-  if (COUNTERS==NULL)
-  {
-    fprintf(stdout, "memory alloc, COUNTERS, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, COUNTERS, failed\n");
-    }
-    exit(EXIT_FAILURE);
-  }
+  // reset counters
+  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
@@ -2045,26 +2043,14 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
 
   // init board
   memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
-  // clear counters
-  if (COUNTERS)
-    free(COUNTERS);
-  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
-  if (COUNTERS==NULL)
-  {
-    fprintf(stdout, "memory alloc, COUNTERS, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, COUNTERS, failed\n");
-    }
-    exit(EXIT_FAILURE);
-  }
-  start = get_time();
+  // reset counters
+  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY * sizeof(Hash));
   }
+  start = get_time();
   // inits
   if (!cl_init_objects())
   {
