@@ -68,10 +68,10 @@ typedef struct
 #define MOVEDOWN        2
 #define EXIT            3
 // iterative search modes
-#define SEARCH          0
-#define NULLMOVESEARCH  1
-#define LMRSEARCH       2
-#define IIDSEARCH       3
+#define SEARCH          1
+#define NULLMOVESEARCH  2
+#define LMRSEARCH       4
+#define IIDSEARCH       8
 // defaults
 #define VERSION "099a"
 // quad bitboard array index definition
@@ -1713,8 +1713,13 @@ __kernel void alphabeta_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     rootkic = (bbCheckers)?true:false;
-    // depth extension, checks and pawn promo
-    if (lid==0&&!localQS[sd]&&(rootkic||(GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN&&GETPTYPE(GETPTO(board[QBBLAST]))==QUEEN)))
+    // depth extension
+    if (lid==0&&!localQS[sd]&&
+        (
+          rootkic
+//        ||(GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN&&GETPTYPE(GETPTO(board[QBBLAST]))==QUEEN)
+        )
+       )
     {
       localDepth[sd]++;
       localExt[sd] = true;
@@ -1778,25 +1783,31 @@ __kernel void alphabeta_gpu(
     // TODO: speedup
     // gen castle moves queenside
     tmpb = (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
-    // rook present
-    bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
-    // check for empty squares
-    bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
-    // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
-    // store move
-    bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
+    if (tmpb)
+    {
+      // rook present
+      bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+      // check for empty squares
+      bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
+      // check for king and empty squares in check
+      bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
+      // store move
+      bbMoves |= (bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
+    }
 
     // gen castle moves kingside
     tmpb =  (lid==sqking&&!qs&&(board[QBBPMVD]&SMCRALL)&&((stm&&(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK))))?true:false;
-    // rook present
-    bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
-    // check for empty squares
-    bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
-    // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
-    // store move
-    bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
+    if (tmpb)
+    {
+      // rook present
+      bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+      // check for empty squares
+      bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
+      // check for king and empty squares in check
+      bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
+      // store move
+      bbMoves |= (bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
+    }
 
     // store move bitboards in global memory for movepicker
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
@@ -1938,6 +1949,7 @@ __kernel void alphabeta_gpu(
         sd--;
         ply--;
         stm = !stm; // switch site to move
+
         undomove( board, 
                   localMoveHistory[sd],
                   localMoveHistory[sd-1],
@@ -2106,18 +2118,18 @@ __kernel void alphabeta_gpu(
       tmpmscore-= (MoveScore)(EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))]);
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?(MoveScore)(EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]):tmpmscore;
-      tmpmscore = tmpmscore*10000+(63-lid)*64+n;
+      tmpmscore = tmpmscore*10000+lid*64+n;
       // check counter move heuristic
       if (JUSTMOVE(countermove)==JUSTMOVE(tmpmove))
       {
         tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+100); // score as second highest quiet move
-        tmpmscore = tmpmscore*10000+(63-lid)*64+n;
+        tmpmscore = tmpmscore*10000+lid*64+n;
       }
       // check killer move heuristic
       if (JUSTMOVE(killermove)==JUSTMOVE(tmpmove))
       {
         tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+200); // score as highest quiet move
-        tmpmscore = tmpmscore*10000+(63-lid)*64+n;
+        tmpmscore = tmpmscore*10000+lid*64+n;
       }
       // check tt move
       if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
@@ -2140,10 +2152,10 @@ __kernel void alphabeta_gpu(
         &&!localQS[sd]
         &&!localRootKic[sd]
         &&!localExt[sd]
-        &&(localDepth[sd]-sd)>=4
+        &&(localDepth[sd]-sd)>=3 // do not enter qsearch after nullmove
         )
     {
-      move = NULLMOVE|(SMHMC&board[QBBLAST]);
+      move = NULLMOVE;
       mscore = INFMOVESCORE-100; // score as highest move
     }
     // get sorted next move and store to local memory
