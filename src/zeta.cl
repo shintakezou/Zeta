@@ -465,7 +465,7 @@ void domove(Bitboard *board, Move move)
   {
     // color flipping
     board[QBBHASH] ^= 0x1UL;
-    board[QBBLAST]  = move;
+    board[QBBLAST] = NULLMOVE;
     return;
   }
 
@@ -2168,7 +2168,6 @@ __kernel void alphabeta_gpu(
       // set history
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
-      localMoveHistory[sd]  = lmove;
       atom_inc(&localTodoIndex[sd]);
     }
 
@@ -2180,6 +2179,7 @@ __kernel void alphabeta_gpu(
 
     if (lid==0)
     {
+      localMoveHistory[sd-1]            = board[QBBLAST]; // considering hmc counter
       // set values for next depth
       localMoveHistory[sd]              = MOVENONE;
       localMoveCounter[sd]              = 0;
