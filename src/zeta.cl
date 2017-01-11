@@ -465,7 +465,7 @@ void domove(Bitboard *board, Move move)
   {
     // color flipping
     board[QBBHASH] ^= 0x1UL;
-    board[QBBLAST] = NULLMOVE|(SMHMC&board[QBBLAST]);
+    board[QBBLAST]  = move;
     return;
   }
 
@@ -603,16 +603,16 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   Bitboard bbTemp = BBEMPTY;
   Bitboard pcastle= PNONE;
 
-  // check for edges
-  if (JUSTMOVE(move)==MOVENONE)
-    return;
-
   // restore lastmove with hmc and cr
   board[QBBLAST] = lastmove;
   // restore castle rights. via piece moved flags
   board[QBBPMVD] = cr;
   // restore hash
   board[QBBHASH] = hash;
+
+  // check for edges
+  if (JUSTMOVE(move)==MOVENONE)
+    return;
 
   // check for nullmove
   if (JUSTMOVE(move)==NULLMOVE)
@@ -1450,9 +1450,6 @@ __kernel void perft_gpu(
     }
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
-//  COUNTERS[gid*64+1] += lscore;
-//  COUNTERS[gid*64+2] |= bbMoves^bbAttacks;
-// 36k, 88k 
 } // end kernel
 // alphabeta search on gpu, 64 threads in parallel on one chess position
 // move gen with pawn queen promo only
@@ -1466,8 +1463,8 @@ __kernel void alphabeta_gpu(
                             __global TTE *TT1,
                             __global TTE *TT2,
                             __global TTE *TT3,
-                            __global Move *Killers,
-                            __global Move *Counters,
+                            __global TTMove *Killers,
+                            __global TTMove *Counters,
                                const s32 stm_init,
                                const s32 ply_init,
                                const s32 search_depth,
@@ -1980,7 +1977,7 @@ __kernel void alphabeta_gpu(
           // ####     save to hash table    ####
           // ###################################
           // save to hash table
-          move  = localMoveHistory[sd];
+          move  = JUSTMOVE(localMoveHistory[sd]);
           if (
               !localQS[sd]
               &&flag>FAILLOW
@@ -2027,9 +2024,9 @@ __kernel void alphabeta_gpu(
              )
           {
             // save killer move
-            Killers[gid*MAXPLY+sd] = move;
+            Killers[gid*MAXPLY+sd] = (TTMove)move;
             // save counter move
-            Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])] = move;
+            Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])] = (TTMove)move;
           }
           // nodecounter
           COUNTERS[gid*64+0]++;
@@ -2057,8 +2054,8 @@ __kernel void alphabeta_gpu(
     // ####  load from hash table  ####
     // ################################
     // get killer move and counter move
-    Move killermove = Killers[gid*MAXPLY+sd];
-    Move countermove = Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])];
+    Move killermove = (Move)Killers[gid*MAXPLY+sd];
+    Move countermove = (Move)Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])];
     // load ttmove from hash table, up to 3 slots
     Move ttmove = MOVENONE;
     move = board[QBBHASH]&(ttindex-1);
@@ -2142,7 +2139,7 @@ __kernel void alphabeta_gpu(
         &&(localDepth[sd]-sd)>=3 // do not enter qsearch after nullmove
         )
     {
-      move = NULLMOVE;
+      move = NULLMOVE|(SMHMC&board[QBBLAST]);
       mscore = INFMOVESCORE-100; // score as highest move
     }
     // get sorted next move and store to local memory
