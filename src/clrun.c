@@ -305,7 +305,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_Killer_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(Move) * totalWorkUnits * MAXPLY,
+                                    sizeof(TTMove) * totalWorkUnits * MAXPLY,
                                     KILLERZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -317,7 +317,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_Counter_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(Move) * totalWorkUnits * 64 * 64,
+                                    sizeof(TTMove) * totalWorkUnits * 64 * 64,
                                     COUNTERZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 

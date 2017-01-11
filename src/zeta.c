@@ -107,8 +107,8 @@ Bitboard *GLOBAL_BOARD = NULL;
 TTE *TT = NULL;
 u64 *COUNTERS = NULL;
 u64 *COUNTERSZEROED = NULL;
-Move *KILLERZEROED = NULL;
-Move *COUNTERZEROED = NULL;
+TTMove *KILLERZEROED = NULL;
+TTMove *COUNTERZEROED = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
 // functions 
 Score perft(Bitboard *board, bool stm, s32 depth);
@@ -1596,7 +1596,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  KILLERZEROED = (u64*)calloc(totalWorkUnits*MAXPLY, sizeof(Move));
+  KILLERZEROED = (TTMove*)calloc(totalWorkUnits*MAXPLY, sizeof(TTMove));
   if (KILLERZEROED==NULL)
   {
     fprintf(stdout, "memory alloc, KILLERZEROED, failed\n");
@@ -1607,7 +1607,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  COUNTERZEROED = (u64*)calloc(totalWorkUnits*64*64, sizeof(Move));
+  COUNTERZEROED = (TTMove*)calloc(totalWorkUnits*64*64, sizeof(TTMove));
   if (COUNTERZEROED==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERZEROED, failed\n");
