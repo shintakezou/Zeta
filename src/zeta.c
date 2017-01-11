@@ -2558,7 +2558,7 @@ int main(int argc, char* argv[])
             }
           }
           // checkmate
-          else if (kic&&move==MOVENONE)
+          else if (kic&&JUSTMOVE(move)==MOVENONE)
           {
             if (STM)
             {
@@ -2580,7 +2580,7 @@ int main(int argc, char* argv[])
             }
           }
           // stalemate
-          else if (!kic&&move==MOVENONE)
+          else if (!kic&&JUSTMOVE(move)==MOVENONE)
           {
               fprintf(stdout, "result 1/2-1/2 { stalemate }\n");
               if (LogFile)
@@ -2819,7 +2819,7 @@ int main(int argc, char* argv[])
             }
           }
           // checkmate
-          else if (kic&&move==MOVENONE)
+          else if (kic&&JUSTMOVE(move)==MOVENONE)
           {
             if (STM)
             {
@@ -2841,7 +2841,7 @@ int main(int argc, char* argv[])
             }
           }
           // stalemate
-          else if (!kic&&move==MOVENONE)
+          else if (!kic&&JUSTMOVE(move)==MOVENONE)
           {
               fprintf(stdout, "result 1/2-1/2 { stalemate }\n");
               if (LogFile)

@@ -1948,6 +1948,10 @@ __kernel void alphabeta_gpu(
                   localHashHistory[sd]
                 );
 
+        // nodecounter
+        if (lid==0)
+          COUNTERS[gid*64+0]++;
+
         if (sd<1)  // this is the end
             break;        
 
@@ -2017,7 +2021,7 @@ __kernel void alphabeta_gpu(
               TT3[tmpmove].flag      = flag;
               TT3[tmpmove].depth     = (u8)(localDepth[sd]-sd);
             }
-          }
+          } // end save to hash table
           if (
               !localQS[sd]
               &&flag==FAILHIGH
@@ -2032,8 +2036,6 @@ __kernel void alphabeta_gpu(
             // save counter move
             Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])] = (TTMove)move;
           }
-          // nodecounter
-          COUNTERS[gid*64+0]++;
         } // end scoring x1
         barrier(CLK_LOCAL_MEM_FENCE);
       } // end while movedown loop
