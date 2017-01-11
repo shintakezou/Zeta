@@ -2155,15 +2155,15 @@ __kernel void alphabeta_gpu(
     {
       lmove = move;
       // TT hit counter
-//      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
-//        COUNTERS[gid*64+3]++;      
+      if (JUSTMOVE(ttmove)!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
+        COUNTERS[gid*64+3]++;      
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
     // ################################
-      if (JUSTMOVE(lmove)==MOVENONE)
-        COUNTERS[gid*64+3]++;      
+//      if (JUSTMOVE(lmove)==MOVENONE)
+//        COUNTERS[gid*64+3]++;      
     // move up in tree
     if (lid==0)
     {
