@@ -63,6 +63,7 @@ cl_mem	 GLOBAL_bbLine_Buffer;
 cl_mem   GLOBAL_TT1_Buffer;
 cl_mem   GLOBAL_TT2_Buffer;
 cl_mem   GLOBAL_TT3_Buffer;
+cl_mem   GLOBAL_TT4_Buffer;
 cl_mem   GLOBAL_Killer_Buffer;
 cl_mem   GLOBAL_Counter_Buffer;
 // OpenCL runtime objects

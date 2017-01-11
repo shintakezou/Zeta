@@ -272,7 +272,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  if (memory_slots<=1)
+  if (memory_slots<2)
     mem = 1;
 
   GLOBAL_TT2_Buffer = clCreateBuffer(
@@ -287,7 +287,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  if (memory_slots<=2)
+  if (memory_slots<3)
     mem = 1;
 
   GLOBAL_TT3_Buffer = clCreateBuffer(
@@ -299,6 +299,21 @@ bool cl_init_device(char *kernelname)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT3_Buffer)\n");
+    return false;
+  }
+
+  if (memory_slots<4)
+    mem = 1;
+
+  GLOBAL_TT4_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                    sizeof(TTE) * mem,
+                                    TT, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT4_Buffer)\n");
     return false;
   }
 
@@ -503,6 +518,18 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT3_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_TT4_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT4_Buffer)\n");
     return false;
   }
   i++;
@@ -931,6 +958,13 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT3_Buffer)\n");
+		return false; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_TT4_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT4_Buffer)\n");
 		return false; 
 	}
 

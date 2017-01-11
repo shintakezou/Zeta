@@ -1464,6 +1464,7 @@ __kernel void alphabeta_gpu(
                             __global TTE *TT1,
                             __global TTE *TT2,
                             __global TTE *TT3,
+                            __global TTE *TT4,
                             __global TTMove *Killers,
                             __global TTMove *Counters,
                                const s32 stm_init,
@@ -2021,6 +2022,14 @@ __kernel void alphabeta_gpu(
               TT3[tmpmove].flag      = flag;
               TT3[tmpmove].depth     = (u8)(localDepth[sd]-sd);
             }
+            else if (slots>=4&&(u8)(localDepth[sd]-sd)>=TT4[tmpmove].depth)
+            {
+              TT4[tmpmove].hash      = board[QBBHASH]^move;
+              TT4[tmpmove].bestmove  = (TTMove)move;
+              TT4[tmpmove].score     = (TTScore)score;
+              TT4[tmpmove].flag      = flag;
+              TT4[tmpmove].depth     = (u8)(localDepth[sd]-sd);
+            }
           } // end save to hash table
           if (
               !localQS[sd]
@@ -2071,6 +2080,8 @@ __kernel void alphabeta_gpu(
       ttmove = (Move)(JUSTMOVE(TT2[move].bestmove));
     else if (slots>=3&&TT3[move].hash==(board[QBBHASH]^((Move)TT3[move].bestmove&SMTTMOVE)))
       ttmove = (Move)(JUSTMOVE(TT3[move].bestmove));
+    else if (slots>=4&&TT4[move].hash==(board[QBBHASH]^((Move)TT4[move].bestmove&SMTTMOVE)))
+      ttmove = (Move)(JUSTMOVE(TT4[move].bestmove));
 
     n       = 0;
     move    = MOVENONE;
