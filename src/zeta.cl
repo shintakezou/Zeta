@@ -1813,7 +1813,7 @@ __kernel void alphabeta_gpu(
     // ####     evaluation x64      ###
     // ################################
     pfrom   = GETPIECE(board, lid);
-    color     = GETCOLOR(pfrom);
+    color   = GETCOLOR(pfrom);
     pfrom   = GETPTYPE(pfrom);
     bbBlockers = board[1]|board[2]|board[3];
     bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
