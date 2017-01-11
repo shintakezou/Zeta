@@ -1498,7 +1498,6 @@ __kernel void alphabeta_gpu(
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
-  __local MoveScore localMoveIndexScore[MAXPLY];
 
   __local Square sqchecker;
 
@@ -1579,7 +1578,6 @@ __kernel void alphabeta_gpu(
     localAlphaBetaScores[0*2+BETA]  = INF;
     localMoveCounter[0]             = 0;
     localTodoIndex[0]               = 0;
-    localMoveIndexScore[0]          = INFMOVESCORE;
     localMoveHistory[0]             = BOARD[QBBLAST];
     localCrHistory[0]               = BBEMPTY;
     localHashHistory[0]             = HASHNONE;
@@ -1592,7 +1590,6 @@ __kernel void alphabeta_gpu(
     localAlphaBetaScores[sd*2+BETA] = INF;
     localMoveCounter[sd]            = 0;
     localTodoIndex[sd]              = 0;
-    localMoveIndexScore[sd]         = INFMOVESCORE;
     localMoveHistory[sd]            = MOVENONE;
     localCrHistory[sd]              = BOARD[QBBPMVD];
     localHashHistory[sd]            = BOARD[QBBHASH];
@@ -1717,11 +1714,11 @@ __kernel void alphabeta_gpu(
     if (lid==0&&!localQS[sd]&&
         (
           rootkic
-//        ||(GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN&&GETPTYPE(GETPTO(board[QBBLAST]))==QUEEN)
+        ||(GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN&&GETPTYPE(GETPTO(board[QBBLAST]))==QUEEN)
         )
        )
     {
-      localDepth[sd]++;
+      atom_inc(&localDepth[sd]);
       localExt[sd] = true;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2136,9 +2133,6 @@ __kernel void alphabeta_gpu(
       {
         tmpmscore = INFMOVESCORE-200; // score as second highest move
       }
-      // ignore moves already searched
-      if (tmpmscore>=localMoveIndexScore[sd])
-        continue;
       // get move with highest score
       if (tmpmscore<mscore)
         continue;
@@ -2147,7 +2141,7 @@ __kernel void alphabeta_gpu(
     }
     // hack for nullmove
     if (lid==0
-        &&localMoveIndexScore[sd]==INFMOVESCORE
+        &&JUSTMOVE(localMoveHistory[sd])==MOVENONE
         &&localSearchMode[sd]==SEARCH
         &&!localQS[sd]
         &&!localRootKic[sd]
@@ -2165,25 +2159,27 @@ __kernel void alphabeta_gpu(
     if (tmpmscore==mscore)
     {
       lmove = move;
-      localMoveIndexScore[sd] = mscore;
       // TT hit counter
-      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
-        COUNTERS[gid*64+3]++;      
+//      if (ttmove!=MOVENONE&&JUSTMOVE(ttmove)==JUSTMOVE(move))
+//        COUNTERS[gid*64+3]++;      
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
     // ################################
+      if (JUSTMOVE(lmove)==MOVENONE)
+        COUNTERS[gid*64+3]++;      
     // move up in tree
     if (lid==0)
     {
       // clear move from bb moves
       if (JUSTMOVE(lmove)!=NULLMOVE&&JUSTMOVE(lmove)!=MOVENONE)
-        globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
+        atom_and(&globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)], CLRMASKBB(GETSQTO(lmove)));
       // set history
       localCrHistory[sd]    = board[QBBPMVD];
       localHashHistory[sd]  = board[QBBHASH];
-      localTodoIndex[sd]++;
+      localMoveHistory[sd]  = lmove;
+      atom_inc(&localTodoIndex[sd]);
     }
 
     // domove x64
@@ -2194,13 +2190,12 @@ __kernel void alphabeta_gpu(
 
     if (lid==0)
     {
-      localMoveHistory[sd-1]  = board[QBBLAST];
       // set values for next depth
+      localMoveHistory[sd]              = MOVENONE;
       localMoveCounter[sd]              = 0;
       localTodoIndex[sd]                = 0;
       localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
       localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-      localMoveIndexScore[sd]           = INFMOVESCORE;
       localDepth[sd]                    = localDepth[sd-1];
       localQS[sd]                       = localQS[sd-1];
       localExt[sd]                      = false;
@@ -2209,9 +2204,9 @@ __kernel void alphabeta_gpu(
       // set values and alpha beta window for nullmove search
       if (JUSTMOVE(lmove)==NULLMOVE)
       {
-        localTodoIndex[sd-1]--;
+        atom_dec(&localTodoIndex[sd-1]);
         localSearchMode[sd]               = NULLMOVESEARCH;
-        localDepth[sd]                   -= 2;
+        atom_sub(&localDepth[sd],2);
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
         localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+BETA]+1;
       }
