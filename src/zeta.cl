@@ -22,7 +22,7 @@
 // mandatory extensions
 #pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics        : enable
 #pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics    : enable
-//#pragma OPENCL EXTENSION cl_khr_int64_base_atomics              : enable
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics              : enable
 #pragma OPENCL EXTENSION cl_khr_int64_extended_atomics          : enable
 // deprecated
 //#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics       : enable
@@ -1014,7 +1014,6 @@ __kernel void perft_gpu(
   __local Move localMoveHistory[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
-  __local MoveScore localMoveIndexScore[MAXPLY];
 
   __local Square sqchecker;
 
@@ -1095,7 +1094,6 @@ __kernel void perft_gpu(
     localAlphaBetaScores[0*2+BETA]  = INF;
     localMoveCounter[0]             = 0;
     localTodoIndex[0]               = 0;
-    localMoveIndexScore[0]          = INFMOVESCORE;
     localMoveHistory[0]             = BOARD[QBBLAST];
     localCrHistory[0]               = BOARD[QBBPMVD];
     localHashHistory[0]             = BOARD[QBBHASH];
@@ -1103,7 +1101,6 @@ __kernel void perft_gpu(
     localAlphaBetaScores[sd*2+BETA] = INF;
     localMoveCounter[sd]            = 0;
     localTodoIndex[sd]              = 0;
-    localMoveIndexScore[sd]         = INFMOVESCORE;
     localMoveHistory[sd]            = MOVENONE;
     localCrHistory[sd]              = BBEMPTY;
     localHashHistory[sd]            = BBEMPTY;
@@ -1405,9 +1402,6 @@ __kernel void perft_gpu(
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
       tmpmscore = tmpmscore*10000+lid*64+n;
-      // ignore moves already searched
-      if (tmpmscore>=localMoveIndexScore[sd])
-        continue;
       // get move with highest score
       if (tmpmscore<=mscore)
         continue;
@@ -1422,7 +1416,6 @@ __kernel void perft_gpu(
     if (tmpmscore==mscore)
     {
       lmove = move;
-      localMoveIndexScore[sd] = mscore;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
@@ -1432,7 +1425,7 @@ __kernel void perft_gpu(
     if (lid==0)
     {
       // clear move from bb moves
-      globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)] &= CLRMASKBB(GETSQTO(lmove));
+      atom_and(&globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(lmove)], CLRMASKBB(GETSQTO(lmove)));
       // set historsy
       localMoveHistory[sd]  = lmove;
       localCrHistory[sd]    = board[QBBPMVD];
@@ -1449,11 +1442,11 @@ __kernel void perft_gpu(
     if (lid==0)
     {
       // set values for next depth
+      localMoveHistory[sd]              = MOVENONE;
       localMoveCounter[sd]              = 0;
       localTodoIndex[sd]                = 0;
       localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
       localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-      localMoveIndexScore[sd]           = INFMOVESCORE;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
