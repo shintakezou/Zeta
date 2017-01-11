@@ -1031,6 +1031,7 @@ __kernel void perft_gpu(
   const Square lid = (Square)get_local_id(2);
 
   bool tmpb;
+  bool color;
   bool kic;
   bool rootkic;
   bool qs;
@@ -1175,7 +1176,7 @@ __kernel void perft_gpu(
 
     // generate own moves and opposite attacks
     pfrom   = GETPIECE(board, lid);
-    kic     = GETCOLOR(pfrom);
+    color     = GETCOLOR(pfrom);
     // generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
     bbPro4  = (ulong4)(~bbBlockers);
@@ -1203,17 +1204,17 @@ __kernel void perft_gpu(
     // consider knights
     bbTemp  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbTemp;
     // verify captures
-    n       = (kic==stm)?(s32)stm:(s32)!stm;
+    n       = (color==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
     bbMask  = AttackTables[n*64+lid];
-    bbMoves = (kic==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    bbMoves = (color==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
     // verify non captures
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
-    bbMoves|= (kic==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+    bbMoves|= (color==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
 
     // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (kic!=stm)
+    if (color!=stm)
       atom_or(&bbAttacks, bbMoves);
 
     // get king checkers
@@ -1228,7 +1229,7 @@ __kernel void perft_gpu(
     rootkic = (bbCheckers)?true:false;
 
     // extract only own moves
-    bbMoves = (kic==stm)?bbMoves:BBEMPTY;
+    bbMoves = (color==stm)?bbMoves:BBEMPTY;
 
     n = count1s(bbCheckers);
 
@@ -1397,8 +1398,8 @@ __kernel void perft_gpu(
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
-      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
+      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLOP(sqto))]+EvalControl[((stm)?sqto:FLOP(sqto))];
+      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLOP(lid))]+EvalControl[((stm)?lid:FLOP(lid))];
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
       tmpmscore = tmpmscore*10000+lid*64+n;
@@ -1505,6 +1506,7 @@ __kernel void alphabeta_gpu(
   const Square lid = (Square)get_local_id(2);
 
   bool tmpb;
+  bool color;
   bool kic;
   bool rootkic;
   bool qs;
@@ -1654,7 +1656,7 @@ __kernel void alphabeta_gpu(
 
     // generate own moves and opposite attacks
     pfrom   = GETPIECE(board, lid);
-    kic     = GETCOLOR(pfrom);
+    color     = GETCOLOR(pfrom);
     // generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
     bbPro4  = (ulong4)(~bbBlockers);
@@ -1682,14 +1684,14 @@ __kernel void alphabeta_gpu(
     // consider knights
     bbTemp  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbTemp;
     // verify captures
-    n       = (kic==stm)?(s32)stm:(s32)!stm;
+    n       = (color==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
     bbMask  = AttackTables[n*64+lid];
-    bbMoves = (kic==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    bbMoves = (color==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
 
     // collect opp attacks
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (kic!=stm)
+    if (color!=stm)
       atom_or(&bbAttacks, bbMoves);
     // get king checkers
     if (bbMoves&SETMASKBB(sqking))
@@ -1717,10 +1719,10 @@ __kernel void alphabeta_gpu(
 
     // verify non captures
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
-    bbMoves|= (kic==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+    bbMoves|= (color==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
 
     // extract only own moves
-    bbMoves = (kic==stm)?bbMoves:BBEMPTY;
+    bbMoves = (color==stm)?bbMoves:BBEMPTY;
 
     n = count1s(bbCheckers);
 
@@ -1810,22 +1812,24 @@ __kernel void alphabeta_gpu(
     // ################################
     // ####     evaluation x64      ###
     // ################################
+    pfrom   = GETPIECE(board, lid);
+    color     = GETCOLOR(pfrom);
     pfrom   = GETPTYPE(pfrom);
     bbBlockers = board[1]|board[2]|board[3];
     bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
-    bbMe    =  (kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
-    bbOpp   = (!kic)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
+    bbMe    =  (color)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
+    bbOpp   = (!color)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
     score= 0;
     // piece bonus
-    score+= (pfrom!=PNONE)?(kic)?-10:10:0;
+    score+= (pfrom!=PNONE)?(color)?-10:10:0;
     // wood count
-    score+= (pfrom!=PNONE)?(kic)?-EvalPieceValues[pfrom]:EvalPieceValues[pfrom]:0;
+    score+= (pfrom!=PNONE)?(color)?-EvalPieceValues[pfrom]:EvalPieceValues[pfrom]:0;
     // piece square tables
-    score+= (pfrom!=PNONE)?(kic)?-EvalTable[pfrom*64+lid]:EvalTable[pfrom*64+FLIPFLOP(lid)]:0;
+    score+= (pfrom!=PNONE)?(color)?-EvalTable[pfrom*64+lid]:EvalTable[pfrom*64+FLOP(lid)]:0;
     // square control table
-    score+= (pfrom!=PNONE)?(kic)?-EvalControl[lid]:EvalControl[FLIPFLOP(lid)]:0;
+    score+= (pfrom!=PNONE)?(color)?-EvalControl[lid]:EvalControl[FLOP(lid)]:0;
     // simple pawn structure white
-    if (pfrom==PAWN&&kic==WHITE)
+    if (pfrom==PAWN&&color==WHITE)
     {
       // blocked
       score-=(GETRANK(lid)<RANK_8&&(bbOpp&SETMASKBB(lid+8)))?15:0;
@@ -1837,7 +1841,7 @@ __kernel void alphabeta_gpu(
         score-=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
     }
     // simple pawn structure black
-    if (pfrom==PAWN&&kic==BLACK)
+    if (pfrom==PAWN&&color==BLACK)
     {
       // blocked
       score+=(GETRANK(lid)>RANK_1&&(bbOpp&SETMASKBB(lid-8)))?15:0;
@@ -2070,7 +2074,6 @@ __kernel void alphabeta_gpu(
     move    = MOVENONE;
     mscore  = -INFMOVESCORE;
     pfrom   = GETPIECE(board, lid);
-
     // pick best move from bitboard
     while(bbMoves)
     {
@@ -2101,8 +2104,8 @@ __kernel void alphabeta_gpu(
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      tmpmscore = (MoveScore)(EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))]);
-      tmpmscore-= (MoveScore)(EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))]);
+      tmpmscore = (MoveScore)(EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLOP(sqto))]+EvalControl[((stm)?sqto:FLOP(sqto))]);
+      tmpmscore-= (MoveScore)(EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLOP(lid))]+EvalControl[((stm)?lid:FLOP(lid))]);
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?(MoveScore)(EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]):tmpmscore;
       tmpmscore = tmpmscore*10000+lid*64+n;
