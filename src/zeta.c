@@ -2276,11 +2276,13 @@ int main(int argc, char* argv[])
         break;
       case 6:
         // set user define platform
-        opencl_user_platform = atoi(argv[7]);
+        if (optarg)
+          opencl_user_platform = atoi(optarg);
        break;
       case 7:
         // set user define platform
-        opencl_user_device = atoi(argv[8]);
+        if (optarg)
+          opencl_user_device = atoi(optarg);
        break;
       case 8:
         cl_platform_list();
@@ -2290,10 +2292,9 @@ int main(int argc, char* argv[])
         cl_device_list();
         exit(EXIT_SUCCESS);
        break;
-      default:
+      default: /* '?' */
         print_help();
-        exit(EXIT_SUCCESS);
-        break;
+        exit(EXIT_FAILURE);
     }
   }
   // print engine info to console
