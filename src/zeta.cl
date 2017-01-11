@@ -2109,13 +2109,13 @@ __kernel void alphabeta_gpu(
       // check counter move heuristic
       if (JUSTMOVE(countermove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+100); // score as second highest quiet move
+        tmpmscore = (MoveScore)(200); // score as second highest quiet move
         tmpmscore = tmpmscore*10000+lid*64+n;
       }
       // check killer move heuristic
       if (JUSTMOVE(killermove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = (MoveScore)(EvalPieceValues[QUEEN]+200); // score as highest quiet move
+        tmpmscore = (MoveScore)(210); // score as highest quiet move
         tmpmscore = tmpmscore*10000+lid*64+n;
       }
       // check tt move
