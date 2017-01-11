@@ -2126,7 +2126,7 @@ __kernel void alphabeta_gpu(
       // check tt move
       if (JUSTMOVE(ttmove)==JUSTMOVE(tmpmove))
       {
-        tmpmscore = INFMOVESCORE-200; // score as second highest move
+        tmpmscore = INFMOVESCORE-300+lid; // score as second highest move
       }
       // get move with highest score
       if (tmpmscore<mscore)
