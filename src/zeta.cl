@@ -1998,7 +1998,7 @@ __kernel void alphabeta_gpu(
             tmpmove = board[QBBHASH]&(ttindex-1);
  
             // three memory slots, depth replace
-            if ((u8)(localDepth[sd]-sd)>=TT1[tmpmove].depth)
+            if (slots>=1&&(u8)(localDepth[sd]-sd)>=TT1[tmpmove].depth)
             {
               TT1[tmpmove].hash      = board[QBBHASH]^move;
               TT1[tmpmove].bestmove  = (TTMove)move;
@@ -2074,7 +2074,7 @@ __kernel void alphabeta_gpu(
     // load ttmove from hash table, up to 3 slots
     Move ttmove = MOVENONE;
     move = board[QBBHASH]&(ttindex-1);
-    if (TT1[move].hash==(board[QBBHASH]^((Move)TT1[move].bestmove&SMTTMOVE)))
+    if (slots>=1&&TT1[move].hash==(board[QBBHASH]^((Move)TT1[move].bestmove&SMTTMOVE)))
       ttmove = (Move)(JUSTMOVE(TT1[move].bestmove));
     else if (slots>=2&&TT2[move].hash==(board[QBBHASH]^((Move)TT2[move].bestmove&SMTTMOVE)))
       ttmove = (Move)(JUSTMOVE(TT2[move].bestmove));
