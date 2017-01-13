@@ -1398,8 +1398,8 @@ __kernel void perft_gpu(
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLOP(sqto))]+EvalControl[((stm)?sqto:FLOP(sqto))];
-      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLOP(lid))]+EvalControl[((stm)?lid:FLOP(lid))];
+      tmpmscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+      tmpmscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpmscore;
       tmpmscore = tmpmscore*10000+lid*64+n;
@@ -1826,9 +1826,9 @@ __kernel void alphabeta_gpu(
     // wood count
     score+= (pfrom!=PNONE)?(color)?-EvalPieceValues[pfrom]:EvalPieceValues[pfrom]:0;
     // piece square tables
-    score+= (pfrom!=PNONE)?(color)?-EvalTable[pfrom*64+lid]:EvalTable[pfrom*64+FLOP(lid)]:0;
+    score+= (pfrom!=PNONE)?(color)?-EvalTable[pfrom*64+lid]:EvalTable[pfrom*64+FLIPFLOP(lid)]:0;
     // square control table
-    score+= (pfrom!=PNONE)?(color)?-EvalControl[lid]:EvalControl[FLOP(lid)]:0;
+    score+= (pfrom!=PNONE)?(color)?-EvalControl[lid]:EvalControl[FLIPFLOP(lid)]:0;
     // simple pawn structure white
     if (pfrom==PAWN&&color==WHITE)
     {
@@ -2117,8 +2117,8 @@ __kernel void alphabeta_gpu(
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      tmpmscore = (MoveScore)(EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLOP(sqto))]+EvalControl[((stm)?sqto:FLOP(sqto))]);
-      tmpmscore-= (MoveScore)(EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLOP(lid))]+EvalControl[((stm)?lid:FLOP(lid))]);
+      tmpmscore = (MoveScore)(EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))]);
+      tmpmscore-= (MoveScore)(EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))]);
       // MVV-LVA
       tmpmscore = (pcpt!=PNONE)?(MoveScore)(EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]):tmpmscore;
       tmpmscore = tmpmscore*10000+lid*64+n;
