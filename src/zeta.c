@@ -2010,7 +2010,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     if (COUNTERS[0]<MaxNodes/totalWorkUnits)
     {
       score = (Score)COUNTERS[1];
-      bestmove = (Move)COUNTERS[2];
+      if (JUSTMOVE((Move)COUNTERS[2])!=MOVENONE)
+        bestmove = (Move)COUNTERS[2];
       bestscore = ISINF(score)?DRAWSCORE:score;
       // xboard mate scores
       xboard_score = bestscore;
