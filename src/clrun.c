@@ -255,10 +255,20 @@ bool cl_init_device(char *kernelname)
   // initialize transposition table
   ttbits = 0;
   u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
-  while ( mem >>= 1)   // get msb
-    ttbits++;
-  mem = 1ULL<<ttbits;   // get number of tt entries
-  ttbits=mem;
+  if (max_memory>0&&memory_slots>0)
+  {
+    mem = (max_memory*1024*1024)/(sizeof(TTE));
+
+    while ( mem >>= 1)   // get msb
+      ttbits++;
+    mem = 1ULL<<ttbits;   // get number of tt entries
+    ttbits=mem;
+  }
+  else
+    mem = 1;
+
+  if (max_memory<1||memory_slots<1)
+    mem = 1;
 
   GLOBAL_TT1_Buffer = clCreateBuffer(
                         		        context, 
@@ -272,7 +282,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  if (memory_slots<2)
+  if (max_memory<1||memory_slots<2)
     mem = 1;
 
   GLOBAL_TT2_Buffer = clCreateBuffer(
@@ -287,7 +297,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  if (memory_slots<3)
+  if (max_memory<1||memory_slots<3)
     mem = 1;
 
   GLOBAL_TT3_Buffer = clCreateBuffer(
@@ -302,7 +312,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  if (memory_slots<4)
+  if (max_memory<1||memory_slots<4)
     mem = 1;
 
   GLOBAL_TT4_Buffer = clCreateBuffer(

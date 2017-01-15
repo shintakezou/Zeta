@@ -621,19 +621,6 @@ static bool gameinits(void)
             MAXGAMEPLY);
     return false;
   }
-  // initialize transposition table
-  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
-  u64 ttbits = 0;
-  while ( mem >>= 1)   // get msb
-    ttbits++;
-  mem = 1ULL<<ttbits;   // get number of tt entries
-  ttbits=mem;
-  TT = (TTE *)calloc(mem,sizeof(TTE));
-  if (TT==NULL) 
-  {
-    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
-    return false;
-  }
   return true;
 }
 void release_gameinits()
@@ -642,7 +629,6 @@ void release_gameinits()
   free(MoveHistory);
   free(HashHistory);
   free(CRHistory);
-  free(TT);
 }
 void release_configinits()
 {
@@ -650,6 +636,7 @@ void release_configinits()
   free(GLOBAL_BOARD);
   free(COUNTERS);
   free(GLOBAL_HASHHISTORY);
+  free(TT);
 }
 void release_engineinits()
 {
@@ -1632,16 +1619,25 @@ bool read_and_init_config(char configfile[])
   // initialize transposition table
   u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
   u64 ttbits = 0;
-  while ( mem >>= 1)   // get msb
-    ttbits++;
-  mem = 1ULL<<ttbits;   // get number of tt entries
-  ttbits=mem;
+  if (max_memory>0&&memory_slots>0)
+  {
+    while ( mem >>= 1)   // get msb
+      ttbits++;
+    mem = 1ULL<<ttbits;   // get number of tt entries
+    ttbits=mem;
+  }
+  else
+  {
+    max_memory = 0;
+    memory_slots = 0;
+    mem = 1;
+  }
+
   if (TT!=NULL)
     free(TT);
   TT = (TTE*)calloc(mem,sizeof(TTE));
   if (TT==NULL)
     fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
-
 
   return true;
 }
