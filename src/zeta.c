@@ -636,7 +636,6 @@ void release_configinits()
   free(GLOBAL_BOARD);
   free(COUNTERS);
   free(GLOBAL_HASHHISTORY);
-  free(TT);
 }
 void release_engineinits()
 {
@@ -647,6 +646,7 @@ void release_engineinits()
   free(Line);
   free(Command);
   free(Fen);
+  free(TT);
 }
 void quitengine(s32 flag)
 {
@@ -1633,7 +1633,7 @@ bool read_and_init_config(char configfile[])
     mem = 1;
   }
 
-  if (TT!=NULL)
+  if (TT)
     free(TT);
   TT = (TTE*)calloc(mem,sizeof(TTE));
   if (TT==NULL)
