@@ -1870,7 +1870,7 @@ __kernel void alphabeta_vanilla_gpu(
       score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
       // draw by 3 fold repetition, x1
-      for (n=ply+ply_init-2;lid==0&&!qs&&n>=0&&n>=ply+ply_init-(s32)GETHMC(board[QBBLAST]);n-=2)
+      for (n=ply+ply_init-2;lid==0&&!qs&&sd>1&&n>=0&&n>=ply+ply_init-(s32)GETHMC(board[QBBLAST]);n-=2)
       {
         if (board[QBBHASH]==HashHistory[gid*MAXGAMEPLY+n])
         {
