@@ -2571,13 +2571,13 @@ __kernel void alphabeta_gpu(
       {
         move = board[QBBHASH]&(ttindex-1);
         score = -INF;
-        if (slots>=1&&TT1[move].hash==(board[QBBHASH]^((Move)TT1[move].bestmove&SMTTMOVE))&&(s32)TT1[move].depth>=localDepth[sd]&&TT1[move].flag>FAILLOW)
+        if (slots>=1&&TT1[move].hash==(board[QBBHASH]^((Move)TT1[move].bestmove&SMTTMOVE))&&(s32)TT1[move].depth>localDepth[sd]&&TT1[move].flag>FAILLOW)
           score = TT1[move].score;
-        else if (slots>=2&&TT2[move].hash==(board[QBBHASH]^((Move)TT2[move].bestmove&SMTTMOVE))&&(s32)TT2[move].depth>=localDepth[sd]&&TT2[move].flag>FAILLOW)
+        else if (slots>=2&&TT2[move].hash==(board[QBBHASH]^((Move)TT2[move].bestmove&SMTTMOVE))&&(s32)TT2[move].depth>localDepth[sd]&&TT2[move].flag>FAILLOW)
           score = TT2[move].score;
-        else if (slots>=3&&TT3[move].hash==(board[QBBHASH]^((Move)TT3[move].bestmove&SMTTMOVE))&&(s32)TT3[move].depth>=localDepth[sd]&&TT3[move].flag>FAILLOW)
+        else if (slots>=3&&TT3[move].hash==(board[QBBHASH]^((Move)TT3[move].bestmove&SMTTMOVE))&&(s32)TT3[move].depth>localDepth[sd]&&TT3[move].flag>FAILLOW)
           score = TT3[move].score;
-        else if (slots>=4&&TT4[move].hash==(board[QBBHASH]^((Move)TT4[move].bestmove&SMTTMOVE))&&(s32)TT4[move].depth>=localDepth[sd]&&TT4[move].flag>FAILLOW)
+        else if (slots>=4&&TT4[move].hash==(board[QBBHASH]^((Move)TT4[move].bestmove&SMTTMOVE))&&(s32)TT4[move].depth>localDepth[sd]&&TT4[move].flag>FAILLOW)
           score = TT4[move].score;
 
         
