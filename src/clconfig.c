@@ -926,7 +926,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
         fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
         fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-        fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+        fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
         fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
         fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
         fclose(Cfg);
@@ -1003,7 +1003,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
             fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
             fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-            fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+            fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
             fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
             fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
@@ -1057,7 +1057,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
             fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
             fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-            fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+            fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
             fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
             fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
@@ -1120,7 +1120,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
         fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
         fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-        fprintf(Cfg,"memory_slots => allocate n times max_memory on device, max is 3\n");
+        fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
         fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
         fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
         fclose(Cfg);
