@@ -2655,7 +2655,7 @@ __kernel void alphabeta_gpu(
 
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
-          // nullmove hack, avoid alpha setting
+          // nullmove hack, avoid alpha setting, set score only when score >= beta
           if (JUSTMOVE(localMoveHistory[sd])==NULLMOVE&&score<localAlphaBetaScores[sd*2+BETA])
             score = localAlphaBetaScores[sd*2+ALPHA];  // ignore score
 
@@ -2691,8 +2691,8 @@ __kernel void alphabeta_gpu(
           if (
               !localQS[sd]
               &&flag>FAILLOW
-//              &&!(localSearchMode[sd+1]&SCOREBOUNDS)
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
+//              &&!(localSearchMode[sd+1]&SCOREBOUNDS)
 //              &&!(localSearchMode[sd]&LMRSEARCH)
               &&JUSTMOVE(move)!=NULLMOVE
               &&JUSTMOVE(move)!=MOVENONE
@@ -2739,8 +2739,8 @@ __kernel void alphabeta_gpu(
               !localQS[sd]
               &&flag==FAILHIGH
               &&GETPCPT(move)==PNONE
-//              &&!(localSearchMode[sd+1]&SCOREBOUNDS)
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
+//              &&!(localSearchMode[sd+1]&SCOREBOUNDS)
 //              &&!(localSearchMode[sd]&LMRSEARCH)
               &&JUSTMOVE(move)!=NULLMOVE
               &&JUSTMOVE(move)!=MOVENONE
