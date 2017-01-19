@@ -216,6 +216,8 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
+// is score a draw, unprecise
+#define ISDRAW(val) ((val==DRAWSCORE)?true:false)
 // is score a mate in n
 #define ISMATE(val) \
 ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)

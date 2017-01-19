@@ -237,10 +237,12 @@ enum Squares
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8
 };
+// is score a draw, unprecise
+#define ISDRAW(val)   ((val==DRAWSCORE)?true:false)
 // is score a mate in n
-#define ISMATE(val)           ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
+#define ISMATE(val)   ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
 // is score default inf
-#define ISINF(val)            (((val)==INF||(val)==-INF)?true:false)
+#define ISINF(val)    (((val)==INF||(val)==-INF)?true:false)
 // functions
 Score EvalMove(Move move);
 // rotate left based zobrist hashing
@@ -2567,7 +2569,7 @@ __kernel void alphabeta_gpu(
         localAlphaBetaScores[sd*2+ALPHA]=score; // fail soft
 //        localAlphaBetaScores[sd*2+ALPHA]=localAlphaBetaScores[sd*2+BETA]; // fail hard
 
-      // set alpha with tt score from hash table, TODO: fix it
+      // set alpha with score from hash table, TODO: unstable, fix it
 /*
       if (mode==MOVEUP
           &&!qs
@@ -2588,7 +2590,11 @@ __kernel void alphabeta_gpu(
           score = (Score)TT4[move].score;
 
       
-        if (!ISINF(score)&&!ISMATE(score)&&!ISMATE(localAlphaBetaScores[sd*2+ALPHA]))
+        if (!ISINF(score)
+            &&!ISDRAW(score)
+            &&!ISMATE(score)
+            &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
+           )
         {
           if (score>localAlphaBetaScores[sd*2+ALPHA])
             localAlphaBetaScores[sd*2+ALPHA] = score;
@@ -2728,6 +2734,7 @@ __kernel void alphabeta_gpu(
               TT4[tmpmove].depth     = (u8)(localDepth[sd]);
             }
           } // end save to hash table
+          // save killer and counter move heuristic for quiet moves
           if (
               !localQS[sd]
               &&flag==FAILHIGH
@@ -2774,7 +2781,7 @@ __kernel void alphabeta_gpu(
       // get killer move and counter move
       Move killermove = (Move)Killers[gid*MAXPLY+sd];
       Move countermove = (Move)Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])];
-      // load ttmove from hash table, up to 3 slots
+      // load ttmove from hash table, up to 4 slots
       Move ttmove = MOVENONE;
       move = board[QBBHASH]&(ttindex-1);
       if (slots>=1&&TT1[move].hash==(board[QBBHASH]^((Move)TT1[move].bestmove&SMTTMOVE)))
@@ -2886,8 +2893,6 @@ __kernel void alphabeta_gpu(
     // ################################
     if (lid==0&&mode==MOVEUP&&!lmrr)
     {
-  //      if (JUSTMOVE(lmove)==MOVENONE)
-  //        COUNTERS[gid*64+3]++;      
       // move up in tree
       // clear move from bb moves
       if (JUSTMOVE(lmove)!=NULLMOVE&&JUSTMOVE(lmove)!=MOVENONE)
@@ -2932,7 +2937,7 @@ __kernel void alphabeta_gpu(
       if (!lmrr
           &&sd>2
           &&JUSTMOVE(lmove)!=NULLMOVE
-          &&GETPCPT(lmove)==PNONE
+          &&GETPCPT(lmove)==PNONE     // quiet moves only
           &&!localQS[sd-1]
           &&!localRootKic[sd-1]
           &&!localExt[sd-1]
@@ -2942,6 +2947,7 @@ __kernel void alphabeta_gpu(
           &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
          )
       {
+        // no check giving moves
         if(!squareunderattack(board, !stm, getkingsq(board, stm)))
         {
           atom_dec(&localDepth[sd]);
