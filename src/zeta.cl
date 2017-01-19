@@ -1858,6 +1858,10 @@ __kernel void alphabeta_vanilla_gpu(
     atom_add(&lscore, (MoveScore)score);
     barrier(CLK_LOCAL_MEM_FENCE);
 
+    // check edge, checkmate or stalemate on root position
+    if (sd==1&&movecount==0)
+      break;
+
     // #################################
     // ####   negmax and scoring x1  ###
     // #################################

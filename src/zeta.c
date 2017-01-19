@@ -2014,7 +2014,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
       xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
       // print xboard output
-      if (xboard_post==true||xboard_mode == false)
+      if ((xboard_post==true||xboard_mode == false)&&(JUSTMOVE((Move)COUNTERS[2])!=MOVENONE))
       {
         fprintf(stdout,"%i %i %i %" PRIu64 " ", idf, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
         if (LogFile)
