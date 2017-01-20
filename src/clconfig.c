@@ -916,7 +916,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: %i; // max 3 \n", (s32)slots);
+        fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
@@ -993,7 +993,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-            fprintf(Cfg, "memory_slots: 1; // max %i \n", (s32)slots);
+            fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots,(s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
             fprintf(Cfg,"\n");
@@ -1047,7 +1047,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-            fprintf(Cfg, "memory_slots: 1; // max %i \n", (s32)slots);
+            fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
             fprintf(Cfg,"\n");
@@ -1110,7 +1110,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: 1; // max %i \n", (s32)slots);
+        fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
@@ -1133,7 +1133,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "nodes_per_second: %i;\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(stdout, "memory_slots: 1; // max %i\n", (s32)slots);
+        fprintf(stdout, "memory_slots: %i; // max %i\n", (s32)slots, (s32)slots);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
         fprintf(stdout, "opencl_device_id: %i;\n\n",j);
         if (LogFile)
@@ -1147,7 +1147,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "nodes_per_second: %i;\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-          fprintf(LogFile, "memory_slots: 1; // max %i\n", (s32)slots);
+          fprintf(LogFile, "memory_slots: %i; // max %i\n", (s32)slots, (s32)slots);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
           fprintf(LogFile, "opencl_device_id: %i;\n\n",j);
         }
