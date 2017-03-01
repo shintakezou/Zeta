@@ -511,48 +511,54 @@ void domove(Bitboard *board, Move move)
 
   // handle castle rook, queenside
   pcastle = (move&MOVEISCRQ)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  // unset castle rook from
-  bbTemp  = (move&MOVEISCRQ)?CLRMASKBB(sqfrom-4):BBFULL;
-  board[QBBBLACK] &= bbTemp;
-  board[QBBP1]    &= bbTemp;
-  board[QBBP2]    &= bbTemp;
-  board[QBBP3]    &= bbTemp;
-  // set castle rook to
-  board[QBBBLACK] |= (pcastle&0x1)<<(sqto+1);
-  board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqto+1);
-  board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto+1);
-  board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto+1);
-  // set piece moved flag, for castle rights
-  board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom-4):BBEMPTY;
-  // reset halfmoveclok
-  hmc = (pcastle)?0:hmc;  // castle move
-  // do hash increment, clear old rook
-  zobrist = Zobrist[GETCOLOR(pcastle)*6+ROOK-1];
-  board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom-4))|(zobrist>>(64-(sqfrom-4)))):BBEMPTY;
-  // do hash increment, set new rook
-  board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto+1))|(zobrist>>(64-(sqto+1)))):BBEMPTY;
+  if (pcastle)
+  {
+    // unset castle rook from
+    bbTemp  = CLRMASKBB(sqfrom-4);
+    board[QBBBLACK] &= bbTemp;
+    board[QBBP1]    &= bbTemp;
+    board[QBBP2]    &= bbTemp;
+    board[QBBP3]    &= bbTemp;
+    // set castle rook to
+    board[QBBBLACK] |= (pcastle&0x1)<<(sqto+1);
+    board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqto+1);
+    board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto+1);
+    board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto+1);
+    // set piece moved flag, for castle rights
+    board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom-4):BBEMPTY;
+    // reset halfmoveclok
+    hmc = (pcastle)?0:hmc;  // castle move
+    // do hash increment, clear old rook
+    zobrist = Zobrist[GETCOLOR(pcastle)*6+ROOK-1];
+    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom-4))|(zobrist>>(64-(sqfrom-4)))):BBEMPTY;
+    // do hash increment, set new rook
+    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto+1))|(zobrist>>(64-(sqto+1)))):BBEMPTY;
+  }
 
   // handle castle rook, kingside
   pcastle = (move&MOVEISCRK)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  // unset castle rook from
-  bbTemp  = (move&MOVEISCRK)?CLRMASKBB(sqfrom+3):BBFULL;
-  board[QBBBLACK] &= bbTemp;
-  board[QBBP1]    &= bbTemp;
-  board[QBBP2]    &= bbTemp;
-  board[QBBP3]    &= bbTemp;
-  // set castle rook to
-  board[QBBBLACK] |= (pcastle&0x1)<<(sqto-1);
-  board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqto-1);
-  board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto-1);
-  board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto-1);
-  // set piece moved flag, for castle rights
-  board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom+3):BBEMPTY;
-  // reset halfmoveclok
-  hmc = (pcastle)?0:hmc;  // castle move
-  // do hash increment, clear old rook
-  board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom+3))|(zobrist>>(64-(sqfrom+3)))):BBEMPTY;
-  // do hash increment, set new rook
-  board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto-1))|(zobrist>>(64-(sqto-1)))):BBEMPTY;
+  if (pcastle)
+  {
+    // unset castle rook from
+    bbTemp  = CLRMASKBB(sqfrom+3);
+    board[QBBBLACK] &= bbTemp;
+    board[QBBP1]    &= bbTemp;
+    board[QBBP2]    &= bbTemp;
+    board[QBBP3]    &= bbTemp;
+    // set castle rook to
+    board[QBBBLACK] |= (pcastle&0x1)<<(sqto-1);
+    board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqto-1);
+    board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto-1);
+    board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto-1);
+    // set piece moved flag, for castle rights
+    board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom+3):BBEMPTY;
+    // reset halfmoveclok
+    hmc = (pcastle)?0:hmc;  // castle move
+    // do hash increment, clear old rook
+    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom+3))|(zobrist>>(64-(sqfrom+3)))):BBEMPTY;
+    // do hash increment, set new rook
+    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto-1))|(zobrist>>(64-(sqto-1)))):BBEMPTY;
+  }
 
   // handle halfmove clock
   hmc = (GETPTYPE(pfrom)==PAWN)?0:hmc;   // pawn move
@@ -640,30 +646,36 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
 
   // handle castle rook, queenside
   pcastle = (move&MOVEISCRQ)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  // unset castle rook to
-  bbTemp  = (move&MOVEISCRQ)?CLRMASKBB(sqto+1):BBFULL;
-  board[QBBBLACK] &= bbTemp;
-  board[QBBP1]    &= bbTemp;
-  board[QBBP2]    &= bbTemp;
-  board[QBBP3]    &= bbTemp;
-  // restore castle rook from
-  board[QBBBLACK] |= (pcastle&0x1)<<(sqfrom-4);
-  board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqfrom-4);
-  board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqfrom-4);
-  board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom-4);
+  if (pcastle)
+  {
+    // unset castle rook to
+    bbTemp  = CLRMASKBB(sqto+1);
+    board[QBBBLACK] &= bbTemp;
+    board[QBBP1]    &= bbTemp;
+    board[QBBP2]    &= bbTemp;
+    board[QBBP3]    &= bbTemp;
+    // restore castle rook from
+    board[QBBBLACK] |= (pcastle&0x1)<<(sqfrom-4);
+    board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqfrom-4);
+    board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqfrom-4);
+    board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom-4);
+  }
   // handle castle rook, kingside
   pcastle = (move&MOVEISCRK)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
-  // restore castle rook from
-  bbTemp  = (move&MOVEISCRK)?CLRMASKBB(sqto-1):BBFULL;
-  board[QBBBLACK] &= bbTemp;
-  board[QBBP1]    &= bbTemp;
-  board[QBBP2]    &= bbTemp;
-  board[QBBP3]    &= bbTemp;
-  // set castle rook to
-  board[QBBBLACK] |= (pcastle&0x1)<<(sqfrom+3);
-  board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqfrom+3);
-  board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqfrom+3);
-  board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom+3);
+  if (pcastle)
+  {
+    // restore castle rook from
+    bbTemp  = CLRMASKBB(sqto-1);
+    board[QBBBLACK] &= bbTemp;
+    board[QBBP1]    &= bbTemp;
+    board[QBBP2]    &= bbTemp;
+    board[QBBP3]    &= bbTemp;
+    // set castle rook to
+    board[QBBBLACK] |= (pcastle&0x1)<<(sqfrom+3);
+    board[QBBP1]    |= ((pcastle>>1)&0x1)<<(sqfrom+3);
+    board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqfrom+3);
+    board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom+3);
+  }
 }
 Hash computehash(__private Bitboard *board, bool stm)
 {
