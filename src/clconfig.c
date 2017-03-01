@@ -37,7 +37,7 @@ bool cl_guess_config(bool extreme)
   cl_int status = 0;
   size_t paramSize;
   char *deviceName;
-  char *ExtensionsValue;
+//  char *ExtensionsValue;
   size_t wgsize;
   cl_device_id *devices;
   u32 i,j,k;
@@ -398,11 +398,14 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememglobal/1024/1024);
           }
 
-          slots = devicememglobal/devicememalloc;
+          slots = devicememglobal/(devicememalloc);
           slots = (slots>MAXSLOTS)?MAXSLOTS:slots;
         }
 
         // check for needed device extensions
+// local and global 32 bit functions faster on newer device...
+// chose portability vs speed...
+/*
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_EXTENSIONS,
                                   0,
@@ -438,6 +441,7 @@ bool cl_guess_config(bool extreme)
           }
           failed |= true;
         } 
+*/
 /*
         // global in32 atomics
         if ((!strstr(ExtensionsValue, "cl_khr_global_int32_base_atomics")))
@@ -478,7 +482,9 @@ bool cl_guess_config(bool extreme)
           }
         }
 */
+        
         // local 32 bit atomics
+/*
         if ((!strstr(ExtensionsValue, "cl_khr_local_int32_base_atomics")))
         {
           fprintf(stdout, "#> Error: Device extension cl_khr_local_int32_base_atomics not supported.\n");
@@ -518,8 +524,9 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_local_int32_extended_atomics is supported.\n");
           }
         }
-
+*/
         // 64 bit atomics, removed, Nvidia >= sm35 does not report the support
+/*
         if ((!strstr(ExtensionsValue, "cl_khr_int64_extended_atomics")))
         {
           fprintf(stdout, "#> Unknown: Device extension cl_khr_int64_extended_atomics maybe not supported.\n");
@@ -539,7 +546,7 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_int64_extended_atomics is supported.\n");
           }
         }
-
+*/
         // get work group size
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_MAX_WORK_GROUP_SIZE,
@@ -911,35 +918,43 @@ bool cl_guess_config(bool extreme)
 
         Cfg = fopen("config.tmp", "w");
         fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
-        fprintf(Cfg, "threadsX: %i;\n", deviceunits);
-        fprintf(Cfg, "threadsY: %i;\n", warpmulti);
+        fprintf(Cfg, "threadsX: %i;\n", 1);
+        fprintf(Cfg, "threadsY: %i;\n", 1);
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
+        fprintf(Cfg, "memory_slots: %i; // max %i \n", 1, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
-        fprintf(Cfg,"config options explained:\n");
-        fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-        fprintf(Cfg,"threadsY => multiplier for threadsX\n");
-        fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
-        fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
-        fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-        fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
-        fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
+        fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
+        fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
+        fprintf(Cfg,"threadsY\n");
+        fprintf(Cfg,"Multiplier for threadsX,");
+        fprintf(Cfg,"run multiple Work-Groups per Compute Unit");
+        fprintf(Cfg,"nodes_per_second\n");
+        fprintf(Cfg,"nps of device, for initial time control\n");
+        fprintf(Cfg,"max_nodes\n");
+        fprintf(Cfg,"search n nodes only, 0 is inf\n");
+        fprintf(Cfg,"max_memory\n");
+        fprintf(Cfg,"Allocate n MB of memory on device for hash table\n");
+        fprintf(Cfg,"memory_slots\n");
+        fprintf(Cfg,"Allocate n times max_memory on device\n");
+        fprintf(Cfg,"opencl_platform_id\n");
+        fprintf(Cfg,"Which OpenCL platform to use\n");
+        fprintf(Cfg,"opencl_device_id\n\n");
+        fprintf(Cfg,"Which OpenCL device to use\n\n");
         fclose(Cfg);
 
         fprintf(stdout, "#\n");
-        fprintf(stdout, "#> ### Running NPS-Benchmark for minimal config on device, this can last %i seconds... \n", benchsec);
+        fprintf(stdout, "#> ### Running NPS-Benchmark for minimal config on device, this can last about %i seconds... \n", benchsec);
         fprintf(stdout, "#\n");
         if (LogFile)
         {
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
           fprintdate(LogFile);
-          fprintf(LogFile, "#> ### Running NPS-Benchmark for minimal config on device, this can last %i seconds... \n", benchsec);
+          fprintf(LogFile, "#> ### Running NPS-Benchmark for minimal config on device, this can last about %i seconds... \n", benchsec);
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
         }
@@ -971,14 +986,14 @@ bool cl_guess_config(bool extreme)
         {
 
           fprintf(stdout, "#\n");
-          fprintf(stdout, "#> ### Running NPS-Benchmark for best config, this can last some minutes... \n");
+          fprintf(stdout, "#> ### Running NPS-Benchmark for best config, this can last about some minutes... \n");
           fprintf(stdout, "#\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#\n");
             fprintdate(LogFile);
-            fprintf(LogFile, "#> ### Running NPS-Benchmark for best config, this can last some minutes... \n");
+            fprintf(LogFile, "#> ### Running NPS-Benchmark for best config, this can last about some minutes... \n");
             fprintdate(LogFile);
             fprintf(LogFile, "#\n");
           }
@@ -997,26 +1012,17 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
             fprintf(Cfg,"\n");
-            fprintf(Cfg,"config options explained:\n");
-            fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-            fprintf(Cfg,"threadsY => multiplier for threadsX\n");
-            fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
-            fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
-            fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-            fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
-            fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-            fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
 
             fprintf(stdout, "#\n");
-            fprintf(stdout, "#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
+            fprintf(stdout, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
             fprintf(stdout, "#\n");
             if (LogFile)
             {
               fprintdate(LogFile);
               fprintf(LogFile, "#\n");
               fprintdate(LogFile);
-              fprintf(LogFile, "#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
+              fprintf(LogFile, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
               fprintdate(LogFile);
               fprintf(LogFile, "#\n");
             }
@@ -1051,26 +1057,17 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
             fprintf(Cfg,"\n");
-            fprintf(Cfg,"config options explained:\n");
-            fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-            fprintf(Cfg,"threadsY => multiplier for threadsX\n");
-            fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
-            fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
-            fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-            fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
-            fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-            fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
             fclose(Cfg);
 
             fprintf(stdout, "#\n");
-            fprintf(stdout, "#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
+            fprintf(stdout, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
             fprintf(stdout, "#\n");
             if (LogFile)
             {
               fprintdate(LogFile);
               fprintf(LogFile, "#\n");
               fprintdate(LogFile);
-              fprintf(LogFile, "#> ### Running NPS-Benchmark for threadsY on device, this can last %i seconds... \n", benchsec);
+              fprintf(LogFile, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
               fprintdate(LogFile);
               fprintf(LogFile, "#\n");
             }
@@ -1105,35 +1102,44 @@ bool cl_guess_config(bool extreme)
 
         Cfg = fopen(confignamefile, "w");
         fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
-        fprintf(Cfg, "threadsX: %i;\n", deviceunits);
-        fprintf(Cfg, "threadsY: %i;\n", warpmulti);
+        fprintf(Cfg, "threadsX: %i;\n", (!extreme)?1:deviceunits);
+        fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:warpmulti);
         fprintf(Cfg, "nodes_per_second: %i;\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
+        fprintf(Cfg, "memory_slots: %i; // max %i \n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
-        fprintf(Cfg,"config options explained:\n");
-        fprintf(Cfg,"threadsX => number of SIMD units or CPU cores\n");
-        fprintf(Cfg,"threadsY => multiplier for threadsX\n");
-        fprintf(Cfg,"nodes_per_second => nps of device, for time control\n");
-        fprintf(Cfg,"max_nodes => search n nodes, 0 is inf\n");
-        fprintf(Cfg,"max_memory => allocate n MB of memory on device for the hash table\n");
-        fprintf(Cfg,"memory_slots => allocate n times max_memory on device\n");
-        fprintf(Cfg,"opencl_platform_id => which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id => which OpenCL device to use\n\n");
+        fprintf(Cfg,"threadsX");
+        fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
+        fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
+        fprintf(Cfg,"threadsY\n");
+        fprintf(Cfg,"Multiplier for threadsX,");
+        fprintf(Cfg,"run multiple Work-Groups per Compute Unit");
+        fprintf(Cfg,"nodes_per_second\n");
+        fprintf(Cfg,"nps of device, for initial time control\n");
+        fprintf(Cfg,"max_nodes\n");
+        fprintf(Cfg,"search n nodes only, 0 is inf\n");
+        fprintf(Cfg,"max_memory\n");
+        fprintf(Cfg,"Allocate n MB of memory on device for hash table\n");
+        fprintf(Cfg,"memory_slots\n");
+        fprintf(Cfg,"Allocate n times max_memory on device\n");
+        fprintf(Cfg,"opencl_platform_id\n");
+        fprintf(Cfg,"Which OpenCL platform to use\n");
+        fprintf(Cfg,"opencl_device_id\n\n");
+        fprintf(Cfg,"Which OpenCL device to use\n\n");
         fclose(Cfg);
 
         fprintf(stdout, "#\n");
         fprintf(stdout, "#\n");
         fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
-        fprintf(stdout, "threadsX: %i;\n", deviceunits);
-        fprintf(stdout, "threadsY: %i;\n", warpmulti);
+        fprintf(stdout, "threadsX: %i;\n", (!extreme)?1:deviceunits);
+        fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:warpmulti);
         fprintf(stdout, "nodes_per_second: %i;\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-        fprintf(stdout, "memory_slots: %i; // max %i\n", (s32)slots, (s32)slots);
+        fprintf(stdout, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
         fprintf(stdout, "opencl_device_id: %i;\n\n",j);
         if (LogFile)
@@ -1142,22 +1148,25 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "#\n");
           fprintf(LogFile, "#\n");
           fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
-          fprintf(LogFile, "threadsX: %i;\n", deviceunits);
-          fprintf(LogFile, "threadsY: %i;\n", warpmulti);
+          fprintf(LogFile, "threadsX: %i;\n", (!extreme)?1:deviceunits);
+          fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:warpmulti);
           fprintf(LogFile, "nodes_per_second: %i;\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
-          fprintf(LogFile, "memory_slots: %i; // max %i\n", (s32)slots, (s32)slots);
+          fprintf(LogFile, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
           fprintf(LogFile, "opencl_device_id: %i;\n\n",j);
         }
 
         fprintf(stdout, "##### Above output was saved in file %s \n", confignamefile);
+        fprintf(stdout, "##### rename it to config.ini to let engine use it\n");
         fprintf(stdout, "#\n");
         if (LogFile)
         {
           fprintdate(LogFile);
           fprintf(LogFile, "##### Above output was saved in file %s \n", confignamefile);
+          fprintdate(LogFile);
+          fprintf(LogFile, "##### rename it to config.ini to let engine use it\n");
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
         }
