@@ -2986,20 +2986,21 @@ __kernel void alphabeta_gpu(
       tmpmove = MOVENONE;
       move = board[QBBHASH]&(ttindex-1);
       if (slots>=1&&TT1[move].hash==(board[QBBHASH]^((Move)TT1[move].bestmove&SMTTMOVE)))
-        tmpmove = (Move)(JUSTMOVE(TT1[move].bestmove));
+        tmpmove = (Move)(JUSTMOVEX(TT1[move].bestmove));
       else if (slots>=2&&TT2[move].hash==(board[QBBHASH]^((Move)TT2[move].bestmove&SMTTMOVE)))
-        tmpmove = (Move)(JUSTMOVE(TT2[move].bestmove));
+        tmpmove = (Move)(JUSTMOVEX(TT2[move].bestmove));
       else if (slots>=3&&TT3[move].hash==(board[QBBHASH]^((Move)TT3[move].bestmove&SMTTMOVE)))
-        tmpmove = (Move)(JUSTMOVE(TT3[move].bestmove));
+        tmpmove = (Move)(JUSTMOVEX(TT3[move].bestmove));
 
       // check for TTmove
       if (JUSTMOVE(tmpmove)!=MOVENONE)
       {
+        // check ttmove for sense...
         if (GETPFROM(tmpmove)==GETPIECE(board,(GETSQFROM(tmpmove)))
             &&GETPCPT(tmpmove)==GETPIECE(board,(GETSQCPT(tmpmove)))
             &&globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(tmpmove)]&SETMASKBB(GETSQTO(tmpmove)))  
         {
-          lmove = JUSTMOVE(tmpmove)|(SMHMC&board[QBBLAST]);;
+          lmove = tmpmove|(SMHMC&board[QBBLAST]);
           // TThits counter
           COUNTERS[gid*64+3]++;      
         }
