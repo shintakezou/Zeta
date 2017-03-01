@@ -2044,6 +2044,12 @@ __kernel void alphabeta_gpu_vanilla(
           {
             localAlphaBetaScores[sd*2+ALPHA]=score;
             flag = EXACTSCORE;
+            // collect bestmove and score
+            if (sd==1)
+            {
+              PV[0] = (u64)score;
+              PV[1] = localMoveHistory[sd];
+            }
           }
           if (score>=localAlphaBetaScores[sd*2+BETA])
             flag = FAILHIGH;
@@ -2227,6 +2233,9 @@ __kernel void alphabeta_gpu_vanilla(
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
   } // end main loop
+  // ################################
+  // ####      collect pv        ####
+  // ################################
   // collect pv for gui output
   if (gid==0&&lid==0)
   {
@@ -2260,17 +2269,23 @@ __kernel void alphabeta_gpu_vanilla(
         score = (Score)TT3[move].score;
       }
       
+      // PV[0] reserved for best rootmove colelcted during search
+      // PV[1] reserved for score
+
       // set score
-      if (n==0)
-        PV[n++] = (u64)score;
+      if (JUSTMOVE(tmpmove)!=MOVENONE&&n==0)
+        PV[n] = (u64)score;
+
+      n++;
 
       // set bestmove
-      PV[n++] = tmpmove;
+      if (JUSTMOVE(tmpmove)!=MOVENONE&&n>1)
+        PV[n] = tmpmove;
 
       if (JUSTMOVE(tmpmove)!=MOVENONE)
         domove(board, tmpmove);
 
-    }while(JUSTMOVE(tmpmove)!=MOVENONE&&n<1024&&n<=search_depth);
+    }while(JUSTMOVE(tmpmove)!=MOVENONE&&n<1024);
   } // end collect pv
 } // end kernel alphabeta_gpu_vanilla
 // alphabeta search on gpu
@@ -2879,6 +2894,12 @@ __kernel void alphabeta_gpu(
           {
             localAlphaBetaScores[sd*2+ALPHA]=score;
             flag = EXACTSCORE;
+            // collect bestmove and score
+            if (sd==1)
+            {
+              PV[0] = (u64)score;
+              PV[1] = localMoveHistory[sd];
+            }
           }
           if (score>=localAlphaBetaScores[sd*2+BETA])
             flag = FAILHIGH;
@@ -3214,17 +3235,23 @@ __kernel void alphabeta_gpu(
         score = (Score)TT3[move].score;
       }
       
+      // PV[0] reserved for best rootmove colelcted during search
+      // PV[1] reserved for score
+
       // set score
-      if (n==0)
-        PV[n++] = (u64)score;
+      if (JUSTMOVE(tmpmove)!=MOVENONE&&n==0)
+        PV[n] = (u64)score;
+
+      n++;
 
       // set bestmove
-      PV[n++] = tmpmove;
+      if (JUSTMOVE(tmpmove)!=MOVENONE&&n>1)
+        PV[n] = tmpmove;
 
       if (JUSTMOVE(tmpmove)!=MOVENONE)
         domove(board, tmpmove);
 
-    }while(JUSTMOVE(tmpmove)!=MOVENONE&&n<1024&&n<=search_depth);
+    }while(JUSTMOVE(tmpmove)!=MOVENONE&&n<1024);
   } // end collect pv
 } // end kernel alphabeta_gpu
 
