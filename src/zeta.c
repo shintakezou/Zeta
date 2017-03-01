@@ -107,6 +107,8 @@ Bitboard *GLOBAL_BOARD = NULL;
 TTE *TT = NULL;
 u64 *COUNTERS = NULL;
 u64 *COUNTERSZEROED = NULL;
+Move *PV = NULL;
+Move *PVZEROED = NULL;
 TTMove *KILLERZEROED = NULL;
 TTMove *COUNTERZEROED = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
@@ -1583,6 +1585,28 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
+  PV = (Move*)calloc(1024, sizeof(u64));
+  if (PV==NULL)
+  {
+    fprintf(stdout, "memory alloc, PV, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, PV, failed\n");
+    }
+    return false;
+  }
+  PVZEROED = (Move*)calloc(1024, sizeof(u64));
+  if (PVZEROED==NULL)
+  {
+    fprintf(stdout, "memory alloc, PVZEROED, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, PVZEROED, failed\n");
+    }
+    return false;
+  }
   KILLERZEROED = (TTMove*)calloc(totalWorkUnits*MAXPLY, sizeof(TTMove));
   if (KILLERZEROED==NULL)
   {
@@ -1995,16 +2019,16 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     // only if gpu search was not interrupted by maxnodes
     if (COUNTERS[0]<MaxNodes/totalWorkUnits)
     {
-      score = (Score)COUNTERS[1];
-      if (JUSTMOVE((Move)COUNTERS[2])!=MOVENONE)
-        bestmove = (Move)COUNTERS[2];
+      score = (Score)PV[0];
+      if (JUSTMOVE((Move)PV[1])!=MOVENONE)
+        bestmove = (Move)PV[1];
       bestscore = ISINF(score)?DRAWSCORE:score;
       // xboard mate scores
       xboard_score = bestscore;
       xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
       xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
       // print xboard output
-      if ((xboard_post==true||xboard_mode == false)&&(JUSTMOVE((Move)COUNTERS[2])!=MOVENONE))
+      if ((xboard_post==true||xboard_mode == false)&&(JUSTMOVE((Move)PV[1])!=MOVENONE))
       {
         fprintf(stdout,"%i %i %i %" PRIu64 " ", idf, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
         if (LogFile)
@@ -2012,12 +2036,26 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
           fprintdate(LogFile);
           fprintf(LogFile,"%i %i %i %" PRIu64 " ", idf, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
         }
-        printmovecan(bestmove);
+      
+        // print PV line
+        int i = 1;
+        do
+        { 
+          printmovecan(PV[i++]);
+          fprintf(stdout," ");
+          if (LogFile)
+            fprintf(LogFile, " ");
+
+        }while(JUSTMOVE(PV[i])!=MOVENONE&&i<1024&&i<=idf);
+
         fprintf(stdout,"\n");
         if (LogFile)
           fprintf(LogFile, "\n");
+
+        fflush(stdout);
+        if (LogFile)
+          fflush(LogFile);
       }
-      fflush(stdout);
     }
   } while (++idf<=depth&&elapsed*1000*2<MaxTime&&ABNODECOUNT*2<=MaxNodes&&ABNODECOUNT>=1&&idf<=MAXPLY);
 
@@ -2089,8 +2127,8 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     ABNODECOUNT+=   COUNTERS[i*64+0];
     TTHITS+=        COUNTERS[i*64+3];
   }
-  score = (Score)COUNTERS[1];
-  bestmove = (Move)COUNTERS[2];
+  score = (Score)PV[0];
+  bestmove = (Move)PV[1];
   bestscore = ISINF(score)?DRAWSCORE:score;
 
   // print cli output
