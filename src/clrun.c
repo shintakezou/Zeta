@@ -204,6 +204,18 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+  GLOBAL_PV_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                    sizeof(Move) * 1024,
+                                    PVZEROED, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_PV_Buffer)\n");
+    return false;
+  }
+
   GLOBAL_globalbbMoves_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE,
@@ -312,6 +324,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+/*
   if (max_memory<1||memory_slots<4)
     mem = 1;
 
@@ -326,6 +339,7 @@ bool cl_init_device(char *kernelname)
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT4_Buffer)\n");
     return false;
   }
+*/
 
   GLOBAL_Killer_Buffer = clCreateBuffer(
                         		        context, 
@@ -393,6 +407,23 @@ bool cl_init_objects() {
 
   status = clEnqueueWriteBuffer(
                                 commandQueue,
+                                GLOBAL_PV_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(Move) * 1024,
+                                PVZEROED, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_PV_Buffer)\n");
+    return false;
+  }
+
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
                                 GLOBAL_HASHHISTORY_Buffer,
                                 CL_TRUE,
                                 0,
@@ -444,6 +475,18 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_COUNTERS_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_PV_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_PV_Buffer)\n");
     return false;
   }
   i++;
@@ -532,6 +575,7 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   }
   i++;
 
+/*
   status = clSetKernelArg(
                           kernel, 
                           i, 
@@ -543,6 +587,7 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
     return false;
   }
   i++;
+*/
 
   status = clSetKernelArg(
                           kernel, 
@@ -892,6 +937,39 @@ bool cl_get_and_release_memory()
     return false;
   }
 
+  // copy PV buffer
+  status = clEnqueueReadBuffer(
+                                commandQueue,
+                                GLOBAL_PV_Buffer,
+                                CL_TRUE,
+                                0,
+                                1024 * sizeof(Move),
+                                PV,
+                                0,
+                                NULL,
+                                &events[1]);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_PV_Buffer)\n");
+    return false;
+  }
+  // wait for the read buffer to finish execution
+  status = clWaitForEvents(1, &events[1]);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for read buffer call to finish. (GLOBAL_PV_Buffer)\n");
+    return false;
+  }
+  status = clReleaseEvent(events[1]);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Release event object.(GLOBAL_PV_Buffer)\n");
+    return false;
+  }
+
+
+
 /* keep build program across game play
 
   status = clReleaseProgram(program);
@@ -919,6 +997,13 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_COUNTERS_Buffer)\n");
+    return false; 
+  }
+
+  status = clReleaseMemObject(GLOBAL_PV_Buffer);
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PV_Buffer)\n");
     return false; 
   }
 
@@ -971,12 +1056,14 @@ bool cl_release_device() {
 		return false; 
 	}
 
+/*
 	status = clReleaseMemObject(GLOBAL_TT4_Buffer);
   if(status!=CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT4_Buffer)\n");
 		return false; 
 	}
+*/
 
 	status = clReleaseMemObject(GLOBAL_Killer_Buffer);
   if(status!=CL_SUCCESS)
