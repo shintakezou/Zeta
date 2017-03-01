@@ -3056,6 +3056,19 @@ __kernel void alphabeta_gpu(
         tmpmscore = (pcpt!=PNONE)?(MoveScore)(EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]):tmpmscore;
         tmpmscore = tmpmscore*10000+lid*64+n;
 
+        // check counter move heuristic
+        if (JUSTMOVE(countermove)==JUSTMOVE(tmpmove)&&!promo)
+        {
+          tmpmscore = (MoveScore)(200); // score as second highest quiet move
+          tmpmscore = tmpmscore*10000+lid*64+n;
+        }
+        // check killer move heuristic
+        if (JUSTMOVE(killermove)==JUSTMOVE(tmpmove)&&!promo)
+        {
+          tmpmscore = (MoveScore)(210); // score as highest quiet move
+          tmpmscore = tmpmscore*10000+lid*64+n;
+        }
+
         // get move with highest score
         if (tmpmscore<mscore)
           continue;
