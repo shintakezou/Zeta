@@ -3165,6 +3165,9 @@ __kernel void alphabeta_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
   } // end main loop
+  // ################################
+  // ####      collect pv        ####
+  // ################################
   // collect pv for gui output
   if (gid==0&&lid==0)
   {
@@ -3211,3 +3214,4 @@ __kernel void alphabeta_gpu(
     }while(JUSTMOVE(tmpmove)!=MOVENONE&&n<1024&&n<=search_depth);
   } // end collect pv
 } // end kernel alphabeta_gpu
+
