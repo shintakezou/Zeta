@@ -3012,7 +3012,7 @@ __kernel void alphabeta_gpu(
           &&!localQS[sd]
           &&!localRootKic[sd]
           &&!localExt[sd]
-          &&localDepth[sd]>=5
+          &&localDepth[sd]>=4
           )
       {
         lmove = NULLMOVE|(SMHMC&board[QBBLAST]);
