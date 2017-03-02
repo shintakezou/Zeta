@@ -183,7 +183,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_BOARD_Buffer = clCreateBuffer(
                           			      context, 
                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                      sizeof(cl_ulong) * 7,
+                                      sizeof(Bitboard) * 8,
                                       GLOBAL_BOARD, 
                                       &status);
   if(status!=CL_SUCCESS) 
@@ -219,7 +219,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_globalbbMoves_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE,
-                                    sizeof(Move) * totalWorkUnits * MAXPLY * 64,
+                                    sizeof(Bitboard) * totalWorkUnits * MAXPLY * 64,
                                     NULL, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -376,7 +376,7 @@ bool cl_init_objects() {
                                 GLOBAL_BOARD_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(cl_ulong) * 7,
+                                sizeof(Bitboard) * 8,
                                 GLOBAL_BOARD, 
                                 0,
                                 NULL,
@@ -393,7 +393,7 @@ bool cl_init_objects() {
                                 GLOBAL_COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(cl_ulong) * totalWorkUnits * 64,
+                                sizeof(u64) * totalWorkUnits * 64,
                                 COUNTERSZEROED, 
                                 0,
                                 NULL,
@@ -912,7 +912,7 @@ bool cl_get_and_release_memory()
                                 GLOBAL_COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                totalWorkUnits * 64 * sizeof(cl_ulong),
+                                totalWorkUnits * 64 * sizeof(u64),
                                 COUNTERS,
                                 0,
                                 NULL,

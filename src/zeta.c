@@ -88,10 +88,11 @@ s32 PLY         = 0;      // engine specifix ply counter
 Move *MoveHistory;
 Hash *HashHistory;
 Hash *CRHistory;
+u64 *HMCHistory;
 // Quad Bitboard
 // based on http://chessprogramming.wikispaces.com/Quad-Bitboards
 // by Gerd Isenberg
-Bitboard BOARD[7];
+Bitboard BOARD[8];
 /* quad bitboard array index definition
   0   pieces white
   1   piece type first bit
@@ -100,6 +101,7 @@ Bitboard BOARD[7];
   4   piece moved flags, for castle rigths
   5   zobrist hash
   6   lastmove
+  7   half move clock
 */
 // for exchange with OpenCL device
 Bitboard *GLOBAL_BOARD = NULL;
@@ -623,6 +625,13 @@ static bool gameinits(void)
             MAXGAMEPLY);
     return false;
   }
+  HMCHistory = (u64*)calloc(MAXGAMEPLY, sizeof(Hash));
+  if (HMCHistory==NULL) 
+  {
+    fprintf(stdout,"Error (memory allocation failed): u64 HMCHistory[%d]",
+            MAXGAMEPLY);
+    return false;
+  }
   return true;
 }
 void release_gameinits()
@@ -631,6 +640,7 @@ void release_gameinits()
   free(MoveHistory);
   free(HashHistory);
   free(CRHistory);
+  free(HMCHistory);
 }
 void release_configinits()
 {
@@ -799,7 +809,7 @@ void domove(Bitboard *board, Move move)
   Bitboard pcpt   = GETPCPT(move);
   Bitboard bbTemp = BBEMPTY;
   Bitboard pcastle= PNONE;
-  u64 hmc         = GETHMC(board[QBBLAST]);
+  u64 hmc         = board[QBBHMC];
   Hash zobrist;
 
   // check for edges
@@ -936,12 +946,12 @@ void domove(Bitboard *board, Move move)
   board[QBBHASH] ^= 0x1;
 
   // store hmc   
-  move = SETHMC(move, hmc);
+  board[QBBHMC] = hmc;
   // store lastmove in board
   board[QBBLAST] = move;
 }
 // restore board again
-void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
+void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash, u64 hmc)
 {
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
@@ -955,12 +965,14 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   if (move==MOVENONE)
     return;
 
-  // restore lastmove with hmc and cr
+  // restore lastmove
   board[QBBLAST] = lastmove;
   // restore castle rights. via piece moved flags
   board[QBBPMVD] = cr;
   // restore hash
   board[QBBHASH] = hash;
+  // restore hmc
+  board[QBBHMC] = hmc;
 
   // unset square capture, square to
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
@@ -1043,14 +1055,12 @@ void printbitboard(Bitboard board)
 void printmove(Move move)
 {
 
-  fprintf(stdout,"#sqfrom:%" PRIu64 "\n",GETSQFROM(move));
-  fprintf(stdout,"#sqto:%" PRIu64 "\n",GETSQTO(move));
-  fprintf(stdout,"#sqcpt:%" PRIu64 "\n",GETSQCPT(move));
-  fprintf(stdout,"#pfrom:%" PRIu64 "\n",GETPFROM(move));
-  fprintf(stdout,"#pto:%" PRIu64 "\n",GETPTO(move));
-  fprintf(stdout,"#pcpt:%" PRIu64 "\n",GETPCPT(move));
-  fprintf(stdout,"#hmc:%u\n",(u32)GETHMC(move));
-  fprintf(stdout,"#score:%i\n",(Score)GETSCORE(move));
+  fprintf(stdout,"#sqfrom:%" PRIu32 "\n",GETSQFROM(move));
+  fprintf(stdout,"#sqto:%" PRIu32 "\n",GETSQTO(move));
+  fprintf(stdout,"#sqcpt:%" PRIu32 "\n",GETSQCPT(move));
+  fprintf(stdout,"#pfrom:%" PRIu32 "\n",GETPFROM(move));
+  fprintf(stdout,"#pto:%" PRIu32 "\n",GETPTO(move));
+  fprintf(stdout,"#pcpt:%" PRIu32 "\n",GETPCPT(move));
 }
 // move in algebraic notation, eg. e2e4, to internal packed move 
 static Move can2move(char *usermove, Bitboard *board, bool stm) 
@@ -1098,11 +1108,8 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
   else if (promopiece == 'r' || promopiece == 'R' )
       pto = MAKEPIECE(ROOK,stm);
 
-  // pack move, considering hmc, cr and score
-  move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, 
-                  (Move)pfrom, (Move)pto , (Move)pcpt, 
-                  (Move)0x0,
-                  GETHMC(board[QBBLAST]), (u64)0);
+  // pack move
+  move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt,(Move)pfrom, (Move)pto, (Move)pcpt);
 
 
   return move;
@@ -1315,7 +1322,7 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
   stringptr+=sprintf(stringptr," ");
 
   // add halpfmove clock 
-  stringptr+=sprintf(stringptr, "%" PRIu64 "",GETHMC(board[QBBLAST]));
+  stringptr+=sprintf(stringptr, "%" PRIu64 "", board[QBBHMC]);
   stringptr+=sprintf(stringptr, " ");
 
   stringptr+=sprintf(stringptr, "%d", ((gameply+PLY)/2));
@@ -1469,7 +1476,7 @@ static bool setboard(Bitboard *board, char *fenstring)
   // store castle rights via piece moved flags in board
   board[QBBPMVD]  ^= bbCr;
   // store halfmovecounter into lastmove
-  lastmove = SETHMC(lastmove, hmc);
+  board[QBBHMC]    = hmc;
 
   // set en passant target square in lastmove
   tempchar = cep[0];
@@ -1483,9 +1490,9 @@ static bool setboard(Bitboard *board, char *fenstring)
     sq    = MAKESQ(file, rank);
   }
   if (STM&&sq)
-    lastmove |= MAKEMOVE((Move)(sq+8),(Move)sq,(Move)sq,0x0,0x0,0x0,0x0,0x0,0x0);
+    lastmove |= MAKEMOVE((Move)(sq+8),(Move)sq,(Move)sq,0x0,0x0,0x0);
   else if (!STM&&sq)
-    lastmove |= MAKEMOVE((Move)(sq-8),(Move)sq,(Move)sq,0x0,0x0,0x0,0x0,0x0,0x0);
+    lastmove |= MAKEMOVE((Move)(sq-8),(Move)sq,(Move)sq,0x0,0x0,0x0);
 
   // ply starts at zero
   PLY = 0;
@@ -1568,7 +1575,7 @@ bool read_and_init_config(char configfile[])
   totalWorkUnits = threadsX*threadsY;
 
   // allocate memory
-  GLOBAL_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
+  GLOBAL_BOARD = (Bitboard*)malloc(8*sizeof(Bitboard));
   if (GLOBAL_BOARD==NULL)
   {
     fprintf(stdout, "memory alloc, GLOBAL_BOARD, failed\n");
@@ -1910,7 +1917,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   MOVECOUNT   = 0;
 
   // init board
-  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 8*sizeof(Bitboard));
   // reset counters
   memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
   // prepare hash history
@@ -1963,7 +1970,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   start = get_time(); 
 
   // init board
-  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 8*sizeof(Bitboard));
   // reset counters
   memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
   // prepare hash history
@@ -2107,7 +2114,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   MOVECOUNT   = 0;
 
   // init board
-  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 8*sizeof(Bitboard));
   // reset counters
   memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
   // prepare hash history
@@ -2667,6 +2674,7 @@ int main(int argc, char* argv[])
             HashHistory[PLY] = BOARD[QBBHASH];
             MoveHistory[PLY] = move;
             CRHistory[PLY] = BOARD[QBBPMVD];
+            HMCHistory[PLY] = BOARD[QBBHMC];
 
             // time mngmt
             TimeLeft-=elapsed;
@@ -2804,6 +2812,7 @@ int main(int argc, char* argv[])
       HashHistory[PLY] = BOARD[QBBHASH];
       MoveHistory[PLY] = move;
       CRHistory[PLY] = BOARD[QBBPMVD];
+      HMCHistory[PLY] = BOARD[QBBHMC];
 
       if (!xboard_mode||xboard_debug)
           printboard(BOARD);
@@ -2928,6 +2937,7 @@ int main(int argc, char* argv[])
             HashHistory[PLY] = BOARD[QBBHASH];
             MoveHistory[PLY] = move;
             CRHistory[PLY] = BOARD[QBBPMVD];
+            HMCHistory[PLY] = BOARD[QBBHMC];
 
             // time mngmt
             TimeLeft-=elapsed;
@@ -2956,7 +2966,7 @@ int main(int argc, char* argv[])
     {
       if (PLY>0)
       {
-        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY]);
+        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
         PLY--;
         STM = !STM;
       }
@@ -2967,10 +2977,10 @@ int main(int argc, char* argv[])
     {
       if (PLY>=2)
       {
-        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY]);
+        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
         PLY--;
         STM = !STM;
-        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY]);
+        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
         PLY--;
         STM = !STM;
       }
