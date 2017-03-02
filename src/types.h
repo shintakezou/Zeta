@@ -100,10 +100,6 @@ typedef u8 Rank;
 #define BISHOP              4
 #define ROOK                5
 #define QUEEN               6
-// move is castle flag
-#define MOVEISCR            0x0000003000000000ULL
-#define MOVEISCRK           0x0000001000000000ULL
-#define MOVEISCRQ           0x0000002000000000ULL
 // bitboard masks, computation prefered over lookup
 #define SETMASKBB(sq)       (1ULL<<(sq))
 #define CLRMASKBB(sq)       (~(1ULL<<(sq)))

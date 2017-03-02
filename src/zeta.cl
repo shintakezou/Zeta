@@ -118,10 +118,6 @@ typedef struct
 #define BISHOP              4
 #define ROOK                5
 #define QUEEN               6
-// move is castle flag
-#define MOVEISCR            0x0000003000000000UL
-#define MOVEISCRK           0x0000001000000000UL
-#define MOVEISCRQ           0x0000002000000000UL
 // bitboard masks, computation prefered over lookup
 #define SETMASKBB(sq)       (1UL<<(sq))
 #define CLRMASKBB(sq)       (~(1UL<<(sq)))
@@ -510,7 +506,7 @@ void domove(Bitboard *board, Move move)
   board[QBBPMVD]  |= SETMASKBB(sqcpt);
 
   // handle castle rook, queenside
-  pcastle = (move&MOVEISCRQ)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
   if (pcastle)
   {
     // unset castle rook from
@@ -525,18 +521,18 @@ void domove(Bitboard *board, Move move)
     board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto+1);
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto+1);
     // set piece moved flag, for castle rights
-    board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom-4):BBEMPTY;
+    board[QBBPMVD]  |= SETMASKBB(sqfrom-4);
     // reset halfmoveclok
-    hmc = (pcastle)?0:hmc;  // castle move
+    hmc = 0;
     // do hash increment, clear old rook
     zobrist = Zobrist[GETCOLOR(pcastle)*6+ROOK-1];
-    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom-4))|(zobrist>>(64-(sqfrom-4)))):BBEMPTY;
+    board[QBBHASH] ^= ((zobrist<<(sqfrom-4))|(zobrist>>(64-(sqfrom-4))));
     // do hash increment, set new rook
-    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto+1))|(zobrist>>(64-(sqto+1)))):BBEMPTY;
+    board[QBBHASH] ^= ((zobrist<<(sqto+1))|(zobrist>>(64-(sqto+1))));
   }
 
   // handle castle rook, kingside
-  pcastle = (move&MOVEISCRK)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
   if (pcastle)
   {
     // unset castle rook from
@@ -551,13 +547,13 @@ void domove(Bitboard *board, Move move)
     board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto-1);
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto-1);
     // set piece moved flag, for castle rights
-    board[QBBPMVD]  |= (pcastle)?SETMASKBB(sqfrom+3):BBEMPTY;
+    board[QBBPMVD]  |= SETMASKBB(sqfrom+3);
     // reset halfmoveclok
-    hmc = (pcastle)?0:hmc;  // castle move
+    hmc = 0;
     // do hash increment, clear old rook
-    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqfrom+3))|(zobrist>>(64-(sqfrom+3)))):BBEMPTY;
+    board[QBBHASH] ^= ((zobrist<<(sqfrom+3))|(zobrist>>(64-(sqfrom+3))));
     // do hash increment, set new rook
-    board[QBBHASH] ^= (pcastle)?((zobrist<<(sqto-1))|(zobrist>>(64-(sqto-1)))):BBEMPTY;
+    board[QBBHASH] ^= ((zobrist<<(sqto-1))|(zobrist>>(64-(sqto-1))));
   }
 
   // handle halfmove clock
@@ -645,7 +641,7 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 
   // handle castle rook, queenside
-  pcastle = (move&MOVEISCRQ)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
   if (pcastle)
   {
     // unset castle rook to
@@ -661,7 +657,7 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash)
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom-4);
   }
   // handle castle rook, kingside
-  pcastle = (move&MOVEISCRK)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
   if (pcastle)
   {
     // restore castle rook from
@@ -1424,8 +1420,6 @@ __kernel void perft_gpu(
       pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
       // make move
       tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
-      tmpmove |= (GETPTYPE(pfrom)==KING&&lid-sqto==2)?MOVEISCRQ:MOVENONE;
-      tmpmove |= (GETPTYPE(pfrom)==KING&&sqto-lid==2)?MOVEISCRK:MOVENONE;
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
