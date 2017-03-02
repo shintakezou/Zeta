@@ -154,7 +154,6 @@ typedef u8 Rank;
 ( \
      sqfrom      | (sqto<<6)  | (sqcpt<<12) \
   | (pfrom<<18)  | (pto<<22)  | (pcpt<<26) \
-  | (sqep<<30)   | (hmc<<40)  | (score<<48) \
 )
 // square helpers
 #define MAKESQ(file,rank)   ((rank)<<3|(file))

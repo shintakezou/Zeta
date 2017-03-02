@@ -131,14 +131,12 @@ typedef struct
 #define SCORENONE           0x0000000000000000UL
 // set masks
 #define SMMOVE              0x0000003FFFFFFFFFUL
-#define SMSQEP              0x0000000FC0000000UL
 #define SMHMC               0x0000FF0000000000UL
 #define SMCRALL             0x8900000000000091UL
 #define SMSCORE             0xFFFF000000000000UL
 #define SMTTMOVE            0x000000003FFFFFFFUL
 // clear masks
 #define CMMOVE              0xFFFFFFC000000000UL
-#define CMSQEP              0xFFFFFFF03FFFFFFFUL
 #define CMHMC               0xFFFF00FFFFFFFFFFUL
 #define CMCRALL             0x76FFFFFFFFFFFF6EUL
 #define CMSCORE             0x0000FFFFFFFFFFFFUL
@@ -162,8 +160,6 @@ typedef struct
 #define GETPFROM(mv)       (((mv)>>18)&0xF)    // 4 bit piece encoding
 #define GETPTO(mv)         (((mv)>>22)&0xF)    // 4 bit piece encoding
 #define GETPCPT(mv)        (((mv)>>26)&0xF)    // 4 bit piece encodinge
-#define GETSQEP(mv)        (((mv)>>30)&0x3F)   // 6 bit square
-#define SETSQEP(mv,sq)     (((mv)&CMSQEP)|(((sq)&0x3F)<<30))
 #define GETHMC(mv)         (((mv)>>40)&0xFF)   // 8 bit halfmove clock
 #define SETHMC(mv,hmc)     (((mv)&CMHMC)|(((hmc)&0xFF)<<40))
 #define GETSCORE(mv)       (((mv)>>48)&0xFFFF) // signed 16 bit move score
@@ -445,6 +441,7 @@ void domove(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
+  Square sqep     = 0x0;
   Bitboard pfrom  = GETPFROM(move);
   Bitboard pto    = GETPTO(move);
   Bitboard pcpt   = GETPCPT(move);
@@ -481,10 +478,14 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= Zobrist[15];
 
   // file en passant
-  if (GETSQEP(board[QBBLAST]))
+  sqep = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+          )?GETSQTO(board[QBBLAST]):0x0;
+  if (sqep)
   {
     zobrist = Zobrist[16];
-    board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(board[QBBLAST])))|(zobrist>>(64-GETFILE(GETSQEP(board[QBBLAST])))));; // rotate left 64
+    board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
   }
 
   // unset square from, square capture and square to
@@ -581,10 +582,14 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= Zobrist[15];
  
   // file en passant
-  if (GETSQEP(move))
+  sqep = ( GETPTYPE(GETPFROM(move))==PAWN
+          &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
+            -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
+          )?GETSQTO(move):0x0;
+  if (sqep)
   {
     zobrist = Zobrist[16];
-    board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(move)))|(zobrist>>(64-GETFILE(GETSQEP(move)))));; // rotate left 64
+    board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
   }
 
   // color flipping
@@ -678,6 +683,7 @@ Hash computehash(__private Bitboard *board, bool stm)
   Piece piece;
   Bitboard bbWork;
   Square sq;
+  Square sqep = 0x0;
   Hash hash = HASHNONE;
   Hash zobrist;
   u8 side;
@@ -706,9 +712,13 @@ Hash computehash(__private Bitboard *board, bool stm)
       hash ^= Zobrist[15];
  
   // file en passant
-  if (GETSQEP(board[QBBLAST]))
+  sqep = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+          )?GETSQTO(board[QBBLAST]):0x0;
+  if (sqep)
   {
-    sq = GETFILE(GETSQEP(board[QBBLAST]));
+    sq = GETFILE(sqep);
     zobrist = Zobrist[16];
     hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
   }
@@ -1273,7 +1283,10 @@ __kernel void perft_gpu(
 
     // gen en passant moves, TODO: reimplement as x64?
     bbTemp = BBEMPTY;
-    sqep   = GETSQEP(board[QBBLAST]); 
+    sqep   = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+               &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+                -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+             )?GETSQTO(board[QBBLAST]):0x0;
     bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
     bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
     bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
@@ -1399,9 +1412,7 @@ __kernel void perft_gpu(
     while(bbMoves)
     {
       sqto  = popfirst1(&bbMoves);
-      sqcpt = sqto; 
-      // set en passant target square
-      sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(lid,stm)==2)?sqto:0x0; 
+      sqcpt = sqto;
       // get piece captured
       pcpt  = GETPIECE(board, sqcpt);
       // check for en passant capture square
@@ -1419,7 +1430,7 @@ __kernel void perft_gpu(
       // TODO: fix pawn promo during perft
       pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
       // make move
-      tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (u64)GETHMC(board[QBBLAST]), 0x0UL);
+      tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (u64)GETHMC(board[QBBLAST]), 0x0UL);
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
@@ -1816,7 +1827,10 @@ __kernel void alphabeta_gpu_vanilla(
 
     // gen en passant moves, TODO: reimplement as x64?
     bbTemp = BBEMPTY;
-    sqep   = GETSQEP(board[QBBLAST]); 
+    sqep   = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+               &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+                -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+             )?GETSQTO(board[QBBLAST]):0x0;
     bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
     bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
     bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
@@ -2131,8 +2145,6 @@ __kernel void alphabeta_gpu_vanilla(
         bool promo = false;
         sqto  = popfirst1(&bbMoves);
         sqcpt = sqto; 
-        // set en passant target square
-        sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(lid,stm)==2)?sqto:0x0; 
         // get piece captured
         pcpt  = GETPIECE(board, sqcpt);
         // check for en passant capture square
@@ -2151,7 +2163,7 @@ __kernel void alphabeta_gpu_vanilla(
         promo = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?true:false;
         pto   = (promo)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
         // make move
-        tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (Move)GETHMC(board[QBBLAST]), 0x0UL);
+        tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (Move)GETHMC(board[QBBLAST]), 0x0UL);
         n++;
 
         // eval move
@@ -2618,7 +2630,10 @@ __kernel void alphabeta_gpu(
 
     // gen en passant moves, TODO: reimplement as x64?
     bbTemp = BBEMPTY;
-    sqep   = GETSQEP(board[QBBLAST]); 
+    sqep   = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+               &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+                -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+             )?GETSQTO(board[QBBLAST]):0x0;
     bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
     bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
     bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
@@ -3052,9 +3067,7 @@ __kernel void alphabeta_gpu(
       {
         bool promo = false;
         sqto  = popfirst1(&bbMoves);
-        sqcpt = sqto; 
-        // set en passant target square
-        sqep  = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)-GETRRANK(lid,stm)==2)?sqto:0x0; 
+        sqcpt = sqto;
         // get piece captured
         pcpt  = GETPIECE(board, sqcpt);
         // check for en passant capture square
@@ -3073,7 +3086,7 @@ __kernel void alphabeta_gpu(
         promo = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?true:false;
         pto   = (promo)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
         // make move
-        tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)sqep, (Move)GETHMC(board[QBBLAST]), 0x0UL);
+        tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt, (Move)0x0, (Move)GETHMC(board[QBBLAST]), 0x0UL);
         n++;
 
         // eval move

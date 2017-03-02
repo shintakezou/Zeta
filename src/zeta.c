@@ -667,6 +667,7 @@ Hash computehash(Bitboard *board, bool stm)
   Piece piece;
   Bitboard bbWork;
   Square sq;
+  Square sqep = 0x0;
   Hash hash = HASHNONE;
   Hash zobrist;
   u8 side;
@@ -694,10 +695,13 @@ Hash computehash(Bitboard *board, bool stm)
   if (((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
       hash ^= Zobrist[15];
  
-  // file en passant
-  if (GETSQEP(board[QBBLAST]))
+  sqep = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+          )?GETSQTO(board[QBBLAST]):0x0;
+  if (sqep)
   {
-    sq = GETFILE(GETSQEP(board[QBBLAST]));
+    sq = GETFILE(sqep);
     zobrist = Zobrist[16];
     hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
   }
@@ -789,6 +793,7 @@ void domove(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
+  Square sqep     = 0x0;
   Bitboard pfrom  = GETPFROM(move);
   Bitboard pto    = GETPTO(move);
   Bitboard pcpt   = GETPCPT(move);
@@ -816,10 +821,14 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= Zobrist[15];
 
   // file en passant
-  if (GETSQEP(board[QBBLAST]))
+  sqep = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+          )?GETSQTO(board[QBBLAST]):0x0;
+  if (sqep)
   {
     zobrist = Zobrist[16];
-    board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(board[QBBLAST])))|(zobrist>>(64-GETFILE(GETSQEP(board[QBBLAST])))));; // rotate left 64
+    board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
   }
 
   // unset square from, square capture and square to
@@ -914,10 +923,14 @@ void domove(Bitboard *board, Move move)
     board[QBBHASH] ^= Zobrist[15];
  
   // file en passant
-  if (GETSQEP(move))
+  sqep = ( GETPTYPE(GETPFROM(move))==PAWN
+          &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
+            -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
+          )?GETSQTO(move):0x0;
+  if (sqep)
   {
     zobrist = Zobrist[16];
-    board[QBBHASH] ^= ((zobrist<<GETFILE(GETSQEP(move)))|(zobrist>>(64-GETFILE(GETSQEP(move)))));; // rotate left 64
+    board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
   }
   // color flipping
   board[QBBHASH] ^= 0x1;
@@ -1036,7 +1049,6 @@ void printmove(Move move)
   fprintf(stdout,"#pfrom:%" PRIu64 "\n",GETPFROM(move));
   fprintf(stdout,"#pto:%" PRIu64 "\n",GETPTO(move));
   fprintf(stdout,"#pcpt:%" PRIu64 "\n",GETPCPT(move));
-  fprintf(stdout,"#sqep:%" PRIu64 "\n",GETSQEP(move));
   fprintf(stdout,"#hmc:%u\n",(u32)GETHMC(move));
   fprintf(stdout,"#score:%i\n",(Score)GETSCORE(move));
 }
@@ -1053,7 +1065,6 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
   Piece pcpt;
   Move move;
   char promopiece;
-  Square sqep = 0;
 
   file    = (int)usermove[0] -97;
   rank    = (int)usermove[1] -49;
@@ -1076,10 +1087,6 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
 
   pcpt = GETPIECE(board, sqcpt);
 
-  // pawn double square move, set en passant target square
-  if ((pfrom>>1)==PAWN&&GETRRANK(sqfrom,stm)==1&&GETRRANK(sqto,stm)==3)
-    sqep = sqto;
-
   // pawn promo piece
   promopiece = usermove[4];
   if (promopiece == 'q' || promopiece == 'Q' )
@@ -1094,7 +1101,7 @@ static Move can2move(char *usermove, Bitboard *board, bool stm)
   // pack move, considering hmc, cr and score
   move = MAKEMOVE((Move)sqfrom, (Move)sqto, (Move)sqcpt, 
                   (Move)pfrom, (Move)pto , (Move)pcpt, 
-                  (Move)sqep,
+                  (Move)0x0,
                   GETHMC(board[QBBLAST]), (u64)0);
 
 
@@ -1288,8 +1295,12 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
   stringptr+=sprintf(stringptr," ");
 
   // add en passant target square
-  sq = GETSQEP(board[QBBLAST]);
-  if (sq > 0)
+  // file en passant
+  sq = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
+            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
+          )?GETSQTO(board[QBBLAST]):0x0;
+  if (sq)
   {
     if (stm)
       sq-=8;
@@ -1460,17 +1471,21 @@ static bool setboard(Bitboard *board, char *fenstring)
   // store halfmovecounter into lastmove
   lastmove = SETHMC(lastmove, hmc);
 
-  // set en passant target square
+  // set en passant target square in lastmove
   tempchar = cep[0];
   file  = 0;
   rank  = 0;
+  sq    = 0x0;
   if (tempchar != '-' && tempchar != '\0' && tempchar != '\n')
   {
     file  = cep[0] - 97;
     rank  = cep[1] - 49;
+    sq    = MAKESQ(file, rank);
   }
-  sq    = MAKESQ(file, rank);
-  lastmove = SETSQEP(lastmove, sq);
+  if (STM&&sq)
+    lastmove |= MAKEMOVE((Move)(sq+8),(Move)sq,(Move)sq,0x0,0x0,0x0,0x0,0x0,0x0);
+  else if (!STM&&sq)
+    lastmove |= MAKEMOVE((Move)(sq-8),(Move)sq,(Move)sq,0x0,0x0,0x0,0x0,0x0,0x0);
 
   // ply starts at zero
   PLY = 0;
