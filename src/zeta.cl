@@ -3044,8 +3044,8 @@ __kernel void alphabeta_gpu(
       // get moves from global stack
       bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
       // get killer move and counter move
-//      Move killermove = (Move)Killers[gid*MAXPLY+sd];
-//      Move countermove = (Move)Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])];
+      Move killermove = Killers[gid*MAXPLY+sd];
+      Move countermove = Counters[gid*64*64+GETSQFROM(localMoveHistory[sd-1])*64+GETSQTO(localMoveHistory[sd-1])];
       n       = 0;
       move    = MOVENONE;
       mscore  = -INFMOVESCORE;
@@ -3085,19 +3085,19 @@ __kernel void alphabeta_gpu(
         tmpmscore = (pcpt!=PNONE)?(MoveScore)(EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]):tmpmscore;
         tmpmscore = tmpmscore*10000+lid*64+n;
 
-/*
+        // check counter move heuristic
+        if (countermove==tmpmove)
+        {
+          tmpmscore = (MoveScore)(200); // score as second highest quiet move
+          tmpmscore = tmpmscore*10000+lid*64+n;
+        }
         // check killer move heuristic
         if (killermove==tmpmove)
         {
           tmpmscore = (MoveScore)(210); // score as highest quiet move
           tmpmscore = tmpmscore*10000+lid*64+n;
         }
-        // check tt move
-        if (ttmove==tmpmove)
-        {
-          tmpmscore = INFMOVESCORE-300+lid; // score as second highest move
-        }
-*/
+
         // get move with highest score
         if (tmpmscore<mscore)
           continue;
