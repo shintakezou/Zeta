@@ -1948,6 +1948,7 @@ __kernel void alphabeta_gpu(
         if (lid==0)
           COUNTERS[gid*64+0]++;
 
+        barrier(CLK_LOCAL_MEM_FENCE);
         if (sd<1)  // this is the end
             break;        
 
@@ -2244,7 +2245,6 @@ __kernel void alphabeta_gpu(
       sd++;       // increase depth counter
       ply++;      // increase ply counter
     }
-
     // compute hash x64
     pfrom = GETPIECE(board,lid);
     bbTemp = (GETPTYPE(pfrom))?Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1]:BBEMPTY;
@@ -2349,7 +2349,7 @@ __kernel void alphabeta_gpu(
     n = 0;
     do
     {
-      // load ttmove from hash table, up to 4 slots
+      // load ttmove from hash table, up to 3 slots
       tmpmove = MOVENONE;
       bbTemp = bbWork&(ttindex-1);
       if (slots>=3&&TT3[bbTemp].hash==bbWork)
@@ -2367,28 +2367,21 @@ __kernel void alphabeta_gpu(
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
-      
       // PV[0] reserved for best rootmove colelcted during search
       // PV[1] reserved for score
-
       // set score
       if (tmpmove!=MOVENONE&&n==0)
         PV[n] = (Move)score;
-
       n++;
-
       // set bestmove
       if (tmpmove!=MOVENONE&&n>1)
         PV[n] = tmpmove;
-
       if (tmpmove!=MOVENONE)
       {
         domove(board, tmpmove);
         stm = !stm;
         bbWork = computehash(board, stm);
       }
-
-
     }while(tmpmove!=MOVENONE&&n<1024);
   } // end collect pv
 } // end kernel alphabeta_gpu
