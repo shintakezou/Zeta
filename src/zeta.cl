@@ -2069,7 +2069,8 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       lmove = MOVENONE;
-      // load ttmove from hash table, up to 4 slots
+/*
+      // load ttmove from hash table, up to 3 slots
       tmpmove = MOVENONE;
       bbWork = localHashHistory[sd];    
       bbTemp = bbWork&(ttindex-1);
@@ -2093,6 +2094,7 @@ __kernel void alphabeta_gpu(
           COUNTERS[gid*64+3]++;      
         }
       }
+*/
       // check for nullmove pruning
       if (!bresearch
           &&sd>1
@@ -2126,6 +2128,17 @@ __kernel void alphabeta_gpu(
       // get killer move and counter move
       Move killermove = Killers[gid*MAXPLY+sd];
       Move countermove = Counters[gid*64*64+GETSQFROM(move)*64+GETSQTO(move)];
+      // load ttmove from hash table, up to 3 slots
+      Move ttmove = MOVENONE;
+      bbWork = localHashHistory[sd];    
+      bbTemp = bbWork&(ttindex-1);
+      if (slots>=3&&TT3[bbTemp].hash==bbWork)
+        ttmove = TT3[bbTemp].bestmove;
+      if (slots>=2&&TT2[bbTemp].hash==bbWork)
+        ttmove = TT2[bbTemp].bestmove;
+      if (slots>=1&&TT1[bbTemp].hash==bbWork)
+        ttmove = TT1[bbTemp].bestmove;
+
       n       = 0;
       move    = MOVENONE;
       score  = -INFMOVESCORE;
@@ -2176,6 +2189,11 @@ __kernel void alphabeta_gpu(
         {
           tmpscore = 210; // score as highest quiet move
           tmpscore = tmpscore*10000+lid*64+n;
+        }
+        // check ttmove
+        if (ttmove==tmpmove)
+        {
+          tmpscore = INFMOVESCORE-100+lid; // score as highest move
         }
 
         // get move with highest score
@@ -2260,7 +2278,7 @@ __kernel void alphabeta_gpu(
       // reset
       if ((GETPTYPE(GETPFROM(move))==PAWN))  // pawn move
         localHMCHistory[sd] = 0;
-      if ((GETPTYPE(GETPCPT(lmove))!=PNONE)) // capture
+      if ((GETPTYPE(GETPCPT(move))!=PNONE)) // capture
         localHMCHistory[sd] = 0;
       // castle queenside
       if ((GETPTYPE(GETPFROM(move))==KING)&&(GETSQFROM(move)-GETSQTO(move)==2))
@@ -2286,7 +2304,7 @@ __kernel void alphabeta_gpu(
       {
         localTodoIndex[sd-1]--;
         localSearchMode[sd]              |= NULLMOVESEARCH;
-        localDepth[sd]-=2;
+        localDepth[sd]                    = localDepth[sd]-2;
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
         localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
       }
@@ -2307,8 +2325,8 @@ __kernel void alphabeta_gpu(
       {
         if (!squareunderattack(board, !stm, getkingsq(board, stm)))
         {
-          localDepth[sd]--;
-          localLMR[sd]  = true;
+          localDepth[sd]  = localDepth[sd]-1;
+          localLMR[sd]    = true;
         }
       }
     } // end moveup
