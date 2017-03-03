@@ -677,7 +677,7 @@ Hash computehash(Bitboard *board, bool stm)
   Piece piece;
   Bitboard bbWork;
   Square sq;
-  Square sqep = 0x0;
+//  Square sqep = 0x0;
   Hash hash = HASHNONE;
   Hash zobrist;
   u8 side;
@@ -695,6 +695,7 @@ Hash computehash(Bitboard *board, bool stm)
       hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
     }
   }
+/*
   // castle rights
   if (((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
       hash ^= Zobrist[12];
@@ -715,7 +716,7 @@ Hash computehash(Bitboard *board, bool stm)
     zobrist = Zobrist[16];
     hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
   }
- 
+*/ 
   // site to move
   if (!stm)
     hash ^= 0x1ULL;
@@ -803,7 +804,7 @@ void domove(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
-  Square sqep     = 0x0;
+//  Square sqep     = 0x0;
   Bitboard pfrom  = GETPFROM(move);
   Bitboard pto    = GETPTO(move);
   Bitboard pcpt   = GETPCPT(move);
@@ -819,6 +820,7 @@ void domove(Bitboard *board, Move move)
   // increase half move clock
   hmc++;
 
+/*
   // do hash increment , clear old
   // castle rights
   if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
@@ -840,6 +842,7 @@ void domove(Bitboard *board, Move move)
     zobrist = Zobrist[16];
     board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
   }
+*/
 
   // unset square from, square capture and square to
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
@@ -922,6 +925,7 @@ void domove(Bitboard *board, Move move)
   // do hash increment, clear piece capture
   zobrist = Zobrist[GETCOLOR(pcpt)*6+GETPTYPE(pcpt)-1];
   board[QBBHASH] ^= (pcpt)?((zobrist<<(sqcpt))|(zobrist>>(64-(sqcpt)))):BBEMPTY;
+/*
   // castle rights
   if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
     board[QBBHASH] ^= Zobrist[12];
@@ -942,6 +946,7 @@ void domove(Bitboard *board, Move move)
     zobrist = Zobrist[16];
     board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
   }
+*/
   // color flipping
   board[QBBHASH] ^= 0x1;
 

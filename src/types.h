@@ -44,8 +44,7 @@ typedef u64 Hash;
 
 typedef u32     Move;
 typedef u32     TTMove;
-typedef s32     MoveScore;
-typedef s16     Score;
+typedef s32     Score;
 typedef s32     TTScore;
 typedef u8      Square;
 typedef u8      Piece;
