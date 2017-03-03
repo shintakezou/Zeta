@@ -2207,6 +2207,7 @@ __kernel void alphabeta_gpu_vanilla(
     if (lid==0&&mode==MOVEUP)
     {
       // halfmove clock
+      localHMCHistory[sd]               = localHMCHistory[sd-1];
       localHMCHistory[sd]++; // increase
       // reset
       if ((GETPTYPE(GETPFROM(lmove))==PAWN))  // pawn move
