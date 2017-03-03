@@ -930,7 +930,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
         fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
         fprintf(Cfg,"threadsY\n");
-        fprintf(Cfg,"Multiplier for threadsX,");
+        fprintf(Cfg,"Multiplier for threadsX,\n");
         fprintf(Cfg,"run multiple Work-Groups per Compute Unit");
         fprintf(Cfg,"nodes_per_second\n");
         fprintf(Cfg,"nps of device, for initial time control\n");
@@ -1115,7 +1115,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
         fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
         fprintf(Cfg,"threadsY\n");
-        fprintf(Cfg,"Multiplier for threadsX,");
+        fprintf(Cfg,"Multiplier for threadsX,\n");
         fprintf(Cfg,"run multiple Work-Groups per Compute Unit");
         fprintf(Cfg,"nodes_per_second\n");
         fprintf(Cfg,"nps of device, for initial time control\n");
