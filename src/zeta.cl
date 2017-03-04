@@ -68,7 +68,6 @@ typedef struct
 #define NULLMOVESEARCH  2
 #define LMRSEARCH       4
 #define IIDSEARCH       8
-#define SCOREBOUNDS    16
 // defaults
 #define VERSION "099a"
 // quad bitboard array index definition
@@ -1420,11 +1419,13 @@ __kernel void alphabeta_gpu(
   __local s32 localTodoIndex[MAXPLY];
   __local s32 localMoveCounter[MAXPLY];
   __local Move localMoveHistory[MAXPLY];
+  __local Move localMoveIID[MAXPLY];
   __local Cr localCrHistory[MAXPLY];
   __local u8 localHMCHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
 
   __local bool bresearch;
+  __local bool gotttmove;
 
   __local Square sqchecker;
 
@@ -1500,6 +1501,7 @@ __kernel void alphabeta_gpu(
     localMoveCounter[0]             = 0;
     localTodoIndex[0]               = 0;
     localMoveHistory[0]             = BOARD[QBBLAST];
+    localMoveIID[0]                 = MOVENONE;
     localCrHistory[0]               = BOARD[QBBPMVD];
     localHMCHistory[0]              = (u8)BOARD[QBBHMC];
     localHashHistory[0]             = BOARD[QBBHASH];
@@ -1514,6 +1516,7 @@ __kernel void alphabeta_gpu(
     localMoveCounter[sd]            = 0;
     localTodoIndex[sd]              = 0;
     localMoveHistory[sd]            = MOVENONE;
+    localMoveIID[sd]                = MOVENONE;
     localCrHistory[sd]              = BOARD[QBBPMVD];
     localHMCHistory[sd]             = (u8)BOARD[QBBHMC];
     localHashHistory[sd]            = BOARD[QBBHASH];
@@ -1976,6 +1979,25 @@ __kernel void alphabeta_gpu(
             bresearch = true;
           }
 
+          // iid, get bestmove
+          if (
+              (localSearchMode[sd]&IIDSEARCH)
+              &&!(localSearchMode[sd-1]&IIDSEARCH)
+              &&score>localAlphaBetaScores[sd*2+ALPHA]
+              )
+          {
+            localMoveIID[sd]=move;
+          }
+          // iid, init research
+          if (
+              (localSearchMode[sd+1]&IIDSEARCH)
+              &&!(localSearchMode[sd]&IIDSEARCH)
+              )
+          {
+            score = localAlphaBetaScores[sd*2+ALPHA];  // ignore score
+            bresearch = true;
+          }
+
           // set negamaxed alpha score
           if (score>localAlphaBetaScores[sd*2+ALPHA])
           {
@@ -2000,6 +2022,7 @@ __kernel void alphabeta_gpu(
               &&flag>FAILLOW
               &&move!=MOVENONE
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
+              &&!(localSearchMode[sd]&IIDSEARCH)
              )
           {
             bbWork = localHashHistory[sd];    
@@ -2037,6 +2060,7 @@ __kernel void alphabeta_gpu(
               &&flag==FAILHIGH
               &&GETPCPT(move)==PNONE // quiet moves only
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
+              &&!(localSearchMode[sd]&IIDSEARCH)
               &&move!=NULLMOVE
               &&move!=MOVENONE
              )
@@ -2101,6 +2125,7 @@ __kernel void alphabeta_gpu(
           &&sd>1
           &&localMoveHistory[sd]==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
+          &&!(localSearchMode[sd]&IIDSEARCH)
           &&!localQS[sd]
           &&!localRootKic[sd]
           &&!localExt[sd]
@@ -2112,6 +2137,8 @@ __kernel void alphabeta_gpu(
       // late move reductions
       if (bresearch)
         lmove = localMoveHistory[sd];
+
+      gotttmove = true;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
@@ -2139,6 +2166,13 @@ __kernel void alphabeta_gpu(
         ttmove = TT2[bbTemp].bestmove;
       if (slots>=1&&TT1[bbTemp].hash==bbWork)
         ttmove = TT1[bbTemp].bestmove;
+      // get iidmove
+      Move iidmove = localMoveIID[sd];
+
+      if (lid==0&&ttmove==MOVENONE)
+        gotttmove = false;
+      if (lid==0&&iidmove!=MOVENONE)
+        gotttmove = true;
 
       n       = 0;
       move    = MOVENONE;
@@ -2194,7 +2228,16 @@ __kernel void alphabeta_gpu(
         // check ttmove
         if (ttmove==tmpmove)
         {
-          tmpscore = INFMOVESCORE-100+lid; // score as highest move
+          tmpscore = INFMOVESCORE-200+lid; // score as highest move
+          // tthits counter
+          COUNTERS[gid*64+3]++;      
+        }
+        // check iidmove
+        if (iidmove==tmpmove)
+        {
+          tmpscore = INFMOVESCORE-100+lid; // score as second highest move
+          // iidmove match counter
+          COUNTERS[gid*64+4]++;      
         }
 
         // get move with highest score
@@ -2220,6 +2263,25 @@ __kernel void alphabeta_gpu(
           }
         }
       }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // check for iid search
+    if (lid==0
+        &&!gotttmove 
+        &&lmove!=NULLMOVE
+        &&!bresearch
+        &&sd>1
+        &&!(localSearchMode[sd]&NULLMOVESEARCH)
+        &&!(localSearchMode[sd]&IIDSEARCH)
+        &&localDepth[sd]>5
+        &&localTodoIndex[sd]==0
+        )
+    {
+      // set values for next depth
+      localAlphaBetaScores[sd*2+ALPHA]  = -INF;
+      localAlphaBetaScores[sd*2+BETA]   =  INF;
+      localDepth[sd]                    = localDepth[sd]/5;
+      localSearchMode[sd]              |= IIDSEARCH;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
@@ -2316,6 +2378,7 @@ __kernel void alphabeta_gpu(
          &&sd>2  // no root moves
          &&move!=NULLMOVE
          &&move!=MOVENONE
+         &&!(localSearchMode[sd]&IIDSEARCH)
          &&GETPCPT(move)==PNONE     // quiet moves only
          &&!localQS[sd-1]
          &&!localRootKic[sd-1]
@@ -2332,6 +2395,10 @@ __kernel void alphabeta_gpu(
           localLMR[sd]    = true;
         }
       }
+      // reset iidmove
+      if (!bresearch)
+        localMoveIID[sd]              = MOVENONE;
+
     } // end moveup
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
