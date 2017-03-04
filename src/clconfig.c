@@ -927,11 +927,12 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
+        fprintf(Cfg,"threadsX\n");
         fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
         fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
         fprintf(Cfg,"threadsY\n");
         fprintf(Cfg,"Multiplier for threadsX,\n");
-        fprintf(Cfg,"run multiple Work-Groups per Compute Unit");
+        fprintf(Cfg,"run multiple Work-Groups per Compute Unit\n");
         fprintf(Cfg,"nodes_per_second\n");
         fprintf(Cfg,"nps of device, for initial time control\n");
         fprintf(Cfg,"max_nodes\n");
@@ -942,7 +943,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"Allocate n times max_memory on device\n");
         fprintf(Cfg,"opencl_platform_id\n");
         fprintf(Cfg,"Which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id\n\n");
+        fprintf(Cfg,"opencl_device_id\n");
         fprintf(Cfg,"Which OpenCL device to use\n\n");
         fclose(Cfg);
 
@@ -1153,7 +1154,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
         fprintf(Cfg,"threadsY\n");
         fprintf(Cfg,"Multiplier for threadsX,\n");
-        fprintf(Cfg,"run multiple Work-Groups per Compute Unit");
+        fprintf(Cfg,"run multiple Work-Groups per Compute Unit\n");
         fprintf(Cfg,"nodes_per_second\n");
         fprintf(Cfg,"nps of device, for initial time control\n");
         fprintf(Cfg,"max_nodes\n");
@@ -1164,7 +1165,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"Allocate n times max_memory on device\n");
         fprintf(Cfg,"opencl_platform_id\n");
         fprintf(Cfg,"Which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id\n\n");
+        fprintf(Cfg,"opencl_device_id\n");
         fprintf(Cfg,"Which OpenCL device to use\n\n");
         fclose(Cfg);
 
