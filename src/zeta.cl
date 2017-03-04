@@ -2226,7 +2226,10 @@ __kernel void alphabeta_gpu(
     // ####         moveup         ####
     // ################################
     move = lmove;
-    if (lid==0&&mode==MOVEUP)
+    if (lid==0
+        &&!bresearch
+        &&mode==MOVEUP
+        )
     {
       // move up in tree
       // clear move from bb moves
