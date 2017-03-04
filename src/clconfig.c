@@ -1049,7 +1049,7 @@ bool cl_guess_config(bool extreme)
             Cfg = fopen("config.tmp", "w");
             fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
-            fprintf(Cfg, "threadsY: %i;\n", warpmulti*2);
+            fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
