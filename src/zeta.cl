@@ -505,6 +505,7 @@ void undomove(Bitboard *board, Move move)
   // unset square capture, square to
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
 
+  // handle castle rook, queenside
   pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqto+1); // unset castle rook to
@@ -899,7 +900,7 @@ __kernel void perft_gpu(
                                const u64 max_nodes
 )
 {
-  // Quadbitboard + piece moved flags + hash + lastmove
+  // Quadbitboard
   __private Bitboard board[4]; 
 
   __local Bitboard bbTmp64[64];
@@ -1402,9 +1403,10 @@ __kernel void alphabeta_gpu(
                                const u64 slots
 )
 {
-  // Quadbitboard + piece moved flags + hash + lastmove
+  // Quadbitboard
   __private Bitboard board[4]; 
 
+  // temporary place holders
   __local Bitboard bbTmp64[64];
   __local Score scrTmp64[64];
 
@@ -2134,7 +2136,7 @@ __kernel void alphabeta_gpu(
       {
         lmove = NULLMOVE;
       }
-      // late move reductions
+      // late move reductions research
       if (bresearch)
         lmove = localMoveHistory[sd];
 
@@ -2228,14 +2230,14 @@ __kernel void alphabeta_gpu(
         // check ttmove
         if (ttmove==tmpmove)
         {
-          tmpscore = INFMOVESCORE-200+lid; // score as highest move
+          tmpscore = INFMOVESCORE-200+lid; // score as second highest move
           // tthits counter
           COUNTERS[gid*64+3]++;      
         }
         // check iidmove
         if (iidmove==tmpmove)
         {
-          tmpscore = INFMOVESCORE-100+lid; // score as second highest move
+          tmpscore = INFMOVESCORE-100+lid; // score as highest move
           // iidmove match counter
           COUNTERS[gid*64+4]++;      
         }
