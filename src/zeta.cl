@@ -1818,7 +1818,7 @@ __kernel void alphabeta_gpu(
       score-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       score+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       // stm bonus, to prevent mix up with drawscore
-      score+= (stm==color)?(color)?-1:1:0;
+      score+= (stm)?-1:1;
     }
     // store scores in local memory
     scrTmp64[lid] = score;
