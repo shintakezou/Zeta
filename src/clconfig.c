@@ -25,7 +25,7 @@
 #include "timer.h"
 #include "zeta.h"       // for global vars
 
-extern s32 benchmarkWrapper(s32 benchsec);
+extern u64 benchmarkWrapper(s32 benchsec);
 extern void read_config();
 
 // TODO: check for work group dim == 3 and workgroup size[3] >= 64
@@ -44,8 +44,8 @@ bool cl_guess_config(bool extreme)
   u32 deviceunits = 0;
   u64 devicememalloc = 0;
   s32 warpmulti = 1;
-  s32 nps = 0;
-  s32 npstmp = 0;
+  u64 nps = 0;
+  u64 npstmp = 0;
   s32 devicecounter = 0;
   s32 benchsec = 4;
   u64 ttbits = 0;
@@ -920,7 +920,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(Cfg, "threadsX: %i;\n", 1);
         fprintf(Cfg, "threadsY: %i;\n", 1);
-        fprintf(Cfg, "nodes_per_second: %i;\n", nps);
+        fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", 1, (s32)slots);
@@ -947,17 +947,33 @@ bool cl_guess_config(bool extreme)
         fclose(Cfg);
 
         fprintf(stdout, "#\n");
-        fprintf(stdout, "#> ### Running NPS-Benchmark for minimal config on device, this can last about %i seconds... \n", benchsec);
+        fprintf(stdout, "#> ### Running NPS-Benchmark for minimal config on device,\n");
+        fprintf(stdout, "#> ### this can last about %i seconds... \n", benchsec);
+        fprintf(stdout, "#> ### threadsX: %i \n", 1);
+        fprintf(stdout, "#> ### threadsY: %i \n", 1);
+        fprintf(stdout, "#> ### total work-groups: %i \n", 1*1);
+        fprintf(stdout, "#> ### total threads: %i \n", 1*1*64);
         fprintf(stdout, "#\n");
         if (LogFile)
         {
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
           fprintdate(LogFile);
-          fprintf(LogFile, "#> ### Running NPS-Benchmark for minimal config on device, this can last about %i seconds... \n", benchsec);
+          fprintf(LogFile, "#> ### Running NPS-Benchmark for minimal config on device,\n");
+          fprintdate(LogFile);
+          fprintf(LogFile, "#> ### this can last about %i seconds... \n", benchsec);
+          fprintdate(LogFile);
+          fprintf(LogFile, "#> ### threadsX: %i \n", 1);
+          fprintdate(LogFile);
+          fprintf(LogFile, "#> ### threadsY: %i \n", 1);
+          fprintdate(LogFile);
+          fprintf(LogFile, "#> ### total work-groups: %i \n", 1*1);
+          fprintdate(LogFile);
+          fprintf(LogFile, "#> ### total threads: %i \n", 1*1*64);
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
         }
+
         npstmp = benchmarkWrapper(benchsec);
         remove("config.tmp");
         
@@ -979,21 +995,22 @@ bool cl_guess_config(bool extreme)
           continue;
         }
 
-        nps = npstmp;
-
         // iterate through threadsY, get best multi for warp resp. wavefront size
         if (extreme)
         {
 
           fprintf(stdout, "#\n");
-          fprintf(stdout, "#> ### Running NPS-Benchmark for best config, this can last about some minutes... \n");
+          fprintf(stdout, "#> ### Running NPS-Benchmark for best config,\n");
+          fprintf(stdout, "#> ### this can last about some minutes... \n");
           fprintf(stdout, "#\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#\n");
             fprintdate(LogFile);
-            fprintf(LogFile, "#> ### Running NPS-Benchmark for best config, this can last about some minutes... \n");
+            fprintf(LogFile, "#> ### Running NPS-Benchmark for best config,\n");
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> ### this can last about some minutes... \n");
             fprintdate(LogFile);
             fprintf(LogFile, "#\n");
           }
@@ -1005,7 +1022,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-            fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
+            fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots,(s32)slots);
@@ -1044,13 +1061,15 @@ bool cl_guess_config(bool extreme)
           }
 */
           // get threadsY, multi for warpsize
+          nps = 0;
+          npstmp = 0;
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
             fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-            fprintf(Cfg, "nodes_per_second: %i;\n", npstmp);
+            fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
@@ -1060,14 +1079,29 @@ bool cl_guess_config(bool extreme)
             fclose(Cfg);
 
             fprintf(stdout, "#\n");
-            fprintf(stdout, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
+            fprintf(stdout, "#> ### Running NPS-Benchmark for threadsY on device,\n");
+            fprintf(stdout, "#> ### this can last about %i seconds... \n", benchsec);
+            fprintf(stdout, "#> ### threadsX: %i \n", deviceunits);
+            fprintf(stdout, "#> ### threadsY: %i \n", warpmulti);
+            fprintf(stdout, "#> ### total work-groups: %i \n", deviceunits*warpmulti);
+            fprintf(stdout, "#> ### total threads: %i \n", deviceunits*warpmulti*64);
             fprintf(stdout, "#\n");
             if (LogFile)
             {
               fprintdate(LogFile);
               fprintf(LogFile, "#\n");
               fprintdate(LogFile);
-              fprintf(LogFile, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
+              fprintf(LogFile, "#> ### Running NPS-Benchmark for threadsY on device,\n");
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> ### this can last about %i seconds... \n", benchsec);
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> ### threadsX: %i \n", deviceunits);
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> ### threadsY: %i \n", warpmulti);
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> ### total work-groups: %i \n", deviceunits*warpmulti);
+              fprintdate(LogFile);
+              fprintf(LogFile, "#> ### total threads: %i \n", deviceunits*warpmulti*64);
               fprintdate(LogFile);
               fprintf(LogFile, "#\n");
             }
@@ -1077,9 +1111,12 @@ bool cl_guess_config(bool extreme)
             // something went wrong
             if (npstmp<=0)
               break;
-            // 10% speedup margin
+            // check for 10% speedup margin
             if (npstmp<=nps*1.10)
+            {
+              warpmulti/=2;
               break;
+            }
             // increase threadsY
             if (npstmp>=nps)
             {
@@ -1104,7 +1141,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(Cfg, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:warpmulti);
-        fprintf(Cfg, "nodes_per_second: %i;\n", nps);
+        fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", (!extreme)?1:(s32)slots, (s32)slots);
@@ -1136,7 +1173,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(stdout, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:warpmulti);
-        fprintf(stdout, "nodes_per_second: %i;\n", nps);
+        fprintf(stdout, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
         fprintf(stdout, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
@@ -1150,7 +1187,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
           fprintf(LogFile, "threadsX: %i;\n", (!extreme)?1:deviceunits);
           fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:warpmulti);
-          fprintf(LogFile, "nodes_per_second: %i;\n", nps);
+          fprintf(LogFile, "nodes_per_second: %" PRIu64 ";\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
           fprintf(LogFile, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
