@@ -1148,7 +1148,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
         fprintf(Cfg,"\n");
-        fprintf(Cfg,"threadsX");
+        fprintf(Cfg,"threadsX\n");
         fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
         fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
         fprintf(Cfg,"threadsY\n");
