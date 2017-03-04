@@ -39,6 +39,7 @@ char *Fen;                    // for storing the fen chess baord string
 // counters
 u64 ABNODECOUNT         = 0;
 u64 TTHITS              = 0;
+u64 IIDHITS             = 0;
 u64 MOVECOUNT           = 0;
 // config file
 u64 threadsX            =  1;
@@ -1971,6 +1972,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 
   ABNODECOUNT = 0;
   TTHITS = 0;
+  IIDHITS = 0;
 
   start = get_time(); 
 
@@ -2037,6 +2039,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     {
       ABNODECOUNT+=   COUNTERS[i*64+0];
       TTHITS+=        COUNTERS[i*64+3];
+      IIDHITS+=        COUNTERS[i*64+4];
     }
 
     // timers
@@ -2090,11 +2093,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 
   if ((!xboard_mode)||xboard_debug)
   {
-    fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, ebf: %lf, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed, TTHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+    fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, and %" PRIu64 " iidhits, ebf: %lf, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed, TTHITS, IIDHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, ebf: %lf, nps: %" PRIu64 "  \n", ABNODECOUNT, elapsed, TTHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+      fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, and %" PRIu64 " iidhits, ebf: %lf, nps: %" PRIu64 "  \n", ABNODECOUNT, elapsed, TTHITS, IIDHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
     }
   }
 
