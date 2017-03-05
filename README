@@ -22,8 +22,8 @@
 Zeta, experimental chess engine written in OpenCL.
 
 Tested Platforms:
-64 bit x86-64 with little endian OpenCL devices with atomics support
-on Windows 7 64 bit and GNU/Linux 64 bit OS
+64 bit x86-64 with little endian OpenCL devices on 
+Windows 7 64 bit and GNU/Linux 64 bit OS
 
 Usage:
 First make sure you have an working OpenCL Runtime Environment,
