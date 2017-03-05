@@ -2077,7 +2077,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
           if (LogFile)
             fprintf(LogFile, " ");
 
-        }while(JUSTMOVE(PV[i])!=MOVENONE&&i<1024&&i<=idf);
+        }while(JUSTMOVE(PV[i])!=MOVENONE&&i<MAXPLY&&i<=idf);
 
         fprintf(stdout,"\n");
         if (LogFile)

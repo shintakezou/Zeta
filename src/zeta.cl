@@ -2454,7 +2454,7 @@ __kernel void alphabeta_gpu(
         stm = !stm;
         bbWork = computehash(board, stm);
       }
-    }while(tmpmove!=MOVENONE&&n<1024);
+    }while(tmpmove!=MOVENONE&&n<MAXPLY);
   } // end collect pv
 } // end kernel alphabeta_gpu
 
