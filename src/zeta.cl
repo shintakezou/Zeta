@@ -1899,9 +1899,9 @@ __kernel void alphabeta_gpu(
         score = -INF;
         if (slots>=3&&TT3[bbTemp].hash==bbWork&&(s32)TT3[bbTemp].depth>=localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
           score = (Score)TT3[bbTemp].score;
-        if (slots>=2&&TT2[bbTemp].hash==bbWork&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+        else if (slots>=2&&TT2[bbTemp].hash==bbWork&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
           score = (Score)TT2[bbTemp].score;
-        if (slots>=1&&TT1[bbTemp].hash==bbWork&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        else if (slots>=1&&TT1[bbTemp].hash==bbWork&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
       
         if (!ISINF(score)
@@ -2030,7 +2030,7 @@ __kernel void alphabeta_gpu(
             bbWork = localHashHistory[sd];    
             bbTemp = bbWork&(ttindex-1);
  
-            // four memory slots, depth replace
+            // memory slots, depth replace
             if (slots>=3&&(u8)localDepth[sd]>=TT3[bbTemp].depth)
             {
               TT3[bbTemp].hash      = bbWork;
@@ -2164,9 +2164,9 @@ __kernel void alphabeta_gpu(
       bbTemp = bbWork&(ttindex-1);
       if (slots>=3&&TT3[bbTemp].hash==bbWork)
         ttmove = TT3[bbTemp].bestmove;
-      if (slots>=2&&TT2[bbTemp].hash==bbWork)
+      else if (slots>=2&&TT2[bbTemp].hash==bbWork)
         ttmove = TT2[bbTemp].bestmove;
-      if (slots>=1&&TT1[bbTemp].hash==bbWork)
+      else if (slots>=1&&TT1[bbTemp].hash==bbWork)
         ttmove = TT1[bbTemp].bestmove;
       // get iidmove
       Move iidmove = localMoveIID[sd];
@@ -2431,12 +2431,12 @@ __kernel void alphabeta_gpu(
         tmpmove = TT3[bbTemp].bestmove;
         score = (Score)TT3[bbTemp].score;
       }
-      if (slots>=2&&TT2[bbTemp].hash==bbWork)
+      else if (slots>=2&&TT2[bbTemp].hash==bbWork)
       {
         tmpmove = TT2[bbTemp].bestmove;
         score = (Score)TT2[bbTemp].score;
       }
-      if (slots>=1&&TT1[bbTemp].hash==bbWork)
+      else if (slots>=1&&TT1[bbTemp].hash==bbWork)
       {
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
