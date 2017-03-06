@@ -78,6 +78,7 @@ typedef u8 Rank;
 #define MINDEVICEMB 64ULL   // min memory of OpenCl device in MB
 #define MAXDEVICEMB 1024ULL // max memory for OpenCL devices in MB
 #define MAXSLOTS    3       // max memory slots for OpenCL devices
+#define ESTEBF      3       // estaminated effective branching factor, for tc
 // colors
 #define BLACK               1
 #define WHITE               0
