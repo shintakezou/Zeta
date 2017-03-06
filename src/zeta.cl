@@ -1897,11 +1897,11 @@ __kernel void alphabeta_gpu(
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
         score = -INF;
-        if (slots>=3&&TT3[bbTemp].hash==bbWork&&(s32)TT3[bbTemp].depth>localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
+        if (slots>=3&&TT3[bbTemp].hash==bbWork&&(s32)TT3[bbTemp].depth>=localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
           score = (Score)TT3[bbTemp].score;
-        if (slots>=2&&TT2[bbTemp].hash==bbWork&&(s32)TT2[bbTemp].depth>localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+        if (slots>=2&&TT2[bbTemp].hash==bbWork&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
           score = (Score)TT2[bbTemp].score;
-        if (slots>=1&&TT1[bbTemp].hash==bbWork&&(s32)TT1[bbTemp].depth>localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        if (slots>=1&&TT1[bbTemp].hash==bbWork&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
       
         if (!ISINF(score)
@@ -2285,6 +2285,8 @@ __kernel void alphabeta_gpu(
       localDepth[sd]                    = localDepth[sd]/5;
       localSearchMode[sd]              |= IIDSEARCH;
     }
+    if (lid==0)
+      bbAttacks = HASHNONE;
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
@@ -2302,7 +2304,6 @@ __kernel void alphabeta_gpu(
       // set history
       localTodoIndex[sd]++;
       localMoveHistory[sd]    = move;
-      bbAttacks = HASHNONE;
     }
     if (mode==MOVEUP)
     {
@@ -2314,8 +2315,9 @@ __kernel void alphabeta_gpu(
     }
     // compute hash x64
     pfrom = GETPIECE(board,lid);
-    bbTemp = (GETPTYPE(pfrom))?Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1]:BBEMPTY;
-    bbTmp64[lid] =  ((bbTemp<<lid)|(bbTemp>>(64-lid))); // rotate left 64
+    bbTemp = (GETPTYPE(pfrom))?Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1]:HASHNONE;
+    bbTemp   =  ((bbTemp<<lid)|(bbTemp>>(64-lid))); // rotate left 64
+    bbTmp64[lid] =  bbTemp;
     // collect hashes
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
