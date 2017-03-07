@@ -2006,7 +2006,7 @@ __kernel void alphabeta_gpu(
             localAlphaBetaScores[sd*2+ALPHA]=score;
             flag = EXACTSCORE;
             // collect bestmove and score
-            if (sd==1)
+            if (sd==1&&move!=MOVENONE&&move!=NULLMOVE)
             {
               PV[0] = (u64)score;
               PV[1] = move;
