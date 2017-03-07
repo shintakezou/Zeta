@@ -1377,7 +1377,7 @@ __kernel void perft_gpu(
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
   } // end main loop
-} // end kernel gpu_perft
+} // end kernel perft_gpu
 // alphabeta search on gpu
 // 64 threads in parallel on one chess position
 // move gen with pawn queen promo only
