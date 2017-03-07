@@ -2023,6 +2023,7 @@ __kernel void alphabeta_gpu(
               !localQS[sd]
               &&flag>FAILLOW
               &&move!=MOVENONE
+              &&move!=NULLMOVE
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
               &&!(localSearchMode[sd]&IIDSEARCH)
              )
@@ -2060,6 +2061,8 @@ __kernel void alphabeta_gpu(
           if (
               !localQS[sd]
               &&flag==FAILHIGH
+              &&move!=MOVENONE
+              &&move!=NULLMOVE
               &&GETPCPT(move)==PNONE // quiet moves only
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
               &&!(localSearchMode[sd]&IIDSEARCH)
