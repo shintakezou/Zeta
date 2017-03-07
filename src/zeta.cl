@@ -1897,11 +1897,11 @@ __kernel void alphabeta_gpu(
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
         score = -INF;
-        if (slots>=3&&TT3[bbTemp].hash==bbWork&&(s32)TT3[bbTemp].depth>=localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
+        if (slots>=3&&TT3[bbTemp].hash==bbWork&&(s32)TT3[bbTemp].depth>localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
           score = (Score)TT3[bbTemp].score;
-        else if (slots>=2&&TT2[bbTemp].hash==bbWork&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+        else if (slots>=2&&TT2[bbTemp].hash==bbWork&&(s32)TT2[bbTemp].depth>localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
           score = (Score)TT2[bbTemp].score;
-        else if (slots>=1&&TT1[bbTemp].hash==bbWork&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        else if (slots>=1&&TT1[bbTemp].hash==bbWork&&(s32)TT1[bbTemp].depth>localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
       
         if (!ISINF(score)
@@ -2385,7 +2385,8 @@ __kernel void alphabeta_gpu(
          &&sd>2  // no root moves
          &&move!=NULLMOVE
          &&move!=MOVENONE
-         &&!(localSearchMode[sd]&IIDSEARCH)
+         &&!(!(localSearchMode[sd-2]&IIDSEARCH)&&localSearchMode[sd-1]&IIDSEARCH)
+//         &&!(localSearchMode[sd]&IIDSEARCH)
          &&GETPCPT(move)==PNONE     // quiet moves only
          &&!localQS[sd-1]
          &&!localRootKic[sd-1]
