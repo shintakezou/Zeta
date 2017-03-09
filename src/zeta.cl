@@ -1403,6 +1403,9 @@ __kernel void alphabeta_gpu(
                                const u64 slots
 )
 {
+  // hash pointer
+  __global TTE *TT;
+
   // Quadbitboard
   __private Bitboard board[4]; 
 
@@ -1426,7 +1429,6 @@ __kernel void alphabeta_gpu(
   __local Hash localHashHistory[MAXPLY];
 
   __local bool bresearch;
-  __local bool gotttmove;
 
   __local Square sqchecker;
 
@@ -1894,11 +1896,11 @@ __kernel void alphabeta_gpu(
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
         score = -INF;
-        if (slots>=3&&TT3[bbTemp].hash==bbWork&&(s32)TT3[bbTemp].depth>localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
+        if (slots>=3&&(TT3[bbTemp].hash==(bbWork^TT3[bbTemp].bestmove))&&(s32)TT3[bbTemp].depth>localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
           score = (Score)TT3[bbTemp].score;
-        else if (slots>=2&&TT2[bbTemp].hash==bbWork&&(s32)TT2[bbTemp].depth>localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+        else if (slots>=2&&(TT2[bbTemp].hash==(bbWork^TT2[bbTemp].bestmove))&&(s32)TT2[bbTemp].depth>localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
           score = (Score)TT2[bbTemp].score;
-        else if (slots>=1&&TT1[bbTemp].hash==bbWork&&(s32)TT1[bbTemp].depth>localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        else if (slots>=1&&(TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
       
         if (!ISINF(score)
@@ -2007,31 +2009,29 @@ __kernel void alphabeta_gpu(
           {
             bbWork = localHashHistory[sd];    
             bbTemp = bbWork&(ttindex-1);
- 
-            // memory slots, depth replace
-            if (slots>=3&&(u8)localDepth[sd]>=TT3[bbTemp].depth)
-            {
-              TT3[bbTemp].hash      = bbWork;
-              TT3[bbTemp].bestmove  = move;
-              TT3[bbTemp].score     = score;
-              TT3[bbTemp].flag      = flag;
-              TT3[bbTemp].depth     = (u8)localDepth[sd];
-            }
+            bbWork = bbWork^(Hash)move; // xor trick for avoiding race conditions
+
+            TT = TT1;
+
+            if (slots>=3&&(TT3[bbTemp].hash==bbWork)&&(u8)localDepth[sd]>=TT3[bbTemp].depth)
+              TT = TT3;
+            else if (slots>=2&&(TT2[bbTemp].hash==bbWork)&&(u8)localDepth[sd]>=TT2[bbTemp].depth)
+              TT = TT2;
+            else if (slots>=1&&(TT1[bbTemp].hash==bbWork)&&(u8)localDepth[sd]>=TT1[bbTemp].depth)
+              TT = TT1;
+            else if (slots>=3&&(u8)localDepth[sd]>=TT3[bbTemp].depth)
+              TT = TT3;
             else if (slots>=2&&(u8)localDepth[sd]>=TT2[bbTemp].depth)
-            {
-              TT2[bbTemp].hash      = bbWork;
-              TT2[bbTemp].bestmove  = move;
-              TT2[bbTemp].score     = score;
-              TT2[bbTemp].flag      = flag;
-              TT2[bbTemp].depth     = (u8)localDepth[sd];
-            }
+              TT = TT2;
             else if (slots>=1&&(u8)localDepth[sd]>=TT1[bbTemp].depth)
+              TT = TT1;
+            if (TT)
             {
-              TT1[bbTemp].hash      = bbWork;
-              TT1[bbTemp].bestmove  = move;
-              TT1[bbTemp].score     = score;
-              TT1[bbTemp].flag      = flag;
-              TT1[bbTemp].depth     = (u8)localDepth[sd];
+              TT[bbTemp].hash      = bbWork;
+              TT[bbTemp].bestmove  = move;
+              TT[bbTemp].score     = score;
+              TT[bbTemp].flag      = flag;
+              TT[bbTemp].depth     = (u8)localDepth[sd];
             }
           } // end save to hash table
           // save killer and counter move heuristic for quiet moves
@@ -2117,8 +2117,6 @@ __kernel void alphabeta_gpu(
       // late move reductions research
       if (bresearch)
         lmove = localMoveHistory[sd];
-
-      gotttmove = true;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
@@ -2140,11 +2138,11 @@ __kernel void alphabeta_gpu(
       Move ttmove = MOVENONE;
       bbWork = localHashHistory[sd];    
       bbTemp = bbWork&(ttindex-1);
-      if (slots>=3&&TT3[bbTemp].hash==bbWork)
+      if (slots>=3&&TT3[bbTemp].hash==(bbWork^TT3[bbTemp].bestmove))
         ttmove = TT3[bbTemp].bestmove;
-      else if (slots>=2&&TT2[bbTemp].hash==bbWork)
+      else if (slots>=2&&TT2[bbTemp].hash==(bbWork^TT2[bbTemp].bestmove))
         ttmove = TT2[bbTemp].bestmove;
-      else if (slots>=1&&TT1[bbTemp].hash==bbWork)
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))
         ttmove = TT1[bbTemp].bestmove;
       n       = 0;
       move    = MOVENONE;
@@ -2365,17 +2363,17 @@ __kernel void alphabeta_gpu(
       // load ttmove from hash table, up to 3 slots
       tmpmove = MOVENONE;
       bbTemp = bbWork&(ttindex-1);
-      if (slots>=3&&TT3[bbTemp].hash==bbWork)
+      if (slots>=3&&TT3[bbTemp].hash==(bbWork^TT3[bbTemp].bestmove))
       {
         tmpmove = TT3[bbTemp].bestmove;
         score = (Score)TT3[bbTemp].score;
       }
-      else if (slots>=2&&TT2[bbTemp].hash==bbWork)
+      else if (slots>=2&&TT2[bbTemp].hash==(bbWork^TT2[bbTemp].bestmove))
       {
         tmpmove = TT2[bbTemp].bestmove;
         score = (Score)TT2[bbTemp].score;
       }
-      else if (slots>=1&&TT1[bbTemp].hash==bbWork)
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))
       {
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
