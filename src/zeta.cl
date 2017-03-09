@@ -2011,7 +2011,7 @@ __kernel void alphabeta_gpu(
             bbTemp = bbWork&(ttindex-1);
             bbWork = bbWork^(Hash)move; // xor trick for avoiding race conditions
 
-            TT = TT1;
+            TT = TT1; // slot one always replace
 
             if (slots>=3&&(TT3[bbTemp].hash==bbWork)&&(u8)localDepth[sd]>=TT3[bbTemp].depth)
               TT = TT3;
@@ -2025,14 +2025,13 @@ __kernel void alphabeta_gpu(
               TT = TT2;
             else if (slots>=1&&(u8)localDepth[sd]>=TT1[bbTemp].depth)
               TT = TT1;
-            if (TT)
-            {
-              TT[bbTemp].hash      = bbWork;
-              TT[bbTemp].bestmove  = move;
-              TT[bbTemp].score     = score;
-              TT[bbTemp].flag      = flag;
-              TT[bbTemp].depth     = (u8)localDepth[sd];
-            }
+
+            TT[bbTemp].hash      = bbWork;
+            TT[bbTemp].bestmove  = move;
+            TT[bbTemp].score     = score;
+            TT[bbTemp].flag      = flag;
+            TT[bbTemp].depth     = (u8)localDepth[sd];
+
           } // end save to hash table
           // save killer and counter move heuristic for quiet moves
           if (
