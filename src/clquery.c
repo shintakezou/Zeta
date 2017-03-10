@@ -34,11 +34,17 @@ bool cl_platform_list()
   cl_int status = 0;
   u32 i;
     
+  fprintf(stdout,"#>\n");
   fprintf(stdout,"#> ### Query the OpenCL Platforms on Host...\n");
+  fprintf(stdout,"#>\n");
   if (LogFile)
   {
     fprintdate(LogFile);
+    fprintf(LogFile,"#>\n");
+    fprintdate(LogFile);
     fprintf(LogFile,"#> ### Query the OpenCL Platforms on Host...\n");
+    fprintdate(LogFile);
+    fprintf(LogFile,"#>\n");
   }
 
   status = clGetPlatformIDs(256, NULL, &numPlatforms);
@@ -56,10 +62,13 @@ bool cl_platform_list()
   if(numPlatforms > 0)
   {
     fprintf(stdout, "#> Number of OpenCL Platforms found: %i \n", numPlatforms);
+    fprintf(stdout,"#>\n");
     if (LogFile)
     {
       fprintdate(LogFile);
       fprintf(LogFile, "#> Number of OpenCL Platforms found: %i \n", numPlatforms);
+      fprintdate(LogFile);
+      fprintf(LogFile,"#>\n");
     }
 
     cl_platform_id* platforms = (cl_platform_id *) malloc(numPlatforms);
@@ -99,10 +108,13 @@ bool cl_platform_list()
       // get current platform
       platform = platforms[i];
       fprintf(stdout, "#> platform_id: %i,  Vendor:  %s \n", i, pbuff);
+      fprintf(stdout,"#>\n");
       if (LogFile)
       {
         fprintdate(LogFile);
         fprintf(LogFile, "#> platform_id: %i,  Vendor:  %s \n", i, pbuff);
+        fprintdate(LogFile);
+        fprintf(LogFile,"#>\n");
       }
     }
   }
@@ -129,10 +141,13 @@ bool cl_device_list()
   u32 i,j;
     
   fprintf(stdout,"#> ### Query the OpenCL Devices on Host...\n");
+  fprintf(stdout,"#>\n");
   if (LogFile)
   {
     fprintdate(LogFile);
     fprintf(LogFile,"#> ### Query the OpenCL Devices on Host...\n");
+    fprintdate(LogFile);
+    fprintf(LogFile,"#>\n");
   }
 
   status = clGetPlatformIDs(256, NULL, &numPlatforms);
@@ -150,10 +165,13 @@ bool cl_device_list()
   if(numPlatforms > 0)
   {
     fprintf(stdout, "#> Number of OpenCL Platforms found: %i \n", numPlatforms);
+    fprintf(stdout,"#>\n");
     if (LogFile)
     {
       fprintdate(LogFile);
       fprintf(LogFile, "#> Number of OpenCL Platforms found: %i \n", numPlatforms);
+      fprintdate(LogFile);
+      fprintf(LogFile,"#>\n");
     }
 
     cl_platform_id* platforms = (cl_platform_id *) malloc(numPlatforms);
@@ -279,10 +297,13 @@ bool cl_device_list()
         else
         {
           fprintf(stdout, "#> platform_id:%i, device_id: %i, Vendor: %s, Device name: %s \n", i, j, pbuff, deviceName);
+          fprintf(stdout, "#>\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#> platform_id:%i, device_id: %i, Vendor: %s, Device name: %s \n", i, j, pbuff, deviceName);
+            fprintdate(LogFile);
+            fprintf(LogFile, "#>\n");
           }
         }
       }

@@ -54,11 +54,17 @@ bool cl_guess_config(bool extreme)
   u64 mem = 0;
   u64 slots = 0;
     
+  fprintf(stdout,"#>\n");
   fprintf(stdout,"#> ### Query the OpenCL Platforms on Host...\n");
+  fprintf(stdout,"#>\n");
   if (LogFile)
   {
     fprintdate(LogFile);
+    fprintf(LogFile,"#>\n");
+    fprintdate(LogFile);
     fprintf(LogFile,"#> ### Query the OpenCL Platforms on Host...\n");
+    fprintdate(LogFile);
+    fprintf(LogFile,"#>\n");
   }
 
   status = clGetPlatformIDs(256, NULL, &numPlatforms);
@@ -76,10 +82,13 @@ bool cl_guess_config(bool extreme)
   if(numPlatforms > 0)
   {
     fprintf(stdout, "#> Number of OpenCL Platforms found: %i \n", numPlatforms);
+    fprintf(stdout,"#>\n");
     if (LogFile)
     {
       fprintdate(LogFile);
       fprintf(LogFile, "#> Number of OpenCL Platforms found: %i \n", numPlatforms);
+      fprintdate(LogFile);
+      fprintf(LogFile,"#>\n");
     }
 
     cl_platform_id* platforms = (cl_platform_id *) malloc(numPlatforms);
@@ -124,16 +133,22 @@ bool cl_guess_config(bool extreme)
       // get current platform
       platform = platforms[i];
       fprintf(stdout, "#> Platform: %i,  Vendor:  %s \n", i, pbuff);
+      fprintf(stdout,"#>\n");
       if (LogFile)
       {
         fprintdate(LogFile);
         fprintf(LogFile, "#> Platform: %i,  Vendor:  %s \n", i, pbuff);
+        fprintdate(LogFile);
+        fprintf(LogFile,"#>\n");
       }
       fprintf(stdout, "#> ### Query the OpenCL Devices on Platform...\n");
+      fprintf(stdout,"#>\n");
       if (LogFile)
       {
         fprintdate(LogFile);
         fprintf(LogFile,"#> ### Query the OpenCL Devices on Platform...\n");
+        fprintdate(LogFile);
+        fprintf(LogFile,"#>\n");
       }
       // get device list size
       status = clGetDeviceIDs(platform, 
@@ -179,10 +194,13 @@ bool cl_guess_config(bool extreme)
         continue;
       }
       fprintf(stdout, "#> Number of OpenCL Devices found: %i \n", deviceListSize);
+      fprintf(stdout,"#>\n");
       if (LogFile)
       {
         fprintdate(LogFile);
         fprintf(LogFile, "#> Number of OpenCL Devices found: %i \n", deviceListSize);
+        fprintdate(LogFile);
+        fprintf(LogFile,"#>\n");
       }
 
       // for each present OpenCL device do
@@ -235,16 +253,22 @@ bool cl_guess_config(bool extreme)
         else
         {
           fprintf(stdout, "#> ### Query and check the OpenCL Device...\n");
+          fprintf(stdout,"#>\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#> ### Query and check the OpenCL Device...\n");
+            fprintdate(LogFile);
+            fprintf(LogFile,"#>\n");
           }
           fprintf(stdout, "#> Device: %i, Device name: %s \n", j, deviceName);
+          fprintf(stdout,"#>\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#> Device: %i, Device name: %s \n", j, deviceName);
+            fprintdate(LogFile);
+            fprintf(LogFile,"#>\n");
           }
         }
 
