@@ -2186,7 +2186,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   return 0;
 }
 // get nodes per second for temp config and specified position
-u64 benchmarkWrapper(s32 benchsec)
+s64 benchmarkWrapper(s32 benchsec)
 {
   s32 sd = 1; 
   s32 bench = 0;

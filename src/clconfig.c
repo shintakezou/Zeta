@@ -21,6 +21,7 @@
 
 #include <stdio.h>      // for file io
 #include <string.h>     // for string comparing functions
+#include <math.h>       // for ceil
 
 #include "timer.h"
 #include "zeta.h"       // for global vars
@@ -44,8 +45,9 @@ bool cl_guess_config(bool extreme)
   u32 deviceunits = 0;
   u64 devicememalloc = 0;
   s32 warpmulti = 1;
-  u64 nps = 0;
-  u64 npstmp = 0;
+  s32 bestwarpmulti = 1;
+  s64 nps = 0;
+  s64 npstmp = 0;
   s32 devicecounter = 0;
   s32 benchsec = 4;
   u64 ttbits = 0;
@@ -192,7 +194,7 @@ bool cl_guess_config(bool extreme)
           continue;
 
         failed = false;
-        warpmulti = 1;
+        bestwarpmulti = warpmulti = 1;
         // get device name size
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_NAME,
@@ -1023,7 +1025,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-            fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", npstmp);
+            fprintf(Cfg, "nodes_per_second: %" PRI64 ";\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots,(s32)slots);
@@ -1064,13 +1066,14 @@ bool cl_guess_config(bool extreme)
           // get threadsY, multi for warpsize
           nps = 0;
           npstmp = 0;
+          int iter = 0;
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
             fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-            fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", npstmp);
+            fprintf(Cfg, "nodes_per_second: %" PRIi64 ";\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
@@ -1113,16 +1116,24 @@ bool cl_guess_config(bool extreme)
             if (npstmp<=0)
               break;
             // check for 10% speedup margin
-            if (npstmp<=nps*1.10)
-            {
-              warpmulti/=2;
-              break;
-            }
             // increase threadsY
-            if (npstmp>=nps)
+            if (npstmp/1.10>=nps)
             {
+              bestwarpmulti = warpmulti;
               warpmulti*=2;
               nps = npstmp;
+              iter = 0;
+            }
+            else
+            {
+              iter++;
+              // check non pow2 multis
+              warpmulti = bestwarpmulti;
+              for(int i=0;i<iter&&warpmulti>=4;i++)
+                warpmulti = (int)ceil((float)warpmulti/2+(float)warpmulti/4);
+
+              if (iter>=3)
+                break;
             }
           }
           remove("config.tmp");
@@ -1141,7 +1152,7 @@ bool cl_guess_config(bool extreme)
         Cfg = fopen(confignamefile, "w");
         fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(Cfg, "threadsX: %i;\n", (!extreme)?1:deviceunits);
-        fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:warpmulti);
+        fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
@@ -1173,7 +1184,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "#\n");
         fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
         fprintf(stdout, "threadsX: %i;\n", (!extreme)?1:deviceunits);
-        fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:warpmulti);
+        fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(stdout, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
@@ -1187,7 +1198,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "#\n");
           fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
           fprintf(LogFile, "threadsX: %i;\n", (!extreme)?1:deviceunits);
-          fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:warpmulti);
+          fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
           fprintf(LogFile, "nodes_per_second: %" PRIu64 ";\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
