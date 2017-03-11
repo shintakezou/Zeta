@@ -1409,15 +1409,14 @@ __kernel void alphabeta_gpu(
 //                               const u64 slots
 )
 {
-  // hash pointer
-  __global TTE *TT;
-
   // Quadbitboard
   __private Bitboard board[4]; 
 
   // temporary place holders
   __local Bitboard bbTmp64[64];
   __local Score scrTmp64[64];
+
+  // iterative var stack
   __local u8 localNodeStates[MAXPLY];
   __local u8 localSearchMode[MAXPLY];
   __local s32 localDepth[MAXPLY];
