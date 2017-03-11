@@ -2049,7 +2049,6 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       lmove = MOVENONE;
-/*
       // load ttmove from hash table
       tmpmove = MOVENONE;
       bbWork = localHashHistory[sd];    
@@ -2057,7 +2056,6 @@ __kernel void alphabeta_gpu(
       if (TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))
         tmpmove = TT1[bbTemp].bestmove;
 
-      // check for TTmove
       if (tmpmove!=MOVENONE)
       {
         // check ttmove for sense...
@@ -2070,7 +2068,6 @@ __kernel void alphabeta_gpu(
           COUNTERS[gid*64+3]++;      
         }
       }
-*/
       // check for nullmove pruning
       if (!bresearch
           &&sd>1
@@ -2104,12 +2101,6 @@ __kernel void alphabeta_gpu(
       // get killer move and counter move
       Move killermove = Killers[gid*MAXPLY+sd];
       Move countermove = Counters[gid*64*64+GETSQFROM(move)*64+GETSQTO(move)];
-      // load ttmove from hash table
-      Move ttmove = MOVENONE;
-      bbWork = localHashHistory[sd];    
-      bbTemp = bbWork&(ttindex-1);
-      if (TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))
-        ttmove = TT1[bbTemp].bestmove;
       n       = 0;
       move    = MOVENONE;
       score  = -INFMOVESCORE;
@@ -2160,13 +2151,6 @@ __kernel void alphabeta_gpu(
         {
           tmpscore = 210; // score as highest quiet move
           tmpscore = tmpscore*10000+lid*64+n;
-        }
-        // check ttmove
-        if (ttmove==tmpmove)
-        {
-          tmpscore = INFMOVESCORE-100+lid; // score as highest move
-          // tthits counter
-          COUNTERS[gid*64+3]++;      
         }
         // get move with highest score
         if (tmpscore<score)
