@@ -1337,7 +1337,6 @@ __kernel void perft_gpu(
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-    // get sorted next move and store to local memory
     // ################################
     // ####         moveup         ####
     // ################################
