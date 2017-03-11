@@ -1973,7 +1973,7 @@ __kernel void alphabeta_gpu(
             localAlphaBetaScores[sd*2+ALPHA]=score;
             flag = EXACTSCORE;
             // collect bestmove and score
-            if (sd==1&&move!=MOVENONE&&move!=NULLMOVE)
+            if (sd==1&&gid==0&&move!=MOVENONE&&move!=NULLMOVE)
             {
               PV[0] = (u64)score;
               PV[1] = move;
@@ -2316,14 +2316,14 @@ __kernel void alphabeta_gpu(
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
-      // PV[0] reserved for best rootmove colelcted during search
-      // PV[1] reserved for score
+      // PV[0] reserved for score
+      // PV[1] reserved for best rootmove collected during search
       // set score
       if (tmpmove!=MOVENONE&&n==0)
         PV[n] = (Move)score;
       n++;
       // set bestmove
-      if (tmpmove!=MOVENONE&&n>1)
+      if (tmpmove!=MOVENONE&&n>=1)
         PV[n] = tmpmove;
       if (tmpmove!=MOVENONE)
       {
