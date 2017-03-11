@@ -1882,7 +1882,6 @@ __kernel void alphabeta_gpu(
       if (mode==MOVEUP
           &&!qs
           &&sd>1
-          &&localDepth[sd]>0
          )
       {
         bbWork = localHashHistory[sd];    
