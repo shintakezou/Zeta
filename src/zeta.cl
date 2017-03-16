@@ -1915,9 +1915,9 @@ __kernel void alphabeta_gpu(
         score = -INF;
         if (slots>=3&&(TT3[bbTemp].hash==(bbWork^(Hash)TT3[bbTemp].bestmove))&&(s32)TT3[bbTemp].depth>=localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
           score = (Score)TT3[bbTemp].score;
-        if (slots>=2&&(TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+        else if (slots>=2&&(TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
           score = (Score)TT2[bbTemp].score;
-        if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        else if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
       
         if (!ISINF(score)
