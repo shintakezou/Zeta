@@ -44,6 +44,7 @@ bool cl_guess_config(bool extreme)
   u32 i,j,k;
   u32 deviceunits = 0;
   u64 devicememalloc = 0;
+  u64 memalloc = 0;
   s32 warpmulti = 1;
   s32 bestwarpmulti = 1;
   s64 nps = 0;
@@ -380,19 +381,6 @@ bool cl_guess_config(bool extreme)
               fprintdate(LogFile);
               fprintf(LogFile, "#> OK, CL_DEVICE_MAX_MEM_ALLOC_SIZE: %" PRIu64 " MB >= %" PRIu64 " MB \n", devicememalloc/1024/1024, (u64)MINDEVICEMB);
             }
-
-            // set memory to default max
-            if (devicememalloc > MAXDEVICEMB*1024*1024 )
-              devicememalloc = MAXDEVICEMB*1024*1024; 
-            // initialize transposition table
-            ttbits = 0;
-            mem = devicememalloc/(sizeof(TTE));
-            while ( mem >>= 1)   // get msb
-              ttbits++;
-            mem = 1UL<<ttbits;
-            ttbits=mem;
-            devicememalloc = mem*sizeof(TTE); // set correct hash size
-            devicememalloc = (devicememalloc==0)?1:devicememalloc;
           }
         }
         // get global memory size, for calculating slots
@@ -423,10 +411,27 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> OK, CL_DEVICE_GLOBAL_MEM_SIZE: %" PRIu64 " MB\n", devicememglobal/1024/1024);
           }
-
-          slots = devicememglobal/(devicememalloc);
-          slots = (slots>MAXSLOTS)?MAXSLOTS:slots;
         }
+
+        // set memory to default max
+        memalloc = devicememglobal/4;
+        if (memalloc>MAXDEVICEMB*1024*1024)
+          memalloc =  MAXDEVICEMB*1024*1024;
+        if (memalloc>devicememalloc)
+          memalloc =  devicememalloc;
+        // memory slots
+        slots = devicememglobal/memalloc;
+        slots = (slots>MAXSLOTS)?MAXSLOTS:slots;
+        // initialize transposition table
+        ttbits = 0;
+        mem = memalloc/(sizeof(TTE));
+        while ( mem >>= 1)   // get msb
+          ttbits++;
+        mem = 1UL<<ttbits;
+        ttbits=mem;
+        memalloc = mem*sizeof(TTE); // set correct hash size
+        memalloc = (memalloc==0)?1:memalloc;
+
 
         // check for needed device extensions
 // local and global 32 bit functions faster on newer device...
@@ -948,7 +953,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsY: %i;\n", 1);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
-        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
+        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", 1, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -1051,7 +1056,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %" PRI64 ";\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
-            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
+            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots,(s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -1090,7 +1095,7 @@ bool cl_guess_config(bool extreme)
           // get threadsY, multi for warpsize
           nps = 0;
           npstmp = 0;
-          int iter = 0;
+//          int iter = 0;
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
@@ -1099,7 +1104,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %" PRIi64 ";\n", npstmp);
             fprintf(Cfg, "max_nodes: 0;\n");
-            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
+            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -1146,18 +1151,21 @@ bool cl_guess_config(bool extreme)
               bestwarpmulti = warpmulti;
               warpmulti*=2;
               nps = npstmp;
-              iter = 0;
+//              iter = 0;
             }
             else
             {
-              iter++;
+              break;
               // check non pow2 multis
+/*
+              iter++;
               warpmulti = bestwarpmulti;
               for(int i=0;i<iter&&warpmulti>=4;i++)
                 warpmulti = (int)ceil((float)warpmulti/2+(float)warpmulti/4);
 
               if (iter>=3)
                 break;
+*/
             }
           }
           remove("config.tmp");
@@ -1179,7 +1187,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(Cfg, "max_nodes: 0;\n");
-        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
+        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -1211,7 +1219,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(stdout, "nodes_per_second: %" PRIu64 ";\n", nps);
         fprintf(stdout, "max_nodes: 0;\n");
-        fprintf(stdout, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
+        fprintf(stdout, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(stdout, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
         fprintf(stdout, "opencl_device_id: %i;\n\n",j);
@@ -1225,7 +1233,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
           fprintf(LogFile, "nodes_per_second: %" PRIu64 ";\n", nps);
           fprintf(LogFile, "max_nodes: 0;\n");
-          fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)devicememalloc/1024/1024);
+          fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
           fprintf(LogFile, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
           fprintf(LogFile, "opencl_device_id: %i;\n\n",j);

@@ -35,7 +35,7 @@ typedef uchar    u8;
 typedef char     s8;
 
 typedef s32     Score;
-typedef s32     TTScore;
+typedef s16     TTScore;
 typedef u8      Square;
 typedef u8      Piece;
 
@@ -362,6 +362,12 @@ u8 popfirst1(u64 *a)
 // bit twiddling hacks
 //  bb_work=bb_temp&-bb_temp;  // get lsb 
 //  bb_temp&=bb_temp-1;       // clear lsb
+/*
+  // xorshift32
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+*/
 
 // apply move on board, quick during move generation
 void domovequick(Bitboard *board, Move move)
@@ -1232,7 +1238,7 @@ __kernel void perft_gpu(
       if (sd>search_depth)
       {
         // nodecounter
-        COUNTERS[gid*64+0]++;
+        COUNTERS[gid*64+1]++;
         movecount = 0;
         lmove = MOVENONE;
       }
@@ -1395,8 +1401,8 @@ __kernel void alphabeta_gpu(
                       const __global Bitboard *bbInBetween,
                       const __global Bitboard *bbLine,
                             __global TTE *TT1,
-//                            __global TTE *TT2,
-//                            __global TTE *TT3,
+                            __global TTE *TT2,
+                            __global TTE *TT3,
 //                            __global TTE *TT4,
                             __global Move *Killers,
                             __global Move *Counters,
@@ -1404,8 +1410,8 @@ __kernel void alphabeta_gpu(
                                const s32 ply_init,
                                const s32 search_depth,
                                const u64 max_nodes,
-                               const u64 ttindex
-//                               const u64 slots
+                               const u64 ttindex,
+                               const u64 slots
 )
 {
   // Quadbitboard
@@ -1466,6 +1472,13 @@ __kernel void alphabeta_gpu(
   Score score;
   Score tmpscore;
 
+  u32 random = (u32)((Zobrist[lid%16]<<lid)|(Zobrist[lid%16]>>(64-lid)));
+/*
+  // xorshift32 PRNG
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+*/
   Move move;
   Move tmpmove;
 
@@ -1506,7 +1519,7 @@ __kernel void alphabeta_gpu(
     localCrHistory[0]               = BOARD[QBBPMVD];
     localHMCHistory[0]              = (u8)BOARD[QBBHMC];
     localHashHistory[0]             = BOARD[QBBHASH];
-    localDepth[0]                   = search_depth;
+    localDepth[0]                   = search_depth; // lazy smp, inc depth
     localNodeStates[0]              = STATENONE;
     localSearchMode[0]              = SEARCH;
     localAlphaBetaScores[sd*2+ALPHA]=-INF;
@@ -1517,7 +1530,7 @@ __kernel void alphabeta_gpu(
     localCrHistory[sd]              = BOARD[QBBPMVD];
     localHMCHistory[sd]             = (u8)BOARD[QBBHMC];
     localHashHistory[sd]            = BOARD[QBBHASH];
-    localDepth[sd]                  = search_depth;
+    localDepth[sd]                  = search_depth; // lazy smp, inc depth
     localNodeStates[sd]             = STATENONE;
     localSearchMode[sd]             = SEARCH;
 
@@ -1527,6 +1540,18 @@ __kernel void alphabeta_gpu(
 //    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
 //    COUNTERS[gid*64+3]              = 0;              // tthits, return
 //    COUNTERS[gid*64+4]              = 0;              // depth reached, return
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  // lazy smp, delay for non-deternism
+  for (int i=0;gid>=8&&i<gid*1000;i++)
+    movecount+=i;
+  // init random seed
+  for (int i=0;i<gid;i++)
+  {
+    // xorshift32 PRNG
+	  random ^= random << 13;
+	  random ^= random >> 17;
+	  random ^= random << 5;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 //  barrier(CLK_GLOBAL_MEM_FENCE);
@@ -1814,7 +1839,7 @@ __kernel void alphabeta_gpu(
       score-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       score+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       // stm bonus, to prevent mix up with drawscore
-      score+= (stm)?-1:1;
+//      score+= (stm)?-1:1;
     }
     // store scores in local memory
     scrTmp64[lid] = score;
@@ -1882,12 +1907,17 @@ __kernel void alphabeta_gpu(
       if (mode==MOVEUP
           &&!qs
           &&sd>1
+          &&localSearchMode[sd]==SEARCH
          )
       {
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
         score = -INF;
-        if ((TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        if (slots>=3&&(TT3[bbTemp].hash==(bbWork^(Hash)TT3[bbTemp].bestmove))&&(s32)TT3[bbTemp].depth>=localDepth[sd]&&TT3[bbTemp].flag>FAILLOW)
+          score = (Score)TT3[bbTemp].score;
+        if (slots>=2&&(TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+          score = (Score)TT2[bbTemp].score;
+        if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
       
         if (!ISINF(score)
@@ -1937,7 +1967,7 @@ __kernel void alphabeta_gpu(
 
         // nodecounter
         if (lid==0)
-          COUNTERS[gid*64+0]++;
+          COUNTERS[gid*64+1]++;
 
         barrier(CLK_LOCAL_MEM_FENCE);
         if (sd<1)  // this is the end
@@ -1998,14 +2028,31 @@ __kernel void alphabeta_gpu(
             bbTemp = bbWork&(ttindex-1);
             bbWork = bbWork^(Hash)move; // xor trick for avoiding race conditions
 
-            // one slot, depth replace
-            if ((u8)localDepth[sd]>=TT1[bbTemp].depth)
+            // first slot, always replace
+            if (slots>=1)
             {
               TT1[bbTemp].hash      = bbWork;
               TT1[bbTemp].bestmove  = move;
-              TT1[bbTemp].score     = score;
+              TT1[bbTemp].score     = (TTScore)score;
               TT1[bbTemp].flag      = flag;
               TT1[bbTemp].depth     = (u8)localDepth[sd];
+            }
+            // depth replace
+            if (slots>=3&&(u8)localDepth[sd]>=TT3[bbTemp].depth)
+            {
+              TT3[bbTemp].hash      = bbWork;
+              TT3[bbTemp].bestmove  = move;
+              TT3[bbTemp].score     = (TTScore)score;
+              TT3[bbTemp].flag      = flag;
+              TT3[bbTemp].depth     = (u8)localDepth[sd];
+            }
+            else if (slots>=2&&(u8)localDepth[sd]>=TT2[bbTemp].depth)
+            {
+              TT2[bbTemp].hash      = bbWork;
+              TT2[bbTemp].bestmove  = move;
+              TT2[bbTemp].score     = (TTScore)score;
+              TT2[bbTemp].flag      = flag;
+              TT2[bbTemp].depth     = (u8)localDepth[sd];
             }
           } // end save to hash table
           // save killer and counter move heuristic for quiet moves
@@ -2037,7 +2084,7 @@ __kernel void alphabeta_gpu(
       mode = (sd<1)?EXIT:MOVEUP;
       // node count based termination
     if (lid==0)
-      mode = (COUNTERS[0]>max_nodes)?EXIT:mode;
+      mode = (COUNTERS[1]>max_nodes)?EXIT:mode;
     barrier(CLK_LOCAL_MEM_FENCE);
     if (mode==EXIT) // this is the end
       break;
@@ -2053,7 +2100,11 @@ __kernel void alphabeta_gpu(
       tmpmove = MOVENONE;
       bbWork = localHashHistory[sd];    
       bbTemp = bbWork&(ttindex-1);
-      if (TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))
+      if (slots>=3&&TT3[bbTemp].hash==(bbWork^(Hash)TT3[bbTemp].bestmove))
+        tmpmove = TT3[bbTemp].bestmove;
+      else if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))
+        tmpmove = TT2[bbTemp].bestmove;
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))
         tmpmove = TT1[bbTemp].bestmove;
 
       if (tmpmove!=MOVENONE)
@@ -2151,6 +2202,15 @@ __kernel void alphabeta_gpu(
         {
           tmpscore = 210; // score as highest quiet move
           tmpscore = tmpscore*10000+lid*64+n;
+        }
+        // lazy smp, randomize move order on root
+        if (sd<=2&&gid>0&&(gid%2)==0&&localTodoIndex[sd]>=2)
+        {
+          tmpscore = (Score)(random&0x1FFFFFFF);
+          // xorshift32 PRNG
+	        random ^= random << 13;
+	        random ^= random >> 17;
+	        random ^= random << 5;
         }
         // get move with highest score
         if (tmpscore<score)
@@ -2289,6 +2349,8 @@ __kernel void alphabeta_gpu(
         }
       }
     } // end moveup
+    if (lid==0&&COUNTERS[0])
+      mode = EXIT;
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
   } // end main loop
@@ -2298,6 +2360,8 @@ __kernel void alphabeta_gpu(
   // collect pv for gui output
   if (gid==0&&lid==0)
   {
+    // set termination flag
+    COUNTERS[0] = 0x1; // unstable on amd gcn 1.0
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
     board[QBBP1]    = BOARD[QBBP1];
@@ -2311,16 +2375,28 @@ __kernel void alphabeta_gpu(
       // load ttmove from hash table
       tmpmove = MOVENONE;
       bbTemp = bbWork&(ttindex-1);
-      if (TT1[bbTemp].hash==(bbWork^TT1[bbTemp].bestmove))
+      if (slots>=3&&TT3[bbTemp].hash==(bbWork^(Hash)TT3[bbTemp].bestmove))
+      {
+        tmpmove = TT3[bbTemp].bestmove;
+        score = (Score)TT3[bbTemp].score;
+      }
+      else if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))
+      {
+        tmpmove = TT2[bbTemp].bestmove;
+        score = (Score)TT2[bbTemp].score;
+      }
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))
       {
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
+      if (n==0)
+        tmpmove = (Move)PV[1];
       // PV[0] reserved for score
       // PV[1] reserved for best rootmove collected during search
       // set score
-      if (tmpmove!=MOVENONE&&n==0)
-        PV[n] = (Move)score;
+//      if (tmpmove!=MOVENONE&&n==0)
+//        PV[n] = (Move)score;
       n++;
       // set bestmove
       if (tmpmove!=MOVENONE&&n>=1)

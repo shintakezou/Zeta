@@ -54,7 +54,7 @@ extern Bitboard bbInBetween[64*64];
 extern Bitboard bbLine[64*64];
 extern s32 opencl_user_device;
 extern s32 opencl_user_platform;
-struct TTE *TT;
+extern struct TTE *TT;
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
 cl_mem   GLOBAL_globalbbMoves_Buffer;

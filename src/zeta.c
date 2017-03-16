@@ -1956,7 +1956,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   // collect counters
   for(u64 i=0;i<totalWorkUnits;i++)
   {
-    ABNODECOUNT+= COUNTERS[i*64+0];
+    ABNODECOUNT+= COUNTERS[i*64+1];
   }
 
   return 0;
@@ -2037,7 +2037,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     // collect counters
     for(u64 i=0;i<totalWorkUnits;i++)
     {
-      ABNODECOUNT+=   COUNTERS[i*64+0];
+      ABNODECOUNT+=   COUNTERS[i*64+1];
       TTHITS+=        COUNTERS[i*64+3];
       IIDHITS+=        COUNTERS[i*64+4];
     }
@@ -2048,7 +2048,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     elapsed/=1000;
 
     // only if gpu search was not interrupted by maxnodes
-    if (COUNTERS[0]<MaxNodes/totalWorkUnits)
+    if (COUNTERS[1]<MaxNodes/totalWorkUnits)
     {
       score = (Score)PV[0];
       if (JUSTMOVE((Move)PV[1])!=MOVENONE)
@@ -2155,7 +2155,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   // collect counters
   for(u64 i=0;i<totalWorkUnits;i++)
   {
-    ABNODECOUNT+=   COUNTERS[i*64+0];
+    ABNODECOUNT+=   COUNTERS[i*64+1];
     TTHITS+=        COUNTERS[i*64+3];
   }
   score = (Score)PV[0];
