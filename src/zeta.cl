@@ -19,6 +19,9 @@
   GNU General Public License for more details.
 */
 
+// for amd devices to verify COUNTERS[0] termnation flag
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics              : enable
+
 // deprecated
 //#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics        : enable
 //#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics    : enable
@@ -1011,8 +1014,8 @@ __kernel void perft_gpu(
     localHashHistory[sd]            = BOARD[QBBHASH]; // zobrist hash
 
     // zeroed on hosts
-//    COUNTERS[gid*64+0]              = 0;              // movecount, return
-//    COUNTERS[gid*64+1]              = (u64)-INF;      // best score, return
+//    COUNTERS[0]                     = 0x0             // termination flag
+//    COUNTERS[gid*64+1]              = 0;              // movecount, return
 //    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
 //    COUNTERS[gid*64+3]              = 0;              // tthits, return
 //    COUNTERS[gid*64+4]              = 0;              // depth reached, return
@@ -1535,18 +1538,18 @@ __kernel void alphabeta_gpu(
     localSearchMode[sd]             = SEARCH;
 
     // zeroed on hosts
-//    COUNTERS[gid*64+0]              = 0;              // movecount, return
-//    COUNTERS[gid*64+1]              = (u64)-INF;      // best score, return
+//    COUNTERS[0]                     = 0x0             // termination flag
+//    COUNTERS[gid*64+1]              = 0;              // movecount, return
 //    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
 //    COUNTERS[gid*64+3]              = 0;              // tthits, return
 //    COUNTERS[gid*64+4]              = 0;              // depth reached, return
   }
-  barrier(CLK_LOCAL_MEM_FENCE);
+//  barrier(CLK_LOCAL_MEM_FENCE);
   // lazy smp, delay for non-deternism
-  for (int i=0;gid>0&&i<gid*1000;i++)
-    movecount+=i;
+//  for (int i=0;gid>0&&i<gid*1000;i++)
+//    movecount+=i;
   // init random seed
-  for (int i=0;i<gid*1000;i++)
+  for (int i=0;i<gid*100;i++)
   {
     // xorshift32 PRNG
 	  random ^= random << 13;
@@ -2339,7 +2342,8 @@ __kernel void alphabeta_gpu(
       {
         localTodoIndex[sd-1]--;
         localSearchMode[sd]              |= NULLMOVESEARCH;
-        localDepth[sd]                    = localDepth[sd]-2;
+        n                                 = (localDepth[sd]>=5)?4:2; // reduction
+        localDepth[sd]                    = localDepth[sd]-n;
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
         localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
       }
@@ -2353,7 +2357,7 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&KIC)
          &&!(localNodeStates[sd-1]&EXT)
          &&localDepth[sd]>=1
-         &&localTodoIndex[sd-1]>=3 // two previous moves searched
+         &&localTodoIndex[sd-1]>=2 // previous moves searched
          &&count1s(board[QBBBLACK])>=2
          &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
         )
@@ -2361,7 +2365,7 @@ __kernel void alphabeta_gpu(
         // no check giving moves
         if (!squareunderattack(board, !stm, getkingsq(board, stm)))
         {
-          localDepth[sd]  = localDepth[sd]-1;
+          localDepth[sd]  = localDepth[sd]-1; // depth reduction
           localNodeStates[sd] |= LMR;
         }
       }
@@ -2376,7 +2380,7 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   // collect pv for gui output
-  if (lid==0)
+  if (gid==0&&lid==0)
   {
     // set termination flag
     COUNTERS[0] = 0x1; // unstable on amd gcn 1.0
@@ -2408,13 +2412,13 @@ __kernel void alphabeta_gpu(
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
-//      if (n==0)
-//        tmpmove = (Move)PV[1];
+      if (n==0) // get bestmove from thread id 0
+        tmpmove = (Move)PV[1];
       // PV[0] reserved for score
       // PV[1] reserved for best rootmove collected during search
       // set score
-//      if (tmpmove!=MOVENONE&&n==0)
-//        PV[n] = (Move)score;
+      if (tmpmove!=MOVENONE&&n==0)
+        PV[n] = (Move)score;
       n++;
       // set bestmove
       if (tmpmove!=MOVENONE&&n>=1)
