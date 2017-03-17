@@ -1543,10 +1543,10 @@ __kernel void alphabeta_gpu(
   }
   barrier(CLK_LOCAL_MEM_FENCE);
   // lazy smp, delay for non-deternism
-  for (int i=0;gid>=8&&i<gid*1000;i++)
+  for (int i=0;gid>0&&i<gid*1000;i++)
     movecount+=i;
   // init random seed
-  for (int i=0;i<gid;i++)
+  for (int i=0;i<gid*1000;i++)
   {
     // xorshift32 PRNG
 	  random ^= random << 13;
@@ -1923,7 +1923,7 @@ __kernel void alphabeta_gpu(
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISDRAW(score)
+//            &&!ISDRAW(score)
            )
         {
           // set alpha
@@ -2096,7 +2096,8 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       lmove = MOVENONE;
-      // load ttmove from hash table
+/*
+      // load ttmove from hash table x1
       tmpmove = MOVENONE;
       bbWork = localHashHistory[sd];    
       bbTemp = bbWork&(ttindex-1);
@@ -2119,6 +2120,7 @@ __kernel void alphabeta_gpu(
           COUNTERS[gid*64+3]++;      
         }
       }
+*/
       // check for nullmove pruning
       if (!bresearch
           &&sd>1
@@ -2152,6 +2154,15 @@ __kernel void alphabeta_gpu(
       // get killer move and counter move
       Move killermove = Killers[gid*MAXPLY+sd];
       Move countermove = Counters[gid*64*64+GETSQFROM(move)*64+GETSQTO(move)];
+      Move ttmove = MOVENONE;
+      bbWork = localHashHistory[sd];    
+      bbTemp = bbWork&(ttindex-1);
+      if (slots>=3&&TT3[bbTemp].hash==(bbWork^(Hash)TT3[bbTemp].bestmove))
+        ttmove = TT3[bbTemp].bestmove;
+      else if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))
+        ttmove = TT2[bbTemp].bestmove;
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))
+        ttmove = TT1[bbTemp].bestmove;
       n       = 0;
       move    = MOVENONE;
       score  = -INFMOVESCORE;
@@ -2203,8 +2214,13 @@ __kernel void alphabeta_gpu(
           tmpscore = 210; // score as highest quiet move
           tmpscore = tmpscore*10000+lid*64+n;
         }
+        // check tt move
+        if (ttmove==tmpmove)
+        {
+          tmpscore = INFMOVESCORE-100+lid; // score as highest move
+        }
         // lazy smp, randomize move order on root
-        if (sd<=2&&gid>0&&(gid%2)==0&&localTodoIndex[sd]>=2)
+        if (sd<=((gid%5)+1)&&gid>0&&localTodoIndex[sd]>=2)
         {
           tmpscore = (Score)(random&0x1FFFFFFF);
           // xorshift32 PRNG
