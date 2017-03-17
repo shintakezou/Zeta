@@ -77,7 +77,7 @@ typedef u8 Rank;
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 64ULL   // min memory of OpenCl device in MB
 #define MAXDEVICEMB 1024ULL // max memory for OpenCL devices in MB
-#define MAXSLOTS    3       // max memory slots for OpenCL devices
+#define MAXSLOTS    2       // max memory slots for OpenCL devices
 #define ESTEBF      2       // estaminated effective branching factor, for tc
 // colors
 #define BLACK               1
