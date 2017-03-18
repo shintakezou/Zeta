@@ -1842,7 +1842,7 @@ __kernel void alphabeta_gpu(
       score-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       score+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       // stm bonus, to prevent mix up with drawscore
-//      score+= (stm)?-1:1;
+      score+= (stm)?-1:1;
     }
     // store scores in local memory
     scrTmp64[lid] = score;
@@ -1879,6 +1879,15 @@ __kernel void alphabeta_gpu(
           break;
         }
       }
+      // Kxk draw
+/*
+      if (count1s(board[1]|board[2]|board[3])==2)
+      {
+        movecount = 0;
+        lmove = MOVENONE;
+        score = DRAWSCORE;
+      }
+*/
       // #################################
       // ####     alphabeta flow x1    ###
       // #################################
@@ -2365,7 +2374,13 @@ __kernel void alphabeta_gpu(
         // no check giving moves
         if (!squareunderattack(board, !stm, getkingsq(board, stm)))
         {
-          localDepth[sd]  = localDepth[sd]-1; // depth reduction
+          n = 1;
+          // lazy smp, agressive late move reductions
+/*
+          n = (gid>0&&gid%2==0&&localDepth[sd]>2)?2:n;
+          n = (gid>0&&gid%2==0)?(localDepth[sd]>=3&&localTodoIndex[sd-1]>=6)?localDepth[sd]/3:n:n;
+*/
+          localDepth[sd]  = localDepth[sd]-n; // depth reduction
           localNodeStates[sd] |= LMR;
         }
       }
@@ -2380,7 +2395,8 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   // collect pv for gui output
-  if (gid==0&&lid==0)
+//  if (gid==0&&lid==0)
+  if (lid==0) // early bird
   {
     // set termination flag
     COUNTERS[0] = 0x1; // unstable on amd gcn 1.0
@@ -2412,8 +2428,8 @@ __kernel void alphabeta_gpu(
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
-      if (n==0) // get bestmove from thread id 0
-        tmpmove = (Move)PV[1];
+//      if (n==0) // get bestmove from thread id 0
+//        tmpmove = (Move)PV[1];
       // PV[0] reserved for score
       // PV[1] reserved for best rootmove collected during search
       // set score
