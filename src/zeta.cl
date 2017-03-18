@@ -1880,14 +1880,13 @@ __kernel void alphabeta_gpu(
         }
       }
       // Kxk draw
-/*
       if (count1s(board[1]|board[2]|board[3])==2)
       {
         movecount = 0;
         lmove = MOVENONE;
         score = DRAWSCORE;
       }
-*/
+
       // #################################
       // ####     alphabeta flow x1    ###
       // #################################
