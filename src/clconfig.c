@@ -38,7 +38,7 @@ bool cl_guess_config(bool extreme)
   cl_int status = 0;
   size_t paramSize;
   char *deviceName;
-//  char *ExtensionsValue;
+  char *ExtensionsValue;
   size_t wgsize;
   cl_device_id *devices;
   u32 i,j,k;
@@ -436,7 +436,6 @@ bool cl_guess_config(bool extreme)
         // check for needed device extensions
 // local and global 32 bit functions faster on newer device...
 // chose portability vs speed...
-/*
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_EXTENSIONS,
                                   0,
@@ -472,8 +471,7 @@ bool cl_guess_config(bool extreme)
           }
           failed |= true;
         } 
-*/
-/*
+
         // global in32 atomics
         if ((!strstr(ExtensionsValue, "cl_khr_global_int32_base_atomics")))
         {
@@ -483,7 +481,7 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Device extension cl_khr_global_int32_base_atomics not supported.\n");
           }
-          continue;
+          failed |= true;
         }
         else
         {
@@ -494,6 +492,7 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_global_int32_base_atomics is supported.\n");
           }
         }
+/*
         if ((!strstr(ExtensionsValue, "cl_khr_global_int32_extended_atomics")))
         {
           fprintf(stdout, "#> Error: Device extension cl_khr_global_int32_extended_atomics not supported.\n");

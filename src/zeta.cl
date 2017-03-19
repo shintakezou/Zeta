@@ -19,8 +19,8 @@
   GNU General Public License for more details.
 */
 
-// for amd devices to verify COUNTERS[0] termnation flag
-#pragma OPENCL EXTENSION cl_khr_int64_base_atomics              : enable
+// for setting termination flag
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics         : enable
 
 // deprecated
 //#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics        : enable
@@ -1014,7 +1014,6 @@ __kernel void perft_gpu(
     localHashHistory[sd]            = BOARD[QBBHASH]; // zobrist hash
 
     // zeroed on hosts
-//    COUNTERS[0]                     = 0x0             // termination flag
 //    COUNTERS[gid*64+1]              = 0;              // movecount, return
 //    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
 //    COUNTERS[gid*64+3]              = 0;              // tthits, return
@@ -1414,7 +1413,8 @@ __kernel void alphabeta_gpu(
                                const s32 search_depth,
                                const u64 max_nodes,
                                const u64 ttindex,
-                               const u64 slots
+                               const u64 slots,
+                            __global u32 *finito
 )
 {
   // Quadbitboard
@@ -1541,7 +1541,6 @@ __kernel void alphabeta_gpu(
     localSearchMode[sd]             = SEARCH;
 
     // zeroed on hosts
-//    COUNTERS[0]                     = 0x0             // termination flag
 //    COUNTERS[gid*64+1]              = 0;              // movecount, return
 //    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
 //    COUNTERS[gid*64+3]              = 0;              // tthits, return
@@ -2243,7 +2242,7 @@ __kernel void alphabeta_gpu(
         // lazy smp, randomize move order on root
         if ((gid>0&&(gid%2==0)&&(sd<=((gid%5)+1)&&localTodoIndex[sd]>=2))||randomize)
         {
-          tmpscore = (Score)(random&0x1FFFFFFF);
+          tmpscore = (Score)(random%32768);
           // xorshift32 PRNG
 	        random ^= random << 13;
 	        random ^= random >> 17;
@@ -2276,11 +2275,9 @@ __kernel void alphabeta_gpu(
             lmove = (Move)bbTmp64[i];
           }
         }
+        bbAttacks = HASHNONE; // set empty hash
       }
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (lid==0)
-      bbAttacks = HASHNONE;
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
@@ -2403,7 +2400,7 @@ __kernel void alphabeta_gpu(
     } // end moveup
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
-    if (lid==0&&COUNTERS[0])
+    if (lid==0&&*finito)
       mode = EXIT;
     barrier(CLK_LOCAL_MEM_FENCE);
   } // end main loop
@@ -2415,7 +2412,7 @@ __kernel void alphabeta_gpu(
   if (lid==0) // early bird
   {
     // set termination flag
-    COUNTERS[0] = 0x1; // unstable on amd gcn 1.0
+    atom_inc(finito);
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
     board[QBBP1]    = BOARD[QBBP1];

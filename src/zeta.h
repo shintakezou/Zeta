@@ -69,6 +69,7 @@ cl_mem   GLOBAL_TT3_Buffer;
 cl_mem   GLOBAL_TT4_Buffer;
 cl_mem   GLOBAL_Killer_Buffer;
 cl_mem   GLOBAL_Counter_Buffer;
+cl_mem   GLOBAL_finito_Buffer;
 // OpenCL runtime objects
 cl_context          context;
 cl_device_id        *devices;

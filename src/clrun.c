@@ -365,6 +365,19 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+  u32 finito = 0x0;
+  GLOBAL_finito_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                    sizeof(u32) * 1,
+                                    &finito, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_finito_Buffer)\n");
+    return false;
+  }
+
   return true;
 }
 // write OpenCL memory buffers, called every search run
@@ -436,6 +449,24 @@ bool cl_init_objects() {
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_HASHHISTORY_Buffer)\n");
+    return false;
+  }
+
+  u32 finito = 0x0;
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
+                                GLOBAL_finito_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(u32) * 1,
+                                &finito, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_finito_Buffer)\n");
     return false;
   }
 
@@ -683,6 +714,18 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (slots)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_finito_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_finito_Buffer)\n");
     return false;
   }
   i++;
@@ -1076,6 +1119,13 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counter_Buffer)\n");
+		return false; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_finito_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_finito_Buffer)\n");
 		return false; 
 	}
 
