@@ -1845,7 +1845,7 @@ __kernel void alphabeta_gpu(
       score-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       score+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       // stm bonus, to prevent mix up with drawscore
-      score+= (stm)?-1:1;
+//      score+= (stm)?-1:1;
     }
     // store scores in local memory
     scrTmp64[lid] = score;
@@ -1920,10 +1920,8 @@ __kernel void alphabeta_gpu(
       // set alpha with ttscore from hash table, TODO: unstable, fix it
       if (mode==MOVEUP
           &&!qs
-          &&(sd>1)
-//          &&(sd>1||(sd>=1&&localTodoIndex[sd]>=1))
+          &&sd>1
           &&localSearchMode[sd]==SEARCH
-//          &&localTodoIndex[sd]>=1
          )
       {
         bbWork = localHashHistory[sd];    
@@ -1939,7 +1937,7 @@ __kernel void alphabeta_gpu(
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISDRAW(score)
+//            &&!ISDRAW(score)
            )
         {
           // set alpha
@@ -2050,7 +2048,7 @@ __kernel void alphabeta_gpu(
               &&move!=MOVENONE
               &&move!=NULLMOVE
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
-//              &&localDepth[sd]>0
+              &&localDepth[sd]>0
              )
           {
             bbWork = localHashHistory[sd];    
@@ -2242,11 +2240,6 @@ __kernel void alphabeta_gpu(
           tmpscore = 210; // score as highest quiet move
           tmpscore = tmpscore*10000+lid*64+n;
         }
-        // check tt move
-        if (ttmove==tmpmove)
-        {
-          tmpscore = INFMOVESCORE-100+lid; // score as highest move
-        }
         // lazy smp, randomize move order on root
         if ((gid>0&&(gid%2==0)&&(sd<=((gid%5)+1)&&localTodoIndex[sd]>=2))||randomize)
         {
@@ -2255,6 +2248,11 @@ __kernel void alphabeta_gpu(
 	        random ^= random << 13;
 	        random ^= random >> 17;
 	        random ^= random << 5;
+        }
+        // check tt move
+        if (ttmove==tmpmove)
+        {
+          tmpscore = INFMOVESCORE-100+lid; // score as highest move
         }
         // get move with highest score
         if (tmpscore<score)
@@ -2413,8 +2411,8 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   // collect pv for gui output
-//  if (lid==0) // early bird
-  if (gid==0&&lid==0)
+//  if (gid==0&&lid==0)
+  if (lid==0) // early bird
   {
     // set termination flag
     COUNTERS[0] = 0x1; // unstable on amd gcn 1.0
