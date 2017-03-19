@@ -22,7 +22,7 @@
 Zeta, experimental chess engine written in OpenCL.
 
 Tested Platforms:
-64 bit x86-64 with little endian OpenCL devices on 
+64 bit x86-64 with little endian OpenCL devices on
 Windows 7 64 bit and GNU/Linux 64 bit OS
 
 Usage:
@@ -61,7 +61,7 @@ go             // let engine play site to move
 usermove d7d5  // let engine apply usermove in coordinate algebraic
                // notation and optionally start thinking
 
-The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes.
+The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes
 
 
 Not supported Xboard commands:

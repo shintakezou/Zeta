@@ -1842,8 +1842,8 @@ static void print_help(void)
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Tested Platforms:\n");
-  fprintf(stdout,"64 bit x86-64 with little endian OpenCL devices with atomics support\n");
-  fprintf(stdout,"on Windows 7 64 bit and GNU/Linux 64 bit OS\n");
+  fprintf(stdout,"64 bit x86-64 with little endian OpenCL devices on\n");
+  fprintf(stdout,"Windows 7 64 bit and GNU/Linux 64 bit OS\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Usage:\n");
   fprintf(stdout,"First make sure you have an working OpenCL Runtime Environment,\n");
@@ -1881,7 +1881,7 @@ static void print_help(void)
   fprintf(stdout,"usermove d7d5  // let engine apply usermove in coordinate algebraic\n");
   fprintf(stdout,"               // notation and optionally start thinking\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes.\n");
+  fprintf(stdout,"The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Not supported Xboard commands:\n");

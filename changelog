@@ -1,5 +1,6 @@
 Zeta (099a) alpha; urgency=low
 
+  * switch from best first minimax search to parallel alphabeta
   * ...to be continued
 
  -- Srdja Matovic <s.matovic@app26.de> 2017
