@@ -1438,6 +1438,8 @@ __kernel void alphabeta_gpu(
 
   __local bool bresearch;
 
+  __local bool randomize;
+
   __local Square sqchecker;
 
   __local u8 mode;
@@ -1512,6 +1514,7 @@ __kernel void alphabeta_gpu(
   {
     mode            = MOVEUP;
     lmove           = MOVENONE;
+    randomize       = false;
 
     // init ab search var stack
     localAlphaBetaScores[0*2+ALPHA] =-INF;
@@ -1549,7 +1552,7 @@ __kernel void alphabeta_gpu(
 //  for (int i=0;gid>0&&i<gid*1000;i++)
 //    movecount+=i;
   // init random seed
-  for (int i=0;i<gid*100;i++)
+  for (int i=0;i<gid*100+ply_init+search_depth;i++)
   {
     // xorshift32 PRNG
 	  random ^= random << 13;
@@ -1917,8 +1920,10 @@ __kernel void alphabeta_gpu(
       // set alpha with ttscore from hash table, TODO: unstable, fix it
       if (mode==MOVEUP
           &&!qs
-          &&sd>1
+          &&(sd>1)
+//          &&(sd>1||(sd>=1&&localTodoIndex[sd]>=1))
           &&localSearchMode[sd]==SEARCH
+//          &&localTodoIndex[sd]>=1
          )
       {
         bbWork = localHashHistory[sd];    
@@ -1934,7 +1939,7 @@ __kernel void alphabeta_gpu(
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-//            &&!ISDRAW(score)
+            &&!ISDRAW(score)
            )
         {
           // set alpha
@@ -1993,6 +1998,18 @@ __kernel void alphabeta_gpu(
 
           move  = localMoveHistory[sd];
 
+          // lazy smp, set rand mode on movedown
+          randomize = false;
+          if (
+              !(localNodeStates[sd]&QS)
+              &&localSearchMode[sd]==SEARCH
+              &&move!=MOVENONE
+              &&move!=NULLMOVE
+             )
+          {
+            randomize = (gid>0&&gid%2==1&&localTodoIndex[sd]>=2&&localDepth[sd]>0&&(search_depth-localDepth[sd]>=((gid%4)+1)))?true:false;
+          }
+
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
           // nullmove hack, avoid alpha setting, set score only when score >= beta
@@ -2033,21 +2050,13 @@ __kernel void alphabeta_gpu(
               &&move!=MOVENONE
               &&move!=NULLMOVE
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
+//              &&localDepth[sd]>0
              )
           {
             bbWork = localHashHistory[sd];    
             bbTemp = bbWork&(ttindex-1);
             bbWork = bbWork^(Hash)move^(Hash)score; // xor trick for avoiding race conditions
 
-            // first slot, always replace
-            if (slots>=1)
-            {
-              TT1[bbTemp].hash      = bbWork;
-              TT1[bbTemp].bestmove  = move;
-              TT1[bbTemp].score     = (TTScore)score;
-              TT1[bbTemp].flag      = flag;
-              TT1[bbTemp].depth     = (u8)localDepth[sd];
-            }
             // depth replace
             if (slots>=3&&(u8)localDepth[sd]>=TT3[bbTemp].depth)
             {
@@ -2064,6 +2073,14 @@ __kernel void alphabeta_gpu(
               TT2[bbTemp].score     = (TTScore)score;
               TT2[bbTemp].flag      = flag;
               TT2[bbTemp].depth     = (u8)localDepth[sd];
+            }
+            else if (slots>=1&&(u8)localDepth[sd]>=TT1[bbTemp].depth)
+            {
+              TT1[bbTemp].hash      = bbWork;
+              TT1[bbTemp].bestmove  = move;
+              TT1[bbTemp].score     = (TTScore)score;
+              TT1[bbTemp].flag      = flag;
+              TT1[bbTemp].depth     = (u8)localDepth[sd];
             }
           } // end save to hash table
           // save killer and counter move heuristic for quiet moves
@@ -2231,7 +2248,7 @@ __kernel void alphabeta_gpu(
           tmpscore = INFMOVESCORE-100+lid; // score as highest move
         }
         // lazy smp, randomize move order on root
-        if (sd<=((gid%5)+1)&&gid>0&&localTodoIndex[sd]>=2)
+        if ((gid>0&&(gid%2==0)&&(sd<=((gid%5)+1)&&localTodoIndex[sd]>=2))||randomize)
         {
           tmpscore = (Score)(random&0x1FFFFFFF);
           // xorshift32 PRNG
@@ -2365,7 +2382,7 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&KIC)
          &&!(localNodeStates[sd-1]&EXT)
          &&localDepth[sd]>=1
-         &&localTodoIndex[sd-1]>=2 // previous moves searched
+         &&localTodoIndex[sd-1]>=3 // previous moves searched
          &&count1s(board[QBBBLACK])>=2
          &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
         )
@@ -2383,6 +2400,8 @@ __kernel void alphabeta_gpu(
           localNodeStates[sd] |= LMR;
         }
       }
+      // lazy smp, set rand mode
+      randomize = false;
     } // end moveup
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
@@ -2394,8 +2413,8 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   // collect pv for gui output
-//  if (gid==0&&lid==0)
-  if (lid==0) // early bird
+//  if (lid==0) // early bird
+  if (gid==0&&lid==0)
   {
     // set termination flag
     COUNTERS[0] = 0x1; // unstable on amd gcn 1.0
