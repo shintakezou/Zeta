@@ -1995,7 +1995,8 @@ __kernel void alphabeta_gpu(
 
           move  = localMoveHistory[sd];
 
-          // lazy smp, set rand mode on movedown
+          // lazy smp, set rand mode on movedown, TODO: fix it, crashes nv on 8800 gt
+/*
           randomize = false;
           if (
               !(localNodeStates[sd]&QS)
@@ -2004,9 +2005,9 @@ __kernel void alphabeta_gpu(
               &&move!=NULLMOVE
              )
           {
-            randomize = (gid>0&&gid%2==1&&localTodoIndex[sd]>=2&&localDepth[sd]>0&&(search_depth-localDepth[sd]>=((gid%4)+1)))?true:false;
+            randomize = (gid>0&&gid%2==1&&localTodoIndex[sd]>=2&&localDepth[sd]>0&&sd<=search_depth&&(search_depth-sd<=((gid%4)+1)))?true:false;
           }
-
+*/
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
           // nullmove hack, avoid alpha setting, set score only when score >= beta
@@ -2121,6 +2122,7 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       lmove = MOVENONE;
+      randomize = false;
 /*
       // load ttmove from hash table x1
       tmpmove = MOVENONE;
@@ -2162,6 +2164,17 @@ __kernel void alphabeta_gpu(
       // late move reductions research
       if (bresearch)
         lmove = localMoveHistory[sd];
+
+      // lazy smp, randomize move order on root
+      if (
+          lmove == MOVENONE
+          &&localSearchMode[sd]==SEARCH
+          &&!(localNodeStates[sd]&QS)
+          &&localDepth[sd]>0
+          )
+      {
+        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=2)?true:randomize;
+      }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
@@ -2239,19 +2252,19 @@ __kernel void alphabeta_gpu(
           tmpscore = 210; // score as highest quiet move
           tmpscore = tmpscore*10000+lid*64+n;
         }
-        // lazy smp, randomize move order on root
-        if ((gid>0&&(gid%2==0)&&(sd<=((gid%5)+1)&&localTodoIndex[sd]>=2))||randomize)
-        {
-          tmpscore = (Score)(random%32768);
-          // xorshift32 PRNG
-	        random ^= random << 13;
-	        random ^= random >> 17;
-	        random ^= random << 5;
-        }
         // check tt move
         if (ttmove==tmpmove)
         {
           tmpscore = INFMOVESCORE-100+lid; // score as highest move
+        }
+        // lazy smp, randomize move order
+        if (randomize)
+        {
+          tmpscore = (Score)(random%INF);
+          // xorshift32 PRNG
+	        random ^= random << 13;
+	        random ^= random >> 17;
+	        random ^= random << 5;
         }
         // get move with highest score
         if (tmpscore<score)
@@ -2408,8 +2421,8 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   // collect pv for gui output
-//  if (gid==0&&lid==0)
-  if (lid==0) // early bird
+//  if (lid==0) // early bird
+  if (gid==0&&lid==0)
   {
     // set termination flag
     atom_inc(finito);
@@ -2441,8 +2454,8 @@ __kernel void alphabeta_gpu(
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
-//      if (n==0) // get bestmove from thread id 0
-//        tmpmove = (Move)PV[1];
+      if (n==0) // get bestmove from thread id 0
+        tmpmove = (Move)PV[1];
       // PV[0] reserved for score
       // PV[1] reserved for best rootmove collected during search
       // set score
