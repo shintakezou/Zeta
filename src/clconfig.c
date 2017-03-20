@@ -1092,7 +1092,7 @@ bool cl_guess_config(bool extreme)
           }
 */
           // get threadsY, multi for warpsize
-          nps = 0;
+//          nps = 0;
           npstmp = 0;
 //          int iter = 0;
           while (true)
