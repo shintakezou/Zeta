@@ -2173,7 +2173,7 @@ __kernel void alphabeta_gpu(
           &&localDepth[sd]>0
           )
       {
-        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=2)?true:randomize;
+        randomize = (gid>0&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=2)?true:randomize;
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2260,7 +2260,7 @@ __kernel void alphabeta_gpu(
         // lazy smp, randomize move order
         if (randomize)
         {
-          tmpscore = (Score)(random%INF);
+          tmpscore = random%INF;
           // xorshift32 PRNG
 	        random ^= random << 13;
 	        random ^= random >> 17;
@@ -2390,7 +2390,7 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&KIC)
          &&!(localNodeStates[sd-1]&EXT)
          &&localDepth[sd]>=1
-         &&localTodoIndex[sd-1]>=3 // previous moves searched
+         &&localTodoIndex[sd-1]>1 // previous moves searched
          &&count1s(board[QBBBLACK])>=2
          &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
         )
@@ -2399,11 +2399,9 @@ __kernel void alphabeta_gpu(
         if (!squareunderattack(board, !stm, getkingsq(board, stm)))
         {
           n = 1;
-          // lazy smp, agressive late move reductions
-/*
-          n = (gid>0&&gid%2==0&&localDepth[sd]>2)?2:n;
-          n = (gid>0&&gid%2==0)?(localDepth[sd]>=3&&localTodoIndex[sd-1]>=6)?localDepth[sd]/3:n:n;
-*/
+          // lazy smp, agressive late move reductions, unstable tt score
+//          n = (gid>0&&gid%2==0&&localDepth[sd]>2&&localTodoIndex[sd-1]>3)?2:n;
+//          n = (gid>0&&gid%2==1)?(localDepth[sd]>=3&&localTodoIndex[sd-1]>6)?localDepth[sd]/3:n:n;
           localDepth[sd]  = localDepth[sd]-n; // depth reduction
           localNodeStates[sd] |= LMR;
         }
@@ -2421,8 +2419,8 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   // collect pv for gui output
-//  if (lid==0) // early bird
-  if (gid==0&&lid==0)
+//  if (gid==0&&lid==0)
+  if (lid==0) // early bird
   {
     // set termination flag
     atom_inc(finito);
@@ -2454,8 +2452,8 @@ __kernel void alphabeta_gpu(
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
-      if (n==0) // get bestmove from thread id 0
-        tmpmove = (Move)PV[1];
+//      if (n==0) // get bestmove collected by thread id 0
+//        tmpmove = (Move)PV[1];
       // PV[0] reserved for score
       // PV[1] reserved for best rootmove collected during search
       // set score
