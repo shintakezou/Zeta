@@ -1996,18 +1996,18 @@ __kernel void alphabeta_gpu(
           move  = localMoveHistory[sd];
 
           // lazy smp, set rand mode on movedown, TODO: fix it, crashes nv on 8800 gt
-/*
           randomize = false;
+          // lazy smp, randomize move order on leaf
           if (
-              !(localNodeStates[sd]&QS)
-              &&localSearchMode[sd]==SEARCH
-              &&move!=MOVENONE
+              move!=MOVENONE
               &&move!=NULLMOVE
-             )
+              &&localSearchMode[sd]==SEARCH
+              &&!(localNodeStates[sd]&QS)
+              &&localDepth[sd]>0
+              )
           {
-            randomize = (gid>0&&gid%2==1&&localTodoIndex[sd]>=2&&localDepth[sd]>0&&sd<=search_depth&&(search_depth-sd<=((gid%4)+1)))?true:false;
+            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%4)+1))&&localTodoIndex[sd]>=1)?true:randomize;
           }
-*/
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
           // nullmove hack, avoid alpha setting, set score only when score >= beta
@@ -2122,7 +2122,7 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       lmove = MOVENONE;
-      randomize = false;
+//      randomize = false;
 /*
       // load ttmove from hash table x1
       tmpmove = MOVENONE;
@@ -2173,7 +2173,7 @@ __kernel void alphabeta_gpu(
           &&localDepth[sd]>0
           )
       {
-        randomize = (gid>0&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=2)?true:randomize;
+        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=2)?true:randomize;
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2390,7 +2390,7 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&KIC)
          &&!(localNodeStates[sd-1]&EXT)
          &&localDepth[sd]>=1
-         &&localTodoIndex[sd-1]>1 // previous moves searched
+         &&localTodoIndex[sd-1]>2 // previous moves searched
          &&count1s(board[QBBBLACK])>=2
          &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
         )
