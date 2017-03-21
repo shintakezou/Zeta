@@ -1025,7 +1025,7 @@ bool cl_guess_config(bool extreme)
           }
           continue;
         }
-
+        nps = npstmp;
         // iterate through threadsY, get best multi for warp resp. wavefront size
         if (extreme)
         {
