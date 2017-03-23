@@ -901,9 +901,9 @@ bool cl_run_perft(bool stm, s32 depth)
   i++;
 
   // enqueue a kernel run call.
-  globalThreads[0] = threadsX;
-  globalThreads[1] = threadsY;
-  globalThreads[2] = threadsZ;
+  globalThreads[0] = 1;
+  globalThreads[1] = 1;
+  globalThreads[2] = 1;
 
   localThreads[0]  = 1;
   localThreads[1]  = 1;
