@@ -2006,7 +2006,7 @@ __kernel void alphabeta_gpu(
               &&localDepth[sd]>0
               )
           {
-            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%4)+1))&&localTodoIndex[sd]>=1)?true:randomize;
+            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%5)+1))&&localTodoIndex[sd]>=1)?true:randomize;
           }
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
@@ -2173,7 +2173,7 @@ __kernel void alphabeta_gpu(
           &&localDepth[sd]>0
           )
       {
-        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=2)?true:randomize;
+        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=1)?true:randomize;
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2252,11 +2252,6 @@ __kernel void alphabeta_gpu(
           tmpscore = 210; // score as highest quiet move
           tmpscore = tmpscore*10000+lid*64+n;
         }
-        // check tt move
-        if (ttmove==tmpmove)
-        {
-          tmpscore = INFMOVESCORE-100+lid; // score as highest move
-        }
         // lazy smp, randomize move order
         if (randomize)
         {
@@ -2265,6 +2260,11 @@ __kernel void alphabeta_gpu(
 	        random ^= random << 13;
 	        random ^= random >> 17;
 	        random ^= random << 5;
+        }
+        // check tt move
+        if (ttmove==tmpmove)
+        {
+          tmpscore = INFMOVESCORE-100+lid; // score as highest move
         }
         // get move with highest score
         if (tmpscore<score)
