@@ -33,7 +33,6 @@ extern u64 threadsZ;
 extern u64 totalWorkUnits;
 extern s32 opencl_device_id;
 extern s32 opencl_platform_id;
-extern s32 max_nodes_to_expand;
 extern u64 max_memory;
 extern u64 memory_slots;
 // globals

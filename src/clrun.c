@@ -277,7 +277,10 @@ bool cl_init_device(char *kernelname)
     ttbits=mem;
   }
   else
+  {
     mem = 1;
+    ttbits = 0x2;
+  }
 
   if (max_memory<1||memory_slots<1)
     mem = 1;

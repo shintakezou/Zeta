@@ -47,9 +47,7 @@ u64 threadsY            =  1;
 const u64 threadsZ      = 64; // fix value, run z threads per work-group
 u64 totalWorkUnits      =  1;
 s32 nodes_per_second    =  0;
-s32 max_nodes           =  0;
 s32 nps_current         =  0;
-s32 max_nodes_to_expand =  1;
 u64 max_memory          =  1;
 u64 memory_slots        =  1;
 s32 opencl_device_id    =  0;
@@ -1565,7 +1563,6 @@ bool read_and_init_config(char configfile[])
     sscanf(line, "threadsX: %" PRIu64 ";", &threadsX);
     sscanf(line, "threadsY: %" PRIu64 ";", &threadsY);
     sscanf(line, "nodes_per_second: %d;", &nodes_per_second);
-    sscanf(line, "max_nodes: %d;", &max_nodes);
     sscanf(line, "max_memory: %" PRIu64 ";", &max_memory);
     sscanf(line, "memory_slots: %" PRIu64 ";", &memory_slots);
     sscanf(line, "opencl_platform_id: %d;", &opencl_platform_id);
@@ -1573,10 +1570,7 @@ bool read_and_init_config(char configfile[])
   }
   fclose(fcfg);
 
-  if (max_nodes==0)
-    MaxNodes = nodes_per_second; 
-  else
-    MaxNodes = max_nodes;
+  MaxNodes = nodes_per_second; 
 
   totalWorkUnits = threadsX*threadsY;
 
@@ -1672,7 +1666,8 @@ bool read_and_init_config(char configfile[])
   // initialize transposition table
   u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
   u64 ttbits = 0;
-  if (max_memory>0&&memory_slots>0)
+  if (max_memory>0&&
+memory_slots>0)
   {
     while ( mem >>= 1)   // get msb
       ttbits++;
@@ -1681,8 +1676,8 @@ bool read_and_init_config(char configfile[])
   }
   else
   {
-    max_memory = 0;
-    memory_slots = 0;
+    max_memory = 1;
+    memory_slots = 1;
     mem = 1;
   }
 

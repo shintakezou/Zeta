@@ -951,7 +951,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsX: %i;\n", 1);
         fprintf(Cfg, "threadsY: %i;\n", 1);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", 1, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -965,8 +964,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"run multiple Work-Groups per Compute Unit\n");
         fprintf(Cfg,"nodes_per_second\n");
         fprintf(Cfg,"nps of device, for initial time control\n");
-        fprintf(Cfg,"max_nodes\n");
-        fprintf(Cfg,"search n nodes only, 0 is inf\n");
         fprintf(Cfg,"max_memory\n");
         fprintf(Cfg,"Allocate n MB of memory on device for hash table\n");
         fprintf(Cfg,"memory_slots\n");
@@ -1054,7 +1051,6 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %" PRI64 ";\n", npstmp);
-            fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots,(s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -1102,7 +1098,6 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %" PRIi64 ";\n", npstmp);
-            fprintf(Cfg, "max_nodes: 0;\n");
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -1185,7 +1180,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(Cfg, "max_nodes: 0;\n");
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -1199,8 +1193,6 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"run multiple Work-Groups per Compute Unit\n");
         fprintf(Cfg,"nodes_per_second\n");
         fprintf(Cfg,"nps of device, for initial time control\n");
-        fprintf(Cfg,"max_nodes\n");
-        fprintf(Cfg,"search n nodes only, 0 is inf\n");
         fprintf(Cfg,"max_memory\n");
         fprintf(Cfg,"Allocate n MB of memory on device for hash table\n");
         fprintf(Cfg,"memory_slots\n");
@@ -1217,7 +1209,6 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(stdout, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(stdout, "max_nodes: 0;\n");
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(stdout, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
@@ -1231,7 +1222,6 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "threadsX: %i;\n", (!extreme)?1:deviceunits);
           fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
           fprintf(LogFile, "nodes_per_second: %" PRIu64 ";\n", nps);
-          fprintf(LogFile, "max_nodes: 0;\n");
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
           fprintf(LogFile, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
