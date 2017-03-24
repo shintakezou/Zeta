@@ -2265,6 +2265,8 @@ __kernel void alphabeta_gpu(
         if (ttmove==tmpmove)
         {
           tmpscore = INFMOVESCORE-100+lid; // score as highest move
+          // TThits counter
+          COUNTERS[gid*64+3]++;      
         }
         // get move with highest score
         if (tmpscore<score)
