@@ -1994,7 +1994,7 @@ __kernel void alphabeta_gpu(
 
           move  = localMoveHistory[sd];
 
-          // lazy smp, set rand mode on movedown, TODO: fix it, crashes nv on 8800 gt
+          // lazy smp, set rand mode on movedown
           randomize = false;
           // lazy smp, randomize move order on leaf
           if (
@@ -2005,7 +2005,7 @@ __kernel void alphabeta_gpu(
               &&localDepth[sd]>0
               )
           {
-            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%5)+1))&&localTodoIndex[sd]>=1)?true:randomize;
+            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%3)+1))&&localTodoIndex[sd]>=1)?true:randomize;
           }
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
@@ -2121,7 +2121,6 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       lmove = MOVENONE;
-//      randomize = false;
 /*
       // load ttmove from hash table x1
       tmpmove = MOVENONE;
@@ -2165,14 +2164,15 @@ __kernel void alphabeta_gpu(
         lmove = localMoveHistory[sd];
 
       // lazy smp, randomize move order on root
+//      randomize = false;
       if (
-          lmove == MOVENONE
+          lmove==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localNodeStates[sd]&QS)
           &&localDepth[sd]>0
           )
       {
-        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%5)+1)&&localTodoIndex[sd]>=1)?true:randomize;
+        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%3)+1)&&localTodoIndex[sd]>=1)?true:randomize;
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2415,7 +2415,7 @@ __kernel void alphabeta_gpu(
       }
       // lazy smp, set rand mode
       randomize = false;
-    } // end moveup
+    } // end moveup x1
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
     if (lid==0&&*finito)
