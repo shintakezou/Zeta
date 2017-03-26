@@ -1682,7 +1682,7 @@ __kernel void alphabeta_gpu(
         &&
         (
           rootkic
-        ||(GETPTYPE(GETPFROM(localMoveHistory[sd]))==PAWN&&GETPTYPE(GETPTO(localMoveHistory[sd]))==QUEEN)
+          ||(GETPTYPE(GETPFROM(localMoveHistory[sd]))==PAWN&&GETPTYPE(GETPTO(localMoveHistory[sd]))==QUEEN)
         )
        )
     {
@@ -1844,7 +1844,7 @@ __kernel void alphabeta_gpu(
       score-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       score+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       // stm bonus, to prevent mix up with drawscore
-//      score+= (stm)?-1:1;
+      score+= (stm)?-1:1;
     }
     // store scores in local memory
     scrTmp64[lid] = score;
@@ -1888,7 +1888,6 @@ __kernel void alphabeta_gpu(
         lmove = MOVENONE;
         score = DRAWSCORE;
       }
-
       // #################################
       // ####     alphabeta flow x1    ###
       // #################################
@@ -1920,7 +1919,7 @@ __kernel void alphabeta_gpu(
       if (mode==MOVEUP
           &&!qs
           &&sd>1
-          &&localSearchMode[sd]==SEARCH
+          &&!(localSearchMode[sd]&NULLMOVESEARCH)
          )
       {
         bbWork = localHashHistory[sd];    
@@ -1936,7 +1935,7 @@ __kernel void alphabeta_gpu(
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-//            &&!ISDRAW(score)
+            &&!ISDRAW(score)
            )
         {
           // set alpha
@@ -2001,7 +2000,7 @@ __kernel void alphabeta_gpu(
           if (
               move!=MOVENONE
               &&move!=NULLMOVE
-              &&localSearchMode[sd]==SEARCH
+              &&!(localSearchMode[sd]&NULLMOVESEARCH)
               &&!(localNodeStates[sd]&QS)
               &&localDepth[sd]>0
               )
@@ -2150,7 +2149,7 @@ __kernel void alphabeta_gpu(
 */
       // check for nullmove pruning
       if (!bresearch
-          &&sd>1
+          &&sd>2
           &&localMoveHistory[sd]==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localNodeStates[sd]&QS)
@@ -2168,7 +2167,7 @@ __kernel void alphabeta_gpu(
       // lazy smp, randomize move order on root
       if (
           lmove == MOVENONE
-          &&localSearchMode[sd]==SEARCH
+          &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localNodeStates[sd]&QS)
           &&localDepth[sd]>0
           )
@@ -2237,20 +2236,21 @@ __kernel void alphabeta_gpu(
         tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
         tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
         // MVV-LVA
-        tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
-        tmpscore = tmpscore*10000+lid*64+n;
+        tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*160-EvalPieceValues[GETPTYPE(pto)]*10:tmpscore;
+//        tmpscore = tmpscore*100+lid;
+//        tmpscore = tmpscore*10000+lid*64+n;
 
         // check counter move heuristic
         if (countermove==tmpmove)
         {
-          tmpscore = 200; // score as second highest quiet move
-          tmpscore = tmpscore*10000+lid*64+n;
+          tmpscore = EvalPieceValues[QUEEN]*2; // score as second highest quiet move
+//          tmpscore = tmpscore*100+lid;
         }
         // check killer move heuristic
         if (killermove==tmpmove)
         {
-          tmpscore = 210; // score as highest quiet move
-          tmpscore = tmpscore*10000+lid*64+n;
+          tmpscore = EvalPieceValues[QUEEN]*3; // score as highest quiet move
+//          tmpscore = tmpscore*100+lid;
         }
         // lazy smp, randomize move order
         if (randomize)
@@ -2264,7 +2264,7 @@ __kernel void alphabeta_gpu(
         // check tt move
         if (ttmove==tmpmove)
         {
-          tmpscore = INFMOVESCORE-100+lid; // score as highest move
+          tmpscore = INFMOVESCORE-100; // score as highest move
           // TThits counter
           COUNTERS[gid*64+3]++;      
         }
@@ -2350,7 +2350,7 @@ __kernel void alphabeta_gpu(
       // halfmove clock
       localHMCHistory[sd]               = localHMCHistory[sd-1];
       localHMCHistory[sd]++; // increase
-      // reset
+      // reset hmc
       if ((GETPTYPE(GETPFROM(move))==PAWN))  // pawn move
         localHMCHistory[sd] = 0;
       if ((GETPTYPE(GETPCPT(move))!=PNONE)) // capture
@@ -2377,7 +2377,8 @@ __kernel void alphabeta_gpu(
       {
         localTodoIndex[sd-1]--;
         localSearchMode[sd]              |= NULLMOVESEARCH;
-        n                                 = (localDepth[sd]>=5)?4:2; // reduction
+        n                                 = 2; // reduction
+//        n                                 = (localDepth[sd]>=5)?4:2; // reduction
         localDepth[sd]                    = localDepth[sd]-n;
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
         localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
@@ -2391,6 +2392,7 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&QS)
          &&!(localNodeStates[sd-1]&KIC)
          &&!(localNodeStates[sd-1]&EXT)
+//         &&!(localSearchMode[sd-1]&LMRSEARCH)
          &&localDepth[sd]>=1
          &&localTodoIndex[sd-1]>2 // previous moves searched
          &&count1s(board[QBBBLACK])>=2
@@ -2400,12 +2402,15 @@ __kernel void alphabeta_gpu(
         // no check giving moves
         if (!squareunderattack(board, !stm, getkingsq(board, stm)))
         {
-          n = 1;
+          n = 1; // redcuction
+//          n = (localDepth[sd]>2&&localTodoIndex[sd-1]>3)?2:n;
+//          n = (localDepth[sd]>3&&localTodoIndex[sd-1]>6)?localDepth[sd]/3:n;
           // lazy smp, agressive late move reductions, unstable tt score
 //          n = (gid>0&&gid%2==0&&localDepth[sd]>2&&localTodoIndex[sd-1]>3)?2:n;
 //          n = (gid>0&&gid%2==1)?(localDepth[sd]>=3&&localTodoIndex[sd-1]>6)?localDepth[sd]/3:n:n;
           localDepth[sd]  = localDepth[sd]-n; // depth reduction
           localNodeStates[sd] |= LMR;
+          localSearchMode[sd] |= LMRSEARCH;
         }
       }
       // lazy smp, set rand mode
