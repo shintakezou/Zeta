@@ -646,6 +646,11 @@ void release_configinits()
   // opencl related
   free(GLOBAL_BOARD);
   free(COUNTERS);
+  free(COUNTERSZEROED);
+  free(PV);
+  free(PVZEROED);
+  free(KILLERZEROED);
+  free(COUNTERZEROED);
   free(GLOBAL_HASHHISTORY);
 }
 void release_engineinits()
@@ -1666,8 +1671,7 @@ bool read_and_init_config(char configfile[])
   // initialize transposition table
   u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
   u64 ttbits = 0;
-  if (max_memory>0&&
-memory_slots>0)
+  if (max_memory>0&&memory_slots>0)
   {
     while ( mem >>= 1)   // get msb
       ttbits++;
@@ -3130,6 +3134,132 @@ int main(int argc, char* argv[])
               ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
       }
 
+      state = cl_init_device("alphabeta_gpu");
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+
+      fflush(stdout);
+      fflush(LogFile);
+  
+      continue;
+    }
+    // do an smp benchmark for current position to depth defined via sd 
+    if (!xboard_mode && !strcmp(Command, "benchsmp"))
+    {
+      bool state;
+      u64 x = threadsX;
+      u64 y = threadsY;
+      int iter = 0;
+      double *timearr = (double *)calloc(threadsX*threadsY, sizeof (double));
+      u64 *workerssarr = (u64 *)calloc(threadsX*threadsY, sizeof (u64));
+      u64 *npsarr = (u64 *)calloc(threadsX*threadsY, sizeof (u64));
+
+      ABNODECOUNT = 0;
+      MOVECOUNT = 0;
+
+      threadsX = 1;
+      threadsY = 1;
+
+      // for threadsY
+      while (true)
+      {
+        // for threadsX
+        while(true)
+        {
+          fprintf(stdout,"### doing inits for benchsmp depth %d: ###\n", SD);  
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile,"### doing inits for benchsmp depth %d: ###\n", SD);  
+          }
+
+          release_gameinits();
+          gameinits();
+          state = cl_release_device();
+          // something went wrong...
+          if (!state)
+          {
+            quitengine(EXIT_FAILURE);
+          }
+          state = cl_init_device("alphabeta_gpu");
+          // something went wrong...
+          if (!state)
+          {
+            quitengine(EXIT_FAILURE);
+          }
+
+          fprintf(stdout,"### computing benchsmp depth %d: ###\n", SD);  
+          fprintf(stdout,"### work-groups: %" PRIu64 " ###\n", threadsX*threadsY);  
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile,"### computing benchsmp depth %d: ###\n", SD);  
+            fprintdate(LogFile);
+            fprintf(LogFile,"### work-groups: %" PRIu64 " ###\n", threadsX*threadsY);  
+          }
+
+          start = get_time();
+         
+          rootsearch(BOARD, STM, SD);
+
+          end = get_time();   
+          elapsed = end-start;
+          elapsed += 1;
+          elapsed/=1000;
+
+          // collect results
+          timearr[iter] = elapsed;
+          npsarr[iter] = (u64)(ABNODECOUNT/elapsed);
+          workerssarr[iter] = threadsX*threadsY;
+
+          iter++;
+
+          if (threadsX>=x)
+            break;
+          if (threadsX*2>x)
+            threadsX = x; 
+          else
+            threadsX*=2; 
+        }
+        if (threadsY>=y)
+          break;
+        if (threadsY*2>y)
+          threadsY = y; 
+        else
+          threadsY*=2; 
+      }
+      // print results
+      fprintf(stdout,"### workers\t#nps\t\t#nps speedup\t#time in s\t#time speedup ###\n");
+      fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1);
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"### workers\t#nps\t\t#nps speedup\t#time in s\t#time speedup ###\n");
+        fprintdate(LogFile);
+        fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1);
+      }
+      for (int i=1;i<iter;i++)
+      {
+        fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i]);
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i]);
+        }
+       
+      }
+      //reset 
+      threadsX = x;
+      threadsY = y;
+      state = cl_release_device();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
       state = cl_init_device("alphabeta_gpu");
       // something went wrong...
       if (!state)
