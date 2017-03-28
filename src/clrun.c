@@ -47,6 +47,7 @@ bool cl_init_device(char *kernelname)
   context = NULL;
   kernel  = NULL;
   program = NULL;
+  commandQueue = NULL;
 
   status = clGetPlatformIDs(256, NULL, &numPlatforms);
   if(status!=CL_SUCCESS)
@@ -473,11 +474,19 @@ bool cl_init_objects() {
     return false;
   }
 
-  // flush command queueu
+  // flush command queue
   status = clFlush(commandQueue);
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: flushing the memory writes. (clFlush)\n");
+    return false;
+  }
+
+  // wait for queue to finish memory write ops
+  status = clFinish(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for memory writes run to finish. (clFinish)\n");
     return false;
   }
 
@@ -948,9 +957,9 @@ bool cl_run_perft(bool stm, s32 depth)
 }
 
 // copy and release memory from device
-bool cl_get_and_release_memory()
+bool cl_read_memory()
 {
-  cl_event events[2];
+//  cl_event events[2];
 
   // copy counters buffer
   status = clEnqueueReadBuffer(
@@ -962,13 +971,31 @@ bool cl_get_and_release_memory()
                                 COUNTERS,
                                 0,
                                 NULL,
-                                &events[1]);
+                                NULL);
 
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
+
+  // flush command queue
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory reads. (clFlush)\n");
+    return false;
+  }
+
+  // wait for memory reads to finish execution
+  status = clFinish(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for memory reads run to finish. (clFinish)\n");
+    return false;
+  }
+
+/*
   // wait for the read buffer to finish execution
   status = clWaitForEvents(1, &events[1]);
   if(status!=CL_SUCCESS) 
@@ -982,7 +1009,7 @@ bool cl_get_and_release_memory()
     print_debug((char *)"Error: Release event object.(GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
-
+*/
   // copy PV buffer
   status = clEnqueueReadBuffer(
                                 commandQueue,
@@ -993,13 +1020,30 @@ bool cl_get_and_release_memory()
                                 PV,
                                 0,
                                 NULL,
-                                &events[1]);
+                                NULL);
 
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_PV_Buffer)\n");
     return false;
   }
+
+  // flush command queue
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory reads. (clFlush)\n");
+    return false;
+  }
+
+  // wait for memory reads to finish execution
+  status = clFinish(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Waiting for memory reads run to finish. (clFinish)\n");
+    return false;
+  }
+/*
   // wait for the read buffer to finish execution
   status = clWaitForEvents(1, &events[1]);
   if(status!=CL_SUCCESS) 
@@ -1013,7 +1057,7 @@ bool cl_get_and_release_memory()
     print_debug((char *)"Error: Release event object.(GLOBAL_PV_Buffer)\n");
     return false;
   }
-
+*/
 
 
 /* keep build program across game play
@@ -1028,7 +1072,7 @@ bool cl_get_and_release_memory()
 
 	return true;
 }
-// release OpenCL device, once by exit
+// release OpenCL device
 bool cl_release_device() {
 
   // release memory buffers
@@ -1147,26 +1191,20 @@ bool cl_release_device() {
     return false;
   }
 
-  if (program!=NULL)
+  status = clReleaseProgram(program);
+  program = NULL;
+  if(status!=CL_SUCCESS)
   {
-    status = clReleaseProgram(program);
-    program = NULL;
-    if(status!=CL_SUCCESS)
-    {
-      print_debug((char *)"Error: In clReleaseProgram\n");
-      return false; 
-    }
+    print_debug((char *)"Error: In clReleaseProgram\n");
+    return false; 
   }
 
-  if (context!=NULL)
+  status = clReleaseContext(context);
+  context = NULL;
+  if(status!=CL_SUCCESS)
   {
-    status = clReleaseContext(context);
-    context = NULL;
-    if(status!=CL_SUCCESS)
-    {
-      print_debug((char *)"Error: In clReleaseContext\n");
-      return false;
-    }
+    print_debug((char *)"Error: In clReleaseContext\n");
+    return false;
   }
 
 	return true;

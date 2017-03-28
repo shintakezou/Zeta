@@ -131,7 +131,7 @@ extern bool cl_init_objects();
 extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes);
 extern bool cl_run_perft(bool stm, s32 depth);
-extern bool cl_get_and_release_memory();
+extern bool cl_read_memory();
 extern bool cl_release_device();
 extern bool cl_guess_config(bool extreme);
 extern bool cl_platform_list();
@@ -1613,7 +1613,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  PV = (Move*)calloc(1024, sizeof(u64));
+  PV = (Move*)calloc(1024, sizeof(Move));
   if (PV==NULL)
   {
     fprintf(stdout, "memory alloc, PV, failed\n");
@@ -1624,7 +1624,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  PVZEROED = (Move*)calloc(1024, sizeof(u64));
+  PVZEROED = (Move*)calloc(1024, sizeof(Move));
   if (PVZEROED==NULL)
   {
     fprintf(stdout, "memory alloc, PVZEROED, failed\n");
@@ -1635,7 +1635,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  KILLERZEROED = (TTMove*)calloc(totalWorkUnits*MAXPLY, sizeof(TTMove));
+  KILLERZEROED = (Move*)calloc(totalWorkUnits*MAXPLY, sizeof(Move));
   if (KILLERZEROED==NULL)
   {
     fprintf(stdout, "memory alloc, KILLERZEROED, failed\n");
@@ -1646,7 +1646,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  COUNTERZEROED = (TTMove*)calloc(totalWorkUnits*64*64, sizeof(TTMove));
+  COUNTERZEROED = (Move*)calloc(totalWorkUnits*64*64, sizeof(Move));
   if (COUNTERZEROED==NULL)
   {
     fprintf(stdout, "memory alloc, COUNTERZEROED, failed\n");
@@ -1896,6 +1896,8 @@ static void print_help(void)
   fprintf(stdout,"selftest       // run an internal test\n");
   fprintf(stdout,"help           // print usage info\n");
   fprintf(stdout,"log            // turn log on\n");
+  fprintf(stdout,"benchsmp       // init with new and sd and st commands\n");
+  fprintf(stdout,"               // runs an benchmark for parallel speedup\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"WARNING:\n");
@@ -1945,7 +1947,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   {
     quitengine(EXIT_FAILURE);
   }
-  state = cl_get_and_release_memory();
+  state = cl_read_memory();
   // something went wrong...
   if (!state)
   {
@@ -2019,7 +2021,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     {
       quitengine(EXIT_FAILURE);
     }
-    state = cl_get_and_release_memory();
+    state = cl_read_memory();
     // something went wrong...
     if (!state)
     {
@@ -2141,7 +2143,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
     return -1;
   }
   // copy results
-  if (!cl_get_and_release_memory())
+  if (!cl_read_memory())
   {
     return -1;
   }
@@ -2498,7 +2500,12 @@ int main(int argc, char* argv[])
 		if (!strcmp(Command, "new"))
     {
       release_gameinits();
-      gameinits();
+      state = gameinits();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
       state = cl_release_device();
       // something went wrong...
       if (!state)
@@ -3078,7 +3085,6 @@ int main(int argc, char* argv[])
     // do an node count to depth defined via sd 
     if (!xboard_mode && !strcmp(Command, "perft"))
     {
-      bool state;
       ABNODECOUNT = 0;
       MOVECOUNT = 0;
 
@@ -3149,7 +3155,6 @@ int main(int argc, char* argv[])
     // do an smp benchmark for current position to depth defined via sd 
     if (!xboard_mode && !strcmp(Command, "benchsmp"))
     {
-      bool state;
       u64 x = threadsX;
       u64 y = threadsY;
       int iter = 0;
@@ -3169,6 +3174,7 @@ int main(int argc, char* argv[])
         // for threadsX
         while(true)
         {
+
           fprintf(stdout,"### doing inits for benchsmp depth %d: ###\n", SD);  
           if (LogFile)
           {
@@ -3177,13 +3183,21 @@ int main(int argc, char* argv[])
           }
 
           release_gameinits();
-          gameinits();
+          state = gameinits();
+          // something went wrong...
+          if (!state)
+          {
+            quitengine(EXIT_FAILURE);
+          }
           state = cl_release_device();
           // something went wrong...
           if (!state)
           {
             quitengine(EXIT_FAILURE);
           }
+
+          totalWorkUnits = threadsX*threadsY;
+
           state = cl_init_device("alphabeta_gpu");
           // something went wrong...
           if (!state)
@@ -3252,14 +3266,22 @@ int main(int argc, char* argv[])
        
       }
       //reset 
-      threadsX = x;
-      threadsY = y;
+      release_gameinits();
+      state = gameinits();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
       state = cl_release_device();
       // something went wrong...
       if (!state)
       {
         quitengine(EXIT_FAILURE);
       }
+      threadsX = x;
+      threadsY = y;
+      totalWorkUnits = threadsX*threadsY;
       state = cl_init_device("alphabeta_gpu");
       // something went wrong...
       if (!state)

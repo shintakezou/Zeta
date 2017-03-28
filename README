@@ -77,6 +77,8 @@ perft          // perform a performance test, depth set by sd command
 selftest       // run an internal test
 help           // print usage info
 log            // turn log on
+benchsmp       // init with new and sd and st commands
+               // runs an benchmark for parallel speedup
 
 
 WARNING:
@@ -90,4 +92,5 @@ So make sure to use an discrete GPU or set proper time controls.
 Windows OS have an internal gpu timeout, double click the .reg file 
 "SetWindowsGPUTimeoutTo20s.reg"
 and reboot the OS to set the timeout to 20 seconds.
+
 
