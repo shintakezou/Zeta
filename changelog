@@ -1,7 +1,13 @@
 Zeta (099a) alpha; urgency=low
 
-  * switch from best first minimax search to parallel alphabeta
-  * ...to be continued
+  * switch from best first minimax search to parallel alphabeta (lazy smp)
+  * ported all (except IID) search techniques from Zeta Dva v0305 to OpenCL
+  * ported the evaluation function of Zeta Dva v0305 to OpenCL
+  * vectorized and generalized 64 bit Kogge-Stone move generator
+  * 64 threads are now coupled to one worker, performing move generation, 
+    move picking and evaluation, square-wise, in parallel on the same node
+  * portability over performance, should run on the very first gpus with
+    OpenCL 1.x support (>= 2008)
 
  -- Srdja Matovic <s.matovic@app26.de> 2017
 
