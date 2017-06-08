@@ -979,8 +979,8 @@ __kernel void perft_gpu(
   Bitboard bbPinned;
   Bitboard bbChecked;
 
-  ulong4 bbPro4;
-  ulong4 bbGen4; 
+  Bitboard bbPro;
+  Bitboard bbGen; 
 
   // get init quadbitboard plus plus
   board[QBBBLACK] = BOARD[QBBBLACK];
@@ -1073,8 +1073,106 @@ __kernel void perft_gpu(
       bbChecked |= bishop_attacks(bbBlockers^SETMASKBB(sqking), sqto);
     }
     // generate own moves and opposite attacks
-    pfrom   = GETPIECE(board, lid);
-    color   = GETCOLOR(pfrom);
+    pfrom  = GETPIECE(board, lid);
+    color  = GETCOLOR(pfrom);
+
+    bbWork = BBEMPTY;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |=         (bbGen << 9) & bbPro;
+    bbWork |=         (bbTemp<< 9) & BBNOTAFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |=         (bbGen << 1) & bbPro;
+    bbWork |=         (bbTemp<< 1) & BBNOTAFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |=         (bbGen << 7) & bbPro;
+    bbWork |=         (bbTemp<< 7) & BBNOTHFILE;
+
+    bbPro  = ~bbBlockers;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |=         (bbGen << 8) & bbPro;
+    bbWork |=         (bbTemp<< 8);
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |=         (bbGen >> 9) & bbPro;
+    bbWork |=         (bbTemp>> 9) & BBNOTHFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |=         (bbGen >> 1) & bbPro;
+    bbWork |=         (bbTemp>> 1) & BBNOTHFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |=         (bbGen >> 7) & bbPro;
+    bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
+
+    bbPro  = ~bbBlockers;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |=         (bbGen >> 8) & bbPro;
+    bbWork |=         (bbTemp>> 8);
+
+/*
     // generator and propagator (piece and empty squares)
     bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
     bbPro4  = (ulong4)(~bbBlockers);
@@ -1099,16 +1197,18 @@ __kernel void perft_gpu(
     bbGen4 |= bbPro4    & (bbGen4 >> 4*shift4);
     bbGen4  = wraps4[1] & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+*/
+
     // consider knights
-    bbTemp  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbTemp;
+    bbWork  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbWork;
     // verify captures
     n       = (color==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
     bbMask  = AttackTables[n*64+lid];
-    bbMoves = (color==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    bbMoves = (color==stm)?(bbMask&bbWork&bbOpp):(bbMask&bbWork);
     // verify non captures
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
-    bbMoves|= (color==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+    bbMoves|= (color==stm&&!qs)?(bbMask&bbWork&~bbBlockers):BBEMPTY; 
 
     // collect opp attacks
 // local 64 bit atomics not supported on all devices :(
@@ -1497,8 +1597,8 @@ __kernel void alphabeta_gpu(
   Bitboard bbPinned;
   Bitboard bbChecked;
 
-  ulong4 bbPro4;
-  ulong4 bbGen4; 
+  Bitboard bbPro;
+  Bitboard bbGen; 
 
   // get init quadbitboard plus plus
   board[QBBBLACK] = BOARD[QBBBLACK];
@@ -1612,6 +1712,106 @@ __kernel void alphabeta_gpu(
       bbChecked |= bishop_attacks(bbBlockers^SETMASKBB(sqking), sqto);
     }
     // generate own moves and opposite attacks
+    pfrom  = GETPIECE(board, lid);
+    color  = GETCOLOR(pfrom);
+
+    bbWork = BBEMPTY;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |=         (bbGen << 9) & bbPro;
+    bbWork |=         (bbTemp<< 9) & BBNOTAFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |=         (bbGen << 1) & bbPro;
+    bbWork |=         (bbTemp<< 1) & BBNOTAFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |=         (bbGen << 7) & bbPro;
+    bbWork |=         (bbTemp<< 7) & BBNOTHFILE;
+
+    bbPro  = ~bbBlockers;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |=         (bbGen << 8) & bbPro;
+    bbWork |=         (bbTemp<< 8);
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |=         (bbGen >> 9) & bbPro;
+    bbWork |=         (bbTemp>> 9) & BBNOTHFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |=         (bbGen >> 1) & bbPro;
+    bbWork |=         (bbTemp>> 1) & BBNOTHFILE;
+
+    bbPro  = ~bbBlockers;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |=         (bbGen >> 7) & bbPro;
+    bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
+
+    bbPro  = ~bbBlockers;
+    bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
+
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |=         (bbGen >> 8) & bbPro;
+    bbWork |=         (bbTemp>> 8);
+/*
+    // generate own moves and opposite attacks
     pfrom   = GETPIECE(board, lid);
     color   = GETCOLOR(pfrom);
     // generator and propagator (piece and empty squares)
@@ -1638,13 +1838,14 @@ __kernel void alphabeta_gpu(
     bbGen4 |= bbPro4    & (bbGen4 >> 4*shift4);
     bbGen4  = wraps4[1] & (bbGen4 >> shift4);
     bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
+*/
     // consider knights
-    bbTemp  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbTemp;
+    bbWork  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbWork;
     // verify captures
     n       = (color==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
     bbMask  = AttackTables[n*64+lid];
-    bbMoves = (color==stm)?(bbMask&bbTemp&bbOpp):(bbMask&bbTemp);
+    bbMoves = (color==stm)?(bbMask&bbWork&bbOpp):(bbMask&bbWork);
 
     // collect opp attacks
 // local 64 bit atomics not supported on all devices :(
@@ -1696,7 +1897,7 @@ __kernel void alphabeta_gpu(
 
     // verify non captures
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
-    bbMoves|= (color==stm&&!qs)?(bbMask&bbTemp&~bbBlockers):BBEMPTY; 
+    bbMoves|= (color==stm&&!qs)?(bbMask&bbWork&~bbBlockers):BBEMPTY; 
 
     // extract only own moves
     bbMoves = (color==stm)?bbMoves:BBEMPTY;
