@@ -620,28 +620,6 @@ Hash computehash(__private Bitboard *board, bool stm)
 
   return hash;
 }
-// move generator costants
-__constant ulong4 shift4 = (ulong4)( 9, 1, 7, 8);
-
-// wraps for kogge stone shifts
-__constant ulong4 wraps4[2] =
-{
-  // wraps shift left
-  (ulong4)(
-            0xfefefefefefefe00, // <<9
-            0xfefefefefefefefe, // <<1
-            0x7f7f7f7f7f7f7f00, // <<7
-            0xffffffffffffff00  // <<8
-          ),
-
-  // wraps shift right
-  (ulong4)(
-            0x007f7f7f7f7f7f7f, // >>9
-            0x7f7f7f7f7f7f7f7f, // >>1
-            0x00fefefefefefefe, // >>7
-            0x00ffffffffffffff  // >>8
-          )
-};
 // precomputed attack tables for move generation and square in check
 __constant Bitboard AttackTablesPawnPushes[2*64] = 
 {
@@ -668,180 +646,7 @@ __constant Bitboard AttackTables[7*64] =
   // queen
   0x81412111090503fe,0x2824222120a07fd,0x404844424150efb,0x8080888492a1cf7,0x10101011925438ef,0x2020212224a870df,0x404142444850e0bf,0x8182848890a0c07f,0x412111090503fe03,0x824222120a07fd07,0x4844424150efb0e,0x80888492a1cf71c,0x101011925438ef38,0x20212224a870df70,0x4142444850e0bfe0,0x82848890a0c07fc0,0x2111090503fe0305,0x4222120a07fd070a,0x844424150efb0e15,0x888492a1cf71c2a,0x1011925438ef3854,0x212224a870df70a8,0x42444850e0bfe050,0x848890a0c07fc0a0,0x11090503fe030509,0x22120a07fd070a12,0x4424150efb0e1524,0x88492a1cf71c2a49,0x11925438ef385492,0x2224a870df70a824,0x444850e0bfe05048,0x8890a0c07fc0a090,0x90503fe03050911,0x120a07fd070a1222,0x24150efb0e152444,0x492a1cf71c2a4988,0x925438ef38549211,0x24a870df70a82422,0x4850e0bfe0504844,0x90a0c07fc0a09088,0x503fe0305091121,0xa07fd070a122242,0x150efb0e15244484,0x2a1cf71c2a498808,0x5438ef3854921110,0xa870df70a8242221,0x50e0bfe050484442,0xa0c07fc0a0908884,0x3fe030509112141,0x7fd070a12224282,0xefb0e1524448404,0x1cf71c2a49880808,0x38ef385492111010,0x70df70a824222120,0xe0bfe05048444241,0xc07fc0a090888482,0xfe03050911214181,0xfd070a1222428202,0xfb0e152444840404,0xf71c2a4988080808,0xef38549211101010,0xdf70a82422212020,0xbfe0504844424140,0x7fc0a09088848281,
 };
-// generate rook moves via koggestone shifts
-Bitboard ks_attacks_ls1(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
 
-  // directions left shifting <<1 ROOK
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  bbPro  &= BBNOTAFILE;
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen << 1);
-  bbPro  &=           (bbPro << 1);
-  bbGen  |= bbPro &   (bbGen << 2*1);
-  bbPro  &=           (bbPro << 2*1);
-  bbGen  |= bbPro &   (bbGen << 4*1);
-  // shift one further
-  bbGen   = BBNOTAFILE &  (bbGen << 1);
-
-  return bbGen;
-}
-Bitboard ks_attacks_ls8(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
-
-  // directions left shifting <<8 ROOK
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen << 8);
-  bbPro  &=           (bbPro << 8);
-  bbGen  |= bbPro &   (bbGen << 2*8);
-  bbPro  &=           (bbPro << 2*8);
-  bbGen  |= bbPro &   (bbGen << 4*8);
-  // shift one further
-  bbGen   =           (bbGen << 8);
-  
-  return bbGen;
-}
-Bitboard ks_attacks_rs1(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
-
-  // directions right shifting >>1 ROOK
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  bbPro  &= BBNOTHFILE;
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen >> 1);
-  bbPro  &=           (bbPro >> 1);
-  bbGen  |= bbPro &   (bbGen >> 2*1);
-  bbPro  &=           (bbPro >> 2*1);
-  bbGen  |= bbPro &   (bbGen >> 4*1);
-  // shift one further
-  bbGen   = BBNOTHFILE &  (bbGen >> 1);
-
-  return bbGen;
-}
-Bitboard ks_attacks_rs8(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
-
-  // directions right shifting >>8 ROOK
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen >> 8);
-  bbPro  &=           (bbPro >> 8);
-  bbGen  |= bbPro &   (bbGen >> 2*8);
-  bbPro  &=           (bbPro >> 2*8);
-  bbGen  |= bbPro &   (bbGen >> 4*8);
-  // shift one further
-  bbGen   =           (bbGen >> 8);
-
-  return bbGen;
-}
-Bitboard rook_attacks(Bitboard bbBlockers, Square sq)
-{
-  return ks_attacks_ls1(bbBlockers, sq) |
-         ks_attacks_ls8(bbBlockers, sq) |
-         ks_attacks_rs1(bbBlockers, sq) |
-         ks_attacks_rs8(bbBlockers, sq);
-}
-// generate bishop moves via koggestone shifts
-Bitboard ks_attacks_ls9(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
-
-  // directions left shifting <<9 BISHOP
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  bbPro  &= BBNOTAFILE;
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen << 9);
-  bbPro  &=           (bbPro << 9);
-  bbGen  |= bbPro &   (bbGen << 2*9);
-  bbPro  &=           (bbPro << 2*9);
-  bbGen  |= bbPro &   (bbGen << 4*9);
-  // shift one further
-  bbGen   = BBNOTAFILE &  (bbGen << 9);
-
-  return bbGen;
-}
-Bitboard ks_attacks_ls7(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
-
-  // directions left shifting <<7 BISHOP
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  bbPro  &= BBNOTHFILE;
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen << 7);
-  bbPro  &=           (bbPro << 7);
-  bbGen  |= bbPro &   (bbGen << 2*7);
-  bbPro  &=           (bbPro << 2*7);
-  bbGen  |= bbPro &   (bbGen << 4*7);
-  // shift one further
-  bbGen   = BBNOTHFILE &  (bbGen << 7);
-
-  return bbGen;
-}
-Bitboard ks_attacks_rs9(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
-
-  // directions right shifting >>9 BISHOP
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  bbPro  &= BBNOTHFILE;
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen >> 9);
-  bbPro  &=           (bbPro >> 9);
-  bbGen  |= bbPro &   (bbGen >> 2*9);
-  bbPro  &=           (bbPro >> 2*9);
-  bbGen  |= bbPro &   (bbGen >> 4*9);
-  // shift one further
-  bbGen   = BBNOTHFILE &  (bbGen >> 9);
-
-  return bbGen;
-}
-Bitboard ks_attacks_rs7(Bitboard bbBlockers, Square sq)
-{
-  Bitboard bbPro;
-  Bitboard bbGen;
-
-  // directions right shifting >>7 BISHOP
-  bbPro   = ~bbBlockers;
-  bbGen   = SETMASKBB(sq);
-  bbPro  &= BBNOTAFILE;
-  // do kogge stone
-  bbGen  |= bbPro &   (bbGen >> 7);
-  bbPro  &=           (bbPro >> 7);
-  bbGen  |= bbPro &   (bbGen >> 2*7);
-  bbPro  &=           (bbPro >> 2*7);
-  bbGen  |= bbPro &   (bbGen >> 4*7);
-  // shift one further
-  bbGen   = BBNOTAFILE &  (bbGen >> 7);
-
-  return bbGen;
-}
-Bitboard bishop_attacks(Bitboard bbBlockers, Square sq)
-{
-  return ks_attacks_ls7(bbBlockers, sq) |
-         ks_attacks_ls9(bbBlockers, sq) |
-         ks_attacks_rs7(bbBlockers, sq) |
-         ks_attacks_rs9(bbBlockers, sq);
-}
 Square getkingsq(__private Bitboard *board, bool side)
 {
   Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
@@ -855,20 +660,119 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
   Bitboard bbMoves;
   Bitboard bbBlockers;
   Bitboard bbMe;
+  Bitboard bbPro;
+  Bitboard bbGen;
+  Bitboard bbTemp;
 
   bbBlockers = board[1]|board[2]|board[3];
   bbMe       = (stm)?board[0]:(board[0]^bbBlockers);
 
   // rooks and queens
-  bbMoves = rook_attacks(bbBlockers, sq);
+  bbMoves = BBEMPTY;
+
+  bbPro  = ~bbBlockers;
+  bbPro &= BBNOTAFILE;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen << 1) & bbPro;
+  bbTemp |= bbGen = (bbGen << 1) & bbPro;
+  bbTemp |= bbGen = (bbGen << 1) & bbPro;
+  bbTemp |= bbGen = (bbGen << 1) & bbPro;
+  bbTemp |= bbGen = (bbGen << 1) & bbPro;
+  bbTemp |=         (bbGen << 1) & bbPro;
+  bbMoves |=         (bbTemp<< 1) & BBNOTAFILE;
+
+  bbPro  = ~bbBlockers;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen << 8) & bbPro;
+  bbTemp |= bbGen = (bbGen << 8) & bbPro;
+  bbTemp |= bbGen = (bbGen << 8) & bbPro;
+  bbTemp |= bbGen = (bbGen << 8) & bbPro;
+  bbTemp |= bbGen = (bbGen << 8) & bbPro;
+  bbTemp |=         (bbGen << 8) & bbPro;
+  bbMoves |=         (bbTemp<< 8);
+
+  bbPro  = ~bbBlockers;
+  bbPro &= BBNOTHFILE;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+  bbTemp |=         (bbGen >> 1) & bbPro;
+  bbMoves |=         (bbTemp>> 1) & BBNOTHFILE;
+
+  bbPro  = ~bbBlockers;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+  bbTemp |=         (bbGen >> 8) & bbPro;
+  bbMoves |=         (bbTemp>> 8);
+
   bbWork =    (bbMe&(board[1]&~board[2]&board[3])) 
             | (bbMe&(~board[1]&board[2]&board[3]));
   if (bbMoves&bbWork)
   {
     return true;
   }
-  bbMoves = bishop_attacks(bbBlockers, sq);
+
   // bishops and queens
+  bbMoves = BBEMPTY;
+  bbPro  = ~bbBlockers;
+  bbPro &= BBNOTAFILE;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen << 9) & bbPro;
+  bbTemp |= bbGen = (bbGen << 9) & bbPro;
+  bbTemp |= bbGen = (bbGen << 9) & bbPro;
+  bbTemp |= bbGen = (bbGen << 9) & bbPro;
+  bbTemp |= bbGen = (bbGen << 9) & bbPro;
+  bbTemp |=         (bbGen << 9) & bbPro;
+  bbMoves |=         (bbTemp<< 9) & BBNOTAFILE;
+
+  bbPro  = ~bbBlockers;
+  bbPro &= BBNOTHFILE;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen << 7) & bbPro;
+  bbTemp |= bbGen = (bbGen << 7) & bbPro;
+  bbTemp |= bbGen = (bbGen << 7) & bbPro;
+  bbTemp |= bbGen = (bbGen << 7) & bbPro;
+  bbTemp |= bbGen = (bbGen << 7) & bbPro;
+  bbTemp |=         (bbGen << 7) & bbPro;
+  bbMoves |=         (bbTemp<< 7) & BBNOTHFILE;
+
+  bbPro  = ~bbBlockers;
+  bbPro &= BBNOTHFILE;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+  bbTemp |=         (bbGen >> 9) & bbPro;
+  bbMoves |=         (bbTemp>> 9) & BBNOTHFILE;
+
+  bbPro  = ~bbBlockers;
+  bbPro &= BBNOTAFILE;
+  bbTemp = bbGen = SETMASKBB(sq);
+
+  bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+  bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+  bbTemp |=         (bbGen >> 7) & bbPro;
+  bbMoves |=         (bbTemp>> 7) & BBNOTAFILE;
+
   bbWork =  (bbMe&(~board[1]&~board[2]&board[3])) 
           | (bbMe&(~board[1]&board[2]&board[3]));
   if (bbMoves&bbWork)
@@ -1049,9 +953,59 @@ __kernel void perft_gpu(
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
+
     // calc superking and get pinned pieces
     // get superking, rooks n queens
-    bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |=         (bbGen << 1) & bbPro;
+    bbWork |=         (bbTemp<< 1) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |=         (bbGen << 8) & bbPro;
+    bbWork |=         (bbTemp<< 8);
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |=         (bbGen >> 1) & bbPro;
+    bbWork |=         (bbTemp>> 1) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |=         (bbGen >> 8) & bbPro;
+    bbWork |=         (bbTemp>> 8);
+
+    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
     // get pinned pieces
     while (bbWork)
     {
@@ -1059,10 +1013,109 @@ __kernel void perft_gpu(
       bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
-      bbChecked |= rook_attacks(bbBlockers^SETMASKBB(sqking), sqto);
+
+      bbTemp = BBEMPTY;
+      bbMask = ~(bbBlockers^SETMASKBB(sqking));
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |=         (bbGen << 1) & bbPro;
+      bbChecked |=         (bbTemp<< 1) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |=         (bbGen << 8) & bbPro;
+      bbChecked |=         (bbTemp<< 8);
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |=         (bbGen >> 1) & bbPro;
+      bbChecked |=         (bbTemp>> 1) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |=         (bbGen >> 8) & bbPro;
+      bbChecked |=         (bbTemp>> 8);
     }
+
     // get superking, bishops n queems
-    bbWork = bishop_attacks(BBEMPTY, sqking) & ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |=         (bbGen << 9) & bbPro;
+    bbWork |=         (bbTemp<< 9) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |=         (bbGen << 7) & bbPro;
+    bbWork |=         (bbTemp<< 7) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |=         (bbGen >> 9) & bbPro;
+    bbWork |=         (bbTemp>> 9) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |=         (bbGen >> 7) & bbPro;
+    bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
+
+    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
     // get pinned pieces
     while (bbWork)
     {
@@ -1070,8 +1123,56 @@ __kernel void perft_gpu(
       bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
-      bbChecked |= bishop_attacks(bbBlockers^SETMASKBB(sqking), sqto);
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |=         (bbGen << 9) & bbPro;
+      bbChecked |=         (bbTemp<< 9) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |=         (bbGen << 7) & bbPro;
+      bbChecked |=         (bbTemp<< 7) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |=         (bbGen >> 9) & bbPro;
+      bbChecked |=         (bbTemp>> 9) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |=         (bbGen >> 7) & bbPro;
+      bbChecked |=         (bbTemp>> 7) & BBNOTAFILE;
     }
+
     // generate own moves and opposite attacks
     pfrom  = GETPIECE(board, lid);
     color  = GETCOLOR(pfrom);
@@ -1171,33 +1272,6 @@ __kernel void perft_gpu(
     bbTemp |= bbGen = (bbGen >> 8) & bbPro;
     bbTemp |=         (bbGen >> 8) & bbPro;
     bbWork |=         (bbTemp>> 8);
-
-/*
-    // generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift left via ulong4 vector
-    bbPro4 &= wraps4[0];
-    bbGen4 |= bbPro4    & (bbGen4 << shift4);
-    bbPro4 &=             (bbPro4 << shift4);
-    bbGen4 |= bbPro4    & (bbGen4 << 2*shift4);
-    bbPro4 &=             (bbPro4 << 2*shift4);
-    bbGen4 |= bbPro4    & (bbGen4 << 4*shift4);
-    bbGen4  = wraps4[0] & (bbGen4 << shift4);
-    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-    // set generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift right via ulong4 vector
-    bbPro4 &= wraps4[1];
-    bbGen4 |= bbPro4    & (bbGen4 >> shift4);
-    bbPro4 &=             (bbPro4 >> shift4);
-    bbGen4 |= bbPro4    & (bbGen4 >> 2*shift4);
-    bbPro4 &=             (bbPro4 >> 2*shift4);
-    bbGen4 |= bbPro4    & (bbGen4 >> 4*shift4);
-    bbGen4  = wraps4[1] & (bbGen4 >> shift4);
-    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-*/
 
     // consider knights
     bbWork  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbWork;
@@ -1688,9 +1762,59 @@ __kernel void alphabeta_gpu(
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
+
     // calc superking and get pinned pieces
     // get superking, rooks n queens
-    bbWork = rook_attacks(BBEMPTY, sqking) & ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |=         (bbGen << 1) & bbPro;
+    bbWork |=         (bbTemp<< 1) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |=         (bbGen << 8) & bbPro;
+    bbWork |=         (bbTemp<< 8);
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |=         (bbGen >> 1) & bbPro;
+    bbWork |=         (bbTemp>> 1) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |=         (bbGen >> 8) & bbPro;
+    bbWork |=         (bbTemp>> 8);
+
+    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
     // get pinned pieces
     while (bbWork)
     {
@@ -1698,10 +1822,109 @@ __kernel void alphabeta_gpu(
       bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
-      bbChecked |= rook_attacks(bbBlockers^SETMASKBB(sqking), sqto);
+
+      bbTemp = BBEMPTY;
+      bbMask = ~(bbBlockers^SETMASKBB(sqking));
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |=         (bbGen << 1) & bbPro;
+      bbChecked |=         (bbTemp<< 1) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |=         (bbGen << 8) & bbPro;
+      bbChecked |=         (bbTemp<< 8);
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |=         (bbGen >> 1) & bbPro;
+      bbChecked |=         (bbTemp>> 1) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |=         (bbGen >> 8) & bbPro;
+      bbChecked |=         (bbTemp>> 8);
     }
+
     // get superking, bishops n queems
-    bbWork = bishop_attacks(BBEMPTY, sqking) & ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |=         (bbGen << 9) & bbPro;
+    bbWork |=         (bbTemp<< 9) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |=         (bbGen << 7) & bbPro;
+    bbWork |=         (bbTemp<< 7) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |=         (bbGen >> 9) & bbPro;
+    bbWork |=         (bbTemp>> 9) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |=         (bbGen >> 7) & bbPro;
+    bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
+
+    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
     // get pinned pieces
     while (bbWork)
     {
@@ -1709,8 +1932,56 @@ __kernel void alphabeta_gpu(
       bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
-      bbChecked |= bishop_attacks(bbBlockers^SETMASKBB(sqking), sqto);
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |=         (bbGen << 9) & bbPro;
+      bbChecked |=         (bbTemp<< 9) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |=         (bbGen << 7) & bbPro;
+      bbChecked |=         (bbTemp<< 7) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |=         (bbGen >> 9) & bbPro;
+      bbChecked |=         (bbTemp>> 9) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |=         (bbGen >> 7) & bbPro;
+      bbChecked |=         (bbTemp>> 7) & BBNOTAFILE;
     }
+
     // generate own moves and opposite attacks
     pfrom  = GETPIECE(board, lid);
     color  = GETCOLOR(pfrom);
@@ -1810,35 +2081,7 @@ __kernel void alphabeta_gpu(
     bbTemp |= bbGen = (bbGen >> 8) & bbPro;
     bbTemp |=         (bbGen >> 8) & bbPro;
     bbWork |=         (bbTemp>> 8);
-/*
-    // generate own moves and opposite attacks
-    pfrom   = GETPIECE(board, lid);
-    color   = GETCOLOR(pfrom);
-    // generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift left via ulong4 vector
-    bbPro4 &= wraps4[0];
-    bbGen4 |= bbPro4    & (bbGen4 << shift4);
-    bbPro4 &=             (bbPro4 << shift4);
-    bbGen4 |= bbPro4    & (bbGen4 << 2*shift4);
-    bbPro4 &=             (bbPro4 << 2*shift4);
-    bbGen4 |= bbPro4    & (bbGen4 << 4*shift4);
-    bbGen4  = wraps4[0] & (bbGen4 << shift4);
-    bbTemp  = bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-    // set generator and propagator (piece and empty squares)
-    bbGen4  = (ulong4)bbBlockers&SETMASKBB(lid);
-    bbPro4  = (ulong4)(~bbBlockers);
-    // kogge stone shift right via ulong4 vector
-    bbPro4 &= wraps4[1];
-    bbGen4 |= bbPro4    & (bbGen4 >> shift4);
-    bbPro4 &=             (bbPro4 >> shift4);
-    bbGen4 |= bbPro4    & (bbGen4 >> 2*shift4);
-    bbPro4 &=             (bbPro4 >> 2*shift4);
-    bbGen4 |= bbPro4    & (bbGen4 >> 4*shift4);
-    bbGen4  = wraps4[1] & (bbGen4 >> shift4);
-    bbTemp |= bbGen4.s0|bbGen4.s1|bbGen4.s2|bbGen4.s3;
-*/
+
     // consider knights
     bbWork  = (GETPTYPE(pfrom)==KNIGHT)?BBFULL:bbWork;
     // verify captures
