@@ -1286,7 +1286,17 @@ __kernel void perft_gpu(
 
     // collect opp attacks
 // local 64 bit atomics not supported on all devices :(
-//    atom_or(&bbAttacks, ((color!=stm)?bbMoves:BBEMPTY));
+/*
+    barrier(CLK_LOCAL_MEM_FENCE);
+    atom_or(&bbAttacks, ((color!=stm)?bbMoves:BBEMPTY));
+    // get king checkers
+    if (color!=stm&&(bbMoves&SETMASKBB(sqking)))
+    {
+      atom_or(&bbCheckers, SETMASKBB(lid));
+      sqchecker = lid;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+*/
     bbTmp64[lid] = (color!=stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
@@ -1395,6 +1405,8 @@ __kernel void perft_gpu(
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
     // movecount in local memory
 //    atom_add(&movecount, count1s(bbMoves));
+//    barrier(CLK_LOCAL_MEM_FENCE);
+
     scrTmp64[lid] = count1s(bbMoves);
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect movecount
@@ -2092,7 +2104,17 @@ __kernel void alphabeta_gpu(
 
     // collect opp attacks
 // local 64 bit atomics not supported on all devices :(
-//    atom_or(&bbAttacks, ((color!=stm)?bbMoves:BBEMPTY));
+/*
+    barrier(CLK_LOCAL_MEM_FENCE);
+    atom_or(&bbAttacks, ((color!=stm)?bbMoves:BBEMPTY));
+    // get king checkers
+    if (color!=stm&&(bbMoves&SETMASKBB(sqking)))
+    {
+      atom_or(&bbCheckers, SETMASKBB(lid));
+      sqchecker = lid;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+*/
     bbTmp64[lid] = (color!=stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
@@ -2223,6 +2245,7 @@ __kernel void alphabeta_gpu(
     // store move bitboards in global memory for movepicker
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
     // movecount in local memory
+// local atomics not supported on all devices
 //    atom_add(&movecount, count1s(bbMoves));
     scrTmp64[lid] = count1s(bbMoves);
     barrier(CLK_LOCAL_MEM_FENCE);
