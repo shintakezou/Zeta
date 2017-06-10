@@ -1681,7 +1681,7 @@ bool read_and_init_config(char configfile[])
   else
   {
     max_memory = 1;
-    memory_slots = 1;
+    memory_slots = 0;
     mem = 1;
   }
 
