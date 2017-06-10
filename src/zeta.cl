@@ -1737,7 +1737,7 @@ __kernel void alphabeta_gpu(
 //  for (int i=0;gid>0&&i<gid*1000;i++)
 //    movecount+=i;
   // init random seed
-  for (int i=0;i<gid*100+ply_init+search_depth;i++)
+  for (int i=0;i<gid*1000+lid*100+ply_init+search_depth;i++)
   {
     // xorshift32 PRNG
 	  random ^= random << 13;
@@ -2393,9 +2393,9 @@ __kernel void alphabeta_gpu(
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
         score = -INF;
-        if (slots>=2&&(TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score))&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+        if (slots>=2&&(TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
           score = (Score)TT2[bbTemp].score;
-        else if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        else if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
       
         if (!ISINF(score)
@@ -2467,11 +2467,12 @@ __kernel void alphabeta_gpu(
               move!=MOVENONE
               &&move!=NULLMOVE
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
+              &&!(localSearchMode[sd]&LMRSEARCH)
               &&!(localNodeStates[sd]&QS)
               &&localDepth[sd]>0
               )
           {
-            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%4)+1))&&localTodoIndex[sd]>=2)?true:randomize;
+            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid/16)%4)+1)&&localTodoIndex[sd]>=1)?true:randomize;
 //            randomize = (gid>0&&sd<=search_depth&&(sd>=search_depth-((gid%4)+1))&&localTodoIndex[sd]>=1)?true:randomize;
           }
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
@@ -2514,12 +2515,11 @@ __kernel void alphabeta_gpu(
               &&move!=MOVENONE
               &&move!=NULLMOVE
               &&!(localSearchMode[sd]&NULLMOVESEARCH)
-              &&localDepth[sd]>0
              )
           {
             bbWork = localHashHistory[sd];    
             bbTemp = bbWork&(ttindex-1);
-            bbWork = bbWork^(Hash)move^(Hash)score; // xor trick for avoiding race conditions
+            bbWork = bbWork^(Hash)move; // xor trick for avoiding race conditions
 
             // slot 1, always replace
             if (slots>=1)
@@ -2543,13 +2543,11 @@ __kernel void alphabeta_gpu(
           // save killer and counter move heuristic for quiet moves
           if (
               !(localNodeStates[sd]&QS)
+              &&!(localSearchMode[sd]&NULLMOVESEARCH)
               &&flag==FAILHIGH
               &&move!=MOVENONE
               &&move!=NULLMOVE
               &&GETPCPT(move)==PNONE // quiet moves only
-              &&!(localSearchMode[sd]&NULLMOVESEARCH)
-              &&move!=NULLMOVE
-              &&move!=MOVENONE
              )
           {
             // save killer move
@@ -2628,11 +2626,12 @@ __kernel void alphabeta_gpu(
       if (
           lmove==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
+          &&!(localSearchMode[sd]&LMRSEARCH)
           &&!(localNodeStates[sd]&QS)
           &&localDepth[sd]>0
           )
       {
-        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid%4)+1)&&localTodoIndex[sd]>=2)?true:randomize;
+        randomize = (gid>0&&((gid%2)==0)&&sd<=((gid/16)%4)+1&&localTodoIndex[sd]>=1)?true:randomize;
 //        randomize = (gid>0&&sd<=((gid%4)+1)&&localTodoIndex[sd]>=1)?true:randomize;
       }
     }
@@ -2647,6 +2646,7 @@ __kernel void alphabeta_gpu(
         )
     {
       // get moves from global stack
+      tmpb = randomize;
       bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
       move = localMoveHistory[sd-1];
       // get killer move and counter move
@@ -2655,9 +2655,9 @@ __kernel void alphabeta_gpu(
       Move ttmove = MOVENONE;
       bbWork = localHashHistory[sd];    
       bbTemp = bbWork&(ttindex-1);
-      if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score))
+      if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))
         ttmove = TT2[bbTemp].bestmove;
-      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score))
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))
         ttmove = TT1[bbTemp].bestmove;
       n       = 0;
       move    = MOVENONE;
@@ -2712,16 +2712,18 @@ __kernel void alphabeta_gpu(
 //          tmpscore = tmpscore*100+lid;
         }
         // lazy smp, randomize move order
-        if (randomize)
+        if (tmpb)
         {
           tmpscore = random%INF;
+//          if ((gid%16)<8&&GETPCPT(tmpmove)!=PNONE)
+            tmpscore += INF;
           // xorshift32 PRNG
 	        random ^= random << 13;
 	        random ^= random >> 17;
 	        random ^= random << 5;
         }
         // check tt move
-        if (ttmove!=MOVENONE&&ttmove==tmpmove)
+        if (ttmove==tmpmove)
         {
           tmpscore = INFMOVESCORE-100; // score as highest move
           // TThits counter
@@ -2844,7 +2846,7 @@ __kernel void alphabeta_gpu(
       }
       // set values for late move reduction search
       if (!bresearch
-         &&sd>2  // no root moves
+         &&sd>2  // not on root moves
          &&move!=NULLMOVE
          &&move!=MOVENONE
          &&GETPCPT(move)==PNONE     // quiet moves only
@@ -2902,12 +2904,12 @@ __kernel void alphabeta_gpu(
       // load ttmove from hash table
       tmpmove = MOVENONE;
       bbTemp = bbWork&(ttindex-1);
-      if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score))
+      if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove))
       {
         tmpmove = TT2[bbTemp].bestmove;
         score = (Score)TT2[bbTemp].score;
       }
-      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score))
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))
       {
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
