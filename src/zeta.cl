@@ -78,7 +78,7 @@ typedef struct
 #define LMR             8
 //#define IIDSEARCH       8
 // defaults
-#define VERSION "099a"
+#define VERSION "099b"
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
@@ -155,7 +155,7 @@ typedef struct
 #define GETPFROM(mv)       (((mv)>>18)&0xF)    // 4 bit piece encoding
 #define GETPTO(mv)         (((mv)>>22)&0xF)    // 4 bit piece encoding
 #define GETPCPT(mv)        (((mv)>>26)&0xF)    // 4 bit piece encodinge
-// pack move into 64 bits
+// pack move into 32 bits
 #define MAKEMOVE(sqfrom, sqto, sqcpt, pfrom, pto, pcpt) \
 ( \
      sqfrom      | (sqto<<6)  | (sqcpt<<12) \
@@ -172,14 +172,14 @@ typedef struct
 // piece helpers
 #define GETPIECE(board,sq)  ( \
                                ((board[0]>>(sq))&0x1)\
-                           |  (((board[1]>>(sq))&0x1)<<1) \
-                           |  (((board[2]>>(sq))&0x1)<<2) \
-                           |  (((board[3]>>(sq))&0x1)<<3) \
+                           |  (((board[QBBP1]>>(sq))&0x1)<<1) \
+                           |  (((board[QBBP2]>>(sq))&0x1)<<2) \
+                           |  (((board[QBBP3]>>(sq))&0x1)<<3) \
                              )
 #define GETPIECETYPE(board,sq) ( \
-                              (((board[1]>>(sq))&0x1)) \
-                           |  (((board[2]>>(sq))&0x1)<<1) \
-                           |  (((board[3]>>(sq))&0x1)<<2) \
+                              (((board[QBBP1]>>(sq))&0x1)) \
+                           |  (((board[QBBP2]>>(sq))&0x1)<<1) \
+                           |  (((board[QBBP3]>>(sq))&0x1)<<2) \
                              )
 // file enumeration
 enum Files
@@ -235,7 +235,6 @@ __constant Hash Zobrist[17]=
 
 //  piece square tables based on proposal by Tomasz Michniewski
 //  https://chessprogramming.wikispaces.com/Simplified+evaluation+function
-
 
 // piece values
 // pnone, pawn, knight, king, bishop, rook, queen
@@ -647,8 +646,8 @@ __constant Bitboard AttackTables[7*64] =
 
 Square getkingsq(__private Bitboard *board, bool side)
 {
-  Bitboard bbTemp = (side)?board[0]:board[0]^(board[1]|board[2]|board[3]);;
-  bbTemp &= board[1]&board[2]&~board[3]; // get king
+  Bitboard bbTemp = (side)?board[QBBBLACK]:board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]);;
+  bbTemp &= board[QBBP1]&board[QBBP2]&~board[QBBP3]; // get king
   return first1(bbTemp);
 }
 // is square attacked by an enemy piece, via superpiece approach
@@ -662,10 +661,10 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
   Bitboard bbGen;
   Bitboard bbTemp;
 
-  bbBlockers = board[1]|board[2]|board[3];
-  bbMe       = (stm)?board[0]:(board[0]^bbBlockers);
+  bbBlockers = board[QBBP1]|board[QBBP2]|board[QBBP3];
+  bbMe       = (stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
 
-  // rooks and queens
+  // rooks and queens via dumb7fill
   bbMoves = BBEMPTY;
 
   bbPro  = ~bbBlockers;
@@ -714,14 +713,14 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
   bbTemp |=         (bbGen >> 8) & bbPro;
   bbMoves |=         (bbTemp>> 8);
 
-  bbWork =    (bbMe&(board[1]&~board[2]&board[3])) 
-            | (bbMe&(~board[1]&board[2]&board[3]));
+  bbWork =    (bbMe&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) 
+            | (bbMe&(~board[QBBP1]&board[QBBP2]&board[QBBP3]));
   if (bbMoves&bbWork)
   {
     return true;
   }
 
-  // bishops and queens
+  // bishops and queens via dumb7fill
   bbMoves = BBEMPTY;
   bbPro  = ~bbBlockers;
   bbPro &= BBNOTAFILE;
@@ -771,28 +770,28 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
   bbTemp |=         (bbGen >> 7) & bbPro;
   bbMoves |=         (bbTemp>> 7) & BBNOTAFILE;
 
-  bbWork =  (bbMe&(~board[1]&~board[2]&board[3])) 
-          | (bbMe&(~board[1]&board[2]&board[3]));
+  bbWork =  (bbMe&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) 
+          | (bbMe&(~board[QBBP1]&board[QBBP2]&board[QBBP3]));
   if (bbMoves&bbWork)
   {
     return true;
   }
   // knights
-  bbWork = bbMe&(~board[1]&board[2]&~board[3]);
+  bbWork = bbMe&(~board[QBBP1]&board[QBBP2]&~board[QBBP3]);
   bbMoves = AttackTables[128+sq] ;
   if (bbMoves&bbWork) 
   {
     return true;
   }
   // pawns
-  bbWork = bbMe&(board[1]&~board[2]&~board[3]);
+  bbWork = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]);
   bbMoves = AttackTables[!stm*64+sq];
   if (bbMoves&bbWork)
   {
     return true;
   }
   // king
-  bbWork = bbMe&(board[1]&board[2]&~board[3]);
+  bbWork = bbMe&(board[QBBP1]&board[QBBP2]&~board[QBBP3]);
   bbMoves = AttackTables[192+sq];
   if (bbMoves&bbWork)
   {
@@ -944,16 +943,16 @@ __kernel void perft_gpu(
     bbChecked = BBEMPTY;
     n = 0;
     qs = (sd>search_depth)?true:false; // enter quiescence search?
-    bbBlockers  = board[1]|board[2]|board[3];
-    bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
-    bbOpp       = (!stm)?board[0]:(board[0]^bbBlockers);
+    bbBlockers  = board[QBBP1]|board[QBBP2]|board[QBBP3];
+    bbMe        =  (stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
+    bbOpp       = (!stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     // get colored king
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
 
     // calc superking and get pinned pieces
-    // get superking, rooks n queens
+    // get superking, rooks n queens via dumb7fill
     bbWork = BBEMPTY;
 
     bbPro  = BBFULL;
@@ -1012,6 +1011,7 @@ __kernel void perft_gpu(
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
 
+      // rooks n queens via dumb7fill
       bbTemp = BBEMPTY;
       bbMask = ~(bbBlockers^SETMASKBB(sqking));
       bbPro  = bbMask;
@@ -1061,7 +1061,7 @@ __kernel void perft_gpu(
       bbChecked |=         (bbTemp>> 8);
     }
 
-    // get superking, bishops n queems
+    // get superking, bishops n queems via dumb7fill
     bbWork = BBEMPTY;
 
     bbPro  = BBFULL;
@@ -1122,6 +1122,7 @@ __kernel void perft_gpu(
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
 
+      // bishops n queens via dumb7fill
       bbPro  = bbMask;
       bbPro &= BBNOTAFILE;
       bbTemp = bbGen = SETMASKBB(sqto);
@@ -1177,6 +1178,7 @@ __kernel void perft_gpu(
 
     bbWork = BBEMPTY;
 
+    // dumb7fill for 8 directions
     bbPro  = ~bbBlockers;
     bbPro &= BBNOTAFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
@@ -1363,7 +1365,7 @@ __kernel void perft_gpu(
       sqcpt   = sqep;
       pcpt    = GETPIECE(board, sqcpt);
       sqto    = (stm)? sqep-8:sqep+8;
-      // pack move into 64 bits
+      // pack move into 32 bits
       move    = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt);
       // legal moves only
       domovequick(board, move);
@@ -1491,7 +1493,7 @@ __kernel void perft_gpu(
       }
       pcpt  = GETPIECE(board, sqcpt);
       pto   = pfrom;
-      // set pawn prommotion, queen
+      // set pawn promotion, queen
       // TODO: fix pawn promo during perft
       pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
       // make move
@@ -1765,16 +1767,16 @@ __kernel void alphabeta_gpu(
     bbPinned = BBEMPTY;
     bbChecked = BBEMPTY;
     n = 0;
-    bbBlockers  = board[1]|board[2]|board[3];
-    bbMe        =  (stm)?board[0]:(board[0]^bbBlockers);
-    bbOpp       = (!stm)?board[0]:(board[0]^bbBlockers);
+    bbBlockers  = board[QBBP1]|board[QBBP2]|board[QBBP3];
+    bbMe        =  (stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
+    bbOpp       = (!stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     // get colored king
     bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
     // get king square
     sqking = first1(bbTemp);
 
     // calc superking and get pinned pieces
-    // get superking, rooks n queens
+    // get superking, rooks n queens via dumb7fill
     bbWork = BBEMPTY;
 
     bbPro  = BBFULL;
@@ -1833,6 +1835,7 @@ __kernel void alphabeta_gpu(
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
 
+      // rooks n queens via dumb7fill
       bbTemp = BBEMPTY;
       bbMask = ~(bbBlockers^SETMASKBB(sqking));
       bbPro  = bbMask;
@@ -1882,7 +1885,7 @@ __kernel void alphabeta_gpu(
       bbChecked |=         (bbTemp>> 8);
     }
 
-    // get superking, bishops n queems
+    // get superking, bishops n queems via dumb7fill
     bbWork = BBEMPTY;
 
     bbPro  = BBFULL;
@@ -1943,6 +1946,7 @@ __kernel void alphabeta_gpu(
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
 
+      // bishops n queems via dumb7fill
       bbPro  = bbMask;
       bbPro &= BBNOTAFILE;
       bbTemp = bbGen = SETMASKBB(sqto);
@@ -1998,6 +2002,7 @@ __kernel void alphabeta_gpu(
 
     bbWork = BBEMPTY;
 
+    // dumb7fill for 8 directions
     bbPro  = ~bbBlockers;
     bbPro &= BBNOTAFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
@@ -2204,7 +2209,7 @@ __kernel void alphabeta_gpu(
       sqcpt   = sqep;
       pcpt    = GETPIECE(board, sqcpt);
       sqto    = (stm)? sqep-8:sqep+8;
-      // pack move into 64 bits
+      // pack move into 32 bits
       move    = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt);
       // legal moves only
       domovequick(board, move);
@@ -2348,7 +2353,7 @@ __kernel void alphabeta_gpu(
         }
       }
       // Kxk draw
-      if (count1s(board[1]|board[2]|board[3])<=2)
+      if (count1s(board[QBBP1]|board[QBBP2]|board[QBBP3])<=2)
       {
         movecount = 0;
         lmove = MOVENONE;
@@ -2665,8 +2670,7 @@ __kernel void alphabeta_gpu(
         }
         pcpt  = GETPIECE(board, sqcpt);
         pto   = pfrom;
-        // set pawn prommotion, queen
-        // TODO: fix pawn promo during perft
+        // set pawn promotion, queen
         promo = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?true:false;
         pto   = (promo)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
         // make move
@@ -2868,12 +2872,11 @@ __kernel void alphabeta_gpu(
   // ################################
   // ####      collect pv        ####
   // ################################
-  // collect pv for gui output
-//  if (gid==0&&lid==0)
   if (lid==0) // early bird
+    atom_inc(finito);    // set termination flag
+  // collect pv for gui output
+  if (gid==0&&lid==0)
   {
-    // set termination flag
-    atom_inc(finito);
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
     board[QBBP1]    = BOARD[QBBP1];
