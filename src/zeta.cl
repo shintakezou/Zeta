@@ -223,8 +223,6 @@ enum Squares
 #define ISMATE(val)   ((((val)>MATESCORE&&(val)<INF)||((val)<-MATESCORE&&(val)>-INF))?true:false)
 // is score default inf
 #define ISINF(val)    (((val)==INF||(val)==-INF)?true:false)
-// functions
-Score EvalMove(Move move);
 // rotate left based zobrist hashing
 __constant Hash Zobrist[17]=
 {
@@ -2269,7 +2267,7 @@ __kernel void alphabeta_gpu(
     pfrom   = GETPIECE(board, lid);
     color   = GETCOLOR(pfrom);
     pfrom   = GETPTYPE(pfrom);
-    bbBlockers = board[1]|board[2]|board[3];
+    bbBlockers = board[QBBP1]|board[QBBP2]|board[QBBP3];
     bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
     bbMe    =  (color)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
     bbOpp   = (!color)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
