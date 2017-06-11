@@ -52,7 +52,7 @@ typedef u8      Piece;
 typedef u8 File;
 typedef u8 Rank;
 
-#define VERSION "099a"
+#define VERSION "099b"
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
@@ -130,7 +130,7 @@ typedef u8 Rank;
 #define GETPFROM(mv)       (((mv)>>18)&0xF)    // 4 bit piece encoding
 #define GETPTO(mv)         (((mv)>>22)&0xF)    // 4 bit piece encoding
 #define GETPCPT(mv)        (((mv)>>26)&0xF)    // 4 bit piece encodinge
-// pack move into 64 bits
+// pack move into 32 bits
 #define MAKEMOVE(sqfrom, sqto, sqcpt, pfrom, pto, pcpt) \
 ( \
      sqfrom      | (sqto<<6)  | (sqcpt<<12) \
