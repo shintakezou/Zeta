@@ -107,6 +107,7 @@ Bitboard *GLOBAL_BOARD = NULL;
 // transposition hash table
 TTE *TT = NULL;
 u64 *COUNTERS = NULL;
+u32 *RNUMBERS = NULL;
 u64 *COUNTERSZEROED = NULL;
 Move *PV = NULL;
 Move *PVZEROED = NULL;
@@ -646,6 +647,7 @@ void release_configinits()
   // opencl related
   free(GLOBAL_BOARD);
   free(COUNTERS);
+  free(RNUMBERS);
   free(COUNTERSZEROED);
   free(PV);
   free(PVZEROED);
@@ -1591,6 +1593,17 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
+  RNUMBERS = (u32*)calloc(totalWorkUnits*64, sizeof(u32));
+  if (RNUMBERS==NULL)
+  {
+    fprintf(stdout, "memory alloc, RNUMBERS, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, RNUMBERS, failed\n");
+    }
+    return false;
+  }
   COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
   if (COUNTERS==NULL)
   {
@@ -1981,10 +1994,15 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   memcpy(GLOBAL_BOARD, board, 8*sizeof(Bitboard));
   // reset counters
   memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
-  // prepare hash history
+  // init prng
+  srand((unsigned int)start);
   for(u64 i=0;i<totalWorkUnits;i++)
   {
+    // prepare hash history
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY * sizeof(Hash));
+    // set random numbers
+    for(u64 j=0;j<64;j++)
+      RNUMBERS[i*64+j] = (u32)rand();
   }
 
   if (xboard_mode==false)

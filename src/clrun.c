@@ -205,6 +205,18 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+  GLOBAL_RNUMBERS_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                    sizeof(u32) * totalWorkUnits * 64,
+                                    RNUMBERS, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_RNUMBERS_Buffer)\n");
+    return false;
+  }
+
   GLOBAL_PV_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
@@ -424,6 +436,23 @@ bool cl_init_objects() {
 
   status = clEnqueueWriteBuffer(
                                 commandQueue,
+                                GLOBAL_RNUMBERS_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(u32) * totalWorkUnits * 64,
+                                RNUMBERS, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_RNUMBERS_Buffer)\n");
+    return false;
+  }
+
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
                                 GLOBAL_PV_Buffer,
                                 CL_TRUE,
                                 0,
@@ -518,6 +547,18 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_COUNTERS_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_RNUMBERS_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_RNUMBERS_Buffer)\n");
     return false;
   }
   i++;
@@ -1087,6 +1128,13 @@ bool cl_release_device() {
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_COUNTERS_Buffer)\n");
+    return false; 
+  }
+
+  status = clReleaseMemObject(GLOBAL_RNUMBERS_Buffer);
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RNUMBERS_Buffer)\n");
     return false; 
   }
 
