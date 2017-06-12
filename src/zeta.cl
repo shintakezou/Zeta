@@ -1664,7 +1664,6 @@ __kernel void alphabeta_gpu(
   Score score;
   Score tmpscore;
 
-//  u32 prn = (u32)((Zobrist[lid%16]<<lid)|(Zobrist[lid%16]>>(64-lid)));
   u32 prn = RNUMBERS[gid*64+lid]; // get init pseudo random number
 /*
   // xorshift32 PRNG
@@ -1734,20 +1733,6 @@ __kernel void alphabeta_gpu(
 //    COUNTERS[gid*64+3]              = 0;              // tthits, return
 //    COUNTERS[gid*64+4]              = 0;              // depth reached, return
   }
-//  barrier(CLK_LOCAL_MEM_FENCE);
-  // lazy smp, delay for non-deternism
-//  for (int i=0;gid>0&&i<gid*1000;i++)
-//    movecount+=i;
-  // init random seed
-/*
-  for (int i=0;i<gid*1000+lid*100+ply_init+search_depth;i++)
-  {
-    // xorshift32 PRNG
-	  prn ^= prn << 13;
-	  prn ^= prn >> 17;
-	  prn ^= prn << 5;
-  }
-*/
   barrier(CLK_LOCAL_MEM_FENCE);
 //  barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
@@ -2283,8 +2268,8 @@ __kernel void alphabeta_gpu(
     pfrom   = GETPTYPE(pfrom);
     bbBlockers = board[QBBP1]|board[QBBP2]|board[QBBP3];
     bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
-    bbMe    =  (color)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
-    bbOpp   = (!color)?board[QBBBLACK]:board[QBBBLACK]^bbBlockers;
+    bbMe    =  (color)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
+    bbOpp   =  (color)?(board[QBBBLACK]^bbBlockers):board[QBBBLACK];
     score= 0;
     // piece bonus
     score+= (pfrom!=PNONE)?(color)?-10:10:0;
@@ -2400,40 +2385,30 @@ __kernel void alphabeta_gpu(
           &&!qs
           &&sd>1 // not on root node
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
-         )
+       )
       {
-        u8 flag = FAILLOW;
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
         score = -INF;
-        if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd])
+        if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
         {
           score = (Score)TT1[bbTemp].score;
-          flag = TT1[bbTemp].flag;
         }
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
+//            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
             &&!ISDRAW(score)
            )
         {
           // set alpha
-          if (score>localAlphaBetaScores[sd*2+ALPHA]&&flag>FAILLOW)
+          if (score>localAlphaBetaScores[sd*2+ALPHA])
           {
-//            COUNTERS[gid*64+4]++;
             localAlphaBetaScores[sd*2+ALPHA] = score;
-          }
-          // set beta
-          if (score>localAlphaBetaScores[sd*2+BETA]&&flag==FAILHIGH)
-          {
-//            COUNTERS[gid*64+4]++;
-            localAlphaBetaScores[sd*2+BETA] = score;
           }
           // check for beta cutoff
           if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
           {
-//            COUNTERS[gid*64+4]++;
             movecount = 0;
             mode = MOVEDOWN;
           }
@@ -2542,7 +2517,7 @@ __kernel void alphabeta_gpu(
             bbTemp = bbWork&(ttindex-1);
             bbWork = bbWork^(Hash)move; // xor trick for avoiding race conditions
 
-            // slot 1, depth replace
+            // slot 1, allways replace
             if (slots>=1&&(u8)localDepth[sd]>=TT1[bbTemp].depth)
             {
               TT1[bbTemp].hash      = bbWork;
@@ -2591,31 +2566,6 @@ __kernel void alphabeta_gpu(
     if (lid==0&&mode==MOVEUP)
     {
       lmove = MOVENONE;
-/*
-      // load ttmove from hash table x1
-      tmpmove = MOVENONE;
-      bbWork = localHashHistory[sd];    
-      bbTemp = bbWork&(ttindex-1);
-      if (slots>=3&&TT3[bbTemp].hash==(bbWork^(Hash)TT3[bbTemp].bestmove^(Hash)TT3[bbTemp].score))
-        tmpmove = TT3[bbTemp].bestmove;
-      else if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score))
-        tmpmove = TT2[bbTemp].bestmove;
-      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score))
-        tmpmove = TT1[bbTemp].bestmove;
-
-      if (tmpmove!=MOVENONE)
-      {
-        // check ttmove for sense...
-        if (GETPFROM(tmpmove)==GETPIECE(board,(GETSQFROM(tmpmove)))
-            &&GETPCPT(tmpmove)==GETPIECE(board,(GETSQCPT(tmpmove)))
-            &&globalbbMoves[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(tmpmove)]&SETMASKBB(GETSQTO(tmpmove)))  
-        {
-          lmove = tmpmove;
-          // TThits counter
-          COUNTERS[gid*64+3]++;      
-        }
-      }
-*/
       // check for nullmove pruning
       if (!bresearch
           &&sd>2
@@ -2709,28 +2659,22 @@ __kernel void alphabeta_gpu(
         tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
         tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
         // MVV-LVA
-        tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*160-EvalPieceValues[GETPTYPE(pto)]*10:tmpscore;
-//        tmpscore = tmpscore*100+lid;
-//        tmpscore = tmpscore*10000+lid*64+n;
+        tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
 
         // check counter move heuristic
         if (countermove==tmpmove)
         {
-          tmpscore = EvalPieceValues[QUEEN]*2; // score as second highest quiet move
-//          tmpscore = tmpscore*100+lid;
+          tmpscore = EvalPieceValues[QUEEN]+100; // score as second highest quiet move
         }
         // check killer move heuristic
         if (killermove==tmpmove)
         {
-          tmpscore = EvalPieceValues[QUEEN]*3; // score as highest quiet move
-//          tmpscore = tmpscore*100+lid;
+          tmpscore = EvalPieceValues[QUEEN]+200; // score as highest quiet move
         }
         // lazy smp, randomize move order
         if (tmpb)
         {
           tmpscore = prn%INF;
-//          if (GETPCPT(tmpmove)!=PNONE) // captures first
-//            tmpscore += INF;
         }
         // check tt move
         if (ttmove==tmpmove)
