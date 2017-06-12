@@ -1740,11 +1740,6 @@ __kernel void alphabeta_gpu(
   // ################################
   while(mode!=EXIT)
   {
-    // xorshift32 PRNG
-    prn ^= prn << 13;
-    prn ^= prn >> 17;
-    prn ^= prn << 5;
-
     // ################################
     // ####     movegenerator x64  ####
     // ################################
@@ -2369,7 +2364,6 @@ __kernel void alphabeta_gpu(
       // return beta
       if (mode==MOVEUP&&qs&&!rootkic&&score>=localAlphaBetaScores[sd*2+BETA])
       {
-//        localAlphaBetaScores[sd*2+ALPHA] = localAlphaBetaScores[sd*2+BETA]; // fail hard
         localAlphaBetaScores[sd*2+ALPHA] = score; // fail soft
         movecount = 0;
         mode = MOVEDOWN;
@@ -2378,7 +2372,6 @@ __kernel void alphabeta_gpu(
       // set alpha
       if (mode==MOVEUP&&qs&&!rootkic&&score>localAlphaBetaScores[sd*2+ALPHA])
         localAlphaBetaScores[sd*2+ALPHA]=score; // fail soft
-//        localAlphaBetaScores[sd*2+ALPHA]=localAlphaBetaScores[sd*2+BETA]; // fail hard
 
       // set alpha with ttscore from hash table, TODO: unstable, fix it
       if (mode==MOVEUP
@@ -2664,12 +2657,12 @@ __kernel void alphabeta_gpu(
         // check counter move heuristic
         if (countermove==tmpmove)
         {
-          tmpscore = EvalPieceValues[QUEEN]+100; // score as second highest quiet move
+          tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]; // score as second highest quiet move
         }
         // check killer move heuristic
         if (killermove==tmpmove)
         {
-          tmpscore = EvalPieceValues[QUEEN]+200; // score as highest quiet move
+          tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; // score as highest quiet move
         }
         // lazy smp, randomize move order
         if (tmpb)
@@ -2733,12 +2726,13 @@ __kernel void alphabeta_gpu(
       sd++;       // increase depth counter
       ply++;      // increase ply counter
     }
+    if (lid==0)
+      bbAttacks = HASHNONE; // set empty hash
     // compute hash x64
     pfrom = GETPIECE(board,lid);
     bbTemp = (GETPTYPE(pfrom))?Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1]:HASHNONE;
     bbTemp   =  ((bbTemp<<lid)|(bbTemp>>(64-lid))); // rotate left 64
     bbTmp64[lid] =  bbTemp;
-    bbAttacks = HASHNONE; // set empty hash
     // collect hashes
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
@@ -2840,10 +2834,10 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   // collect pv for gui output
-//  if (gid==0&&lid==0)
   if (lid==0) // early bird
-  {
     atom_inc(finito);    // set termination flag
+  if (gid==0&&lid==0)
+  {
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
     board[QBBP1]    = BOARD[QBBP1];
@@ -2862,10 +2856,6 @@ __kernel void alphabeta_gpu(
         tmpmove = TT1[bbTemp].bestmove;
         score = (Score)TT1[bbTemp].score;
       }
-//      if (n==0) // get bestmove collected by thread id 0
-//        tmpmove = (Move)PV[1];
-      // PV[0] reserved for score
-      // PV[1] reserved for best rootmove collected during search
       // set score
       if (tmpmove!=MOVENONE&&n==0)
         PV[n] = (Move)score;
