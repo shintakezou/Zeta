@@ -1583,6 +1583,7 @@ __kernel void perft_gpu(
 __kernel void alphabeta_gpu(
                       const __global Bitboard *BOARD,
                             __global u64 *COUNTERS,
+                      const __global u32 *RNUMBERS,
                             __global Move *PV,
                             __global Bitboard *globalbbMoves,
                             __global Hash *HashHistory,
@@ -1663,7 +1664,8 @@ __kernel void alphabeta_gpu(
   Score score;
   Score tmpscore;
 
-  u32 random = (u32)((Zobrist[lid%16]<<lid)|(Zobrist[lid%16]>>(64-lid)));
+//  u32 prn = (u32)((Zobrist[lid%16]<<lid)|(Zobrist[lid%16]>>(64-lid)));
+  u32 prn = RNUMBERS[gid*64+lid]; // get init pseudo random number
 /*
   // xorshift32 PRNG
 	x ^= x << 13;
@@ -1737,13 +1739,15 @@ __kernel void alphabeta_gpu(
 //  for (int i=0;gid>0&&i<gid*1000;i++)
 //    movecount+=i;
   // init random seed
+/*
   for (int i=0;i<gid*1000+lid*100+ply_init+search_depth;i++)
   {
     // xorshift32 PRNG
-	  random ^= random << 13;
-	  random ^= random >> 17;
-	  random ^= random << 5;
+	  prn ^= prn << 13;
+	  prn ^= prn >> 17;
+	  prn ^= prn << 5;
   }
+*/
   barrier(CLK_LOCAL_MEM_FENCE);
 //  barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
@@ -1751,6 +1755,11 @@ __kernel void alphabeta_gpu(
   // ################################
   while(mode!=EXIT)
   {
+    // xorshift32 PRNG
+    prn ^= prn << 13;
+    prn ^= prn >> 17;
+    prn ^= prn << 5;
+
     // ################################
     // ####     movegenerator x64  ####
     // ################################
@@ -2105,7 +2114,6 @@ __kernel void alphabeta_gpu(
     bbMask  = AttackTables[n*64+lid];
     bbMoves = (color==stm)?(bbMask&bbWork&bbOpp):(bbMask&bbWork);
 
-    // collect opp attacks
 // local 64 bit atomics not supported on all devices :(
 /*
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2118,6 +2126,7 @@ __kernel void alphabeta_gpu(
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 */
+    // collect opp attacks
     bbTmp64[lid] = (color!=stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
@@ -2249,7 +2258,7 @@ __kernel void alphabeta_gpu(
     // store move bitboards in global memory for movepicker
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
     // movecount in local memory
-// local atomics not supported on all devices
+// local atomics not supported on all devices :(
 //    atom_add(&movecount, count1s(bbMoves));
     scrTmp64[lid] = count1s(bbMoves);
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2389,30 +2398,42 @@ __kernel void alphabeta_gpu(
       // set alpha with ttscore from hash table, TODO: unstable, fix it
       if (mode==MOVEUP
           &&!qs
-          &&sd>1
+          &&sd>1 // not on root node
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
          )
       {
+        u8 flag = FAILLOW;
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
         score = -INF;
-        if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+        if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove))&&(s32)TT1[bbTemp].depth>=localDepth[sd])
+        {
           score = (Score)TT1[bbTemp].score;
-      
+          flag = TT1[bbTemp].flag;
+        }
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
+            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
             &&!ISDRAW(score)
            )
         {
           // set alpha
-          if (score>localAlphaBetaScores[sd*2+ALPHA])
+          if (score>localAlphaBetaScores[sd*2+ALPHA]&&flag>FAILLOW)
           {
+//            COUNTERS[gid*64+4]++;
             localAlphaBetaScores[sd*2+ALPHA] = score;
+          }
+          // set beta
+          if (score>localAlphaBetaScores[sd*2+BETA]&&flag==FAILHIGH)
+          {
+//            COUNTERS[gid*64+4]++;
+            localAlphaBetaScores[sd*2+BETA] = score;
           }
           // check for beta cutoff
           if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
           {
+//            COUNTERS[gid*64+4]++;
             movecount = 0;
             mode = MOVEDOWN;
           }
@@ -2630,13 +2651,13 @@ __kernel void alphabeta_gpu(
     // ####     movepicker x64     ####
     // ################################
     // move picker, extract moves x64 parallel
+    tmpb = randomize;
     if (mode==MOVEUP
         &&!bresearch
         &&lmove==MOVENONE
         )
     {
       // get moves from global stack
-      tmpb = randomize;
       bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
       move = localMoveHistory[sd-1];
       // get killer move and counter move
@@ -2655,6 +2676,12 @@ __kernel void alphabeta_gpu(
       while(bbMoves)
       {
         bool promo = false;
+
+        // xorshift32 PRNG
+        prn ^= prn << 13;
+        prn ^= prn >> 17;
+        prn ^= prn << 5;
+
         sqto  = popfirst1(&bbMoves);
         sqcpt = sqto;
         // get piece captured
@@ -2701,13 +2728,9 @@ __kernel void alphabeta_gpu(
         // lazy smp, randomize move order
         if (tmpb)
         {
-          tmpscore = random%INF;
-//          if (GETPCPT(tmpmove)!=PNONE)
+          tmpscore = prn%INF;
+//          if (GETPCPT(tmpmove)!=PNONE) // captures first
 //            tmpscore += INF;
-          // xorshift32 PRNG
-	        random ^= random << 13;
-	        random ^= random >> 17;
-	        random ^= random << 5;
         }
         // check tt move
         if (ttmove==tmpmove)
@@ -2872,11 +2895,11 @@ __kernel void alphabeta_gpu(
   // ################################
   // ####      collect pv        ####
   // ################################
-  if (lid==0) // early bird
-    atom_inc(finito);    // set termination flag
   // collect pv for gui output
-  if (gid==0&&lid==0)
+//  if (gid==0&&lid==0)
+  if (lid==0) // early bird
   {
+    atom_inc(finito);    // set termination flag
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
     board[QBBP1]    = BOARD[QBBP1];
