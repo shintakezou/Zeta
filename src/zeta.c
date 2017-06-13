@@ -817,7 +817,6 @@ void domove(Bitboard *board, Move move)
   Bitboard bbTemp = BBEMPTY;
   Bitboard pcastle= PNONE;
   u64 hmc         = board[QBBHMC];
-  Hash zobrist;
 
   // check for edges
   if (move==MOVENONE)
@@ -825,30 +824,6 @@ void domove(Bitboard *board, Move move)
 
   // increase half move clock
   hmc++;
-
-/*
-  // do hash increment , clear old
-  // castle rights
-  if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
-    board[QBBHASH] ^= Zobrist[12];
-  if(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
-    board[QBBHASH] ^= Zobrist[13];
-  if(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)
-    board[QBBHASH] ^= Zobrist[14];
-  if(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
-    board[QBBHASH] ^= Zobrist[15];
-
-  // file en passant
-  sqep = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
-          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
-            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
-          )?GETSQTO(board[QBBLAST]):0x0;
-  if (sqep)
-  {
-    zobrist = Zobrist[16];
-    board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
-  }
-*/
 
   // unset square from, square capture and square to
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
@@ -887,11 +862,6 @@ void domove(Bitboard *board, Move move)
     board[QBBPMVD]  |= SETMASKBB(sqfrom-4);
     // reset halfmoveclok
     hmc = 0;
-    // do hash increment, clear old rook
-    zobrist = Zobrist[GETCOLOR(pcastle)*6+ROOK-1];
-    board[QBBHASH] ^= ((zobrist<<(sqfrom-4))|(zobrist>>(64-(sqfrom-4))));
-    // do hash increment, set new rook
-    board[QBBHASH] ^= ((zobrist<<(sqto+1))|(zobrist>>(64-(sqto+1))));
   }
   // handle castle rook, kingside
   pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
@@ -912,49 +882,13 @@ void domove(Bitboard *board, Move move)
     board[QBBPMVD]  |= SETMASKBB(sqfrom+3);
     // reset halfmoveclok
     hmc = 0;
-    // do hash increment, clear old rook
-    board[QBBHASH] ^= ((zobrist<<(sqfrom+3))|(zobrist>>(64-(sqfrom+3))));
-    // do hash increment, set new rook
-    board[QBBHASH] ^= ((zobrist<<(sqto-1))|(zobrist>>(64-(sqto-1))));
   }
   // handle halfmove clock
   hmc = (GETPTYPE(pfrom)==PAWN)?0:hmc;   // pawn move
   hmc = (GETPTYPE(pcpt)!=PNONE)?0:hmc;  // capture move
 
-  // do hash increment , set new
-  // do hash increment, clear piece from
-  zobrist = Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1];
-  board[QBBHASH] ^= ((zobrist<<(sqfrom))|(zobrist>>(64-(sqfrom))));
-  // do hash increment, set piece to
-  zobrist = Zobrist[GETCOLOR(pto)*6+GETPTYPE(pto)-1];
-  board[QBBHASH] ^= ((zobrist<<(sqto))|(zobrist>>(64-(sqto))));
-  // do hash increment, clear piece capture
-  zobrist = Zobrist[GETCOLOR(pcpt)*6+GETPTYPE(pcpt)-1];
-  board[QBBHASH] ^= (pcpt)?((zobrist<<(sqcpt))|(zobrist>>(64-(sqcpt)))):BBEMPTY;
-/*
-  // castle rights
-  if(((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
-    board[QBBHASH] ^= Zobrist[12];
-  if(((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
-    board[QBBHASH] ^= Zobrist[13];
-  if(((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)
-    board[QBBHASH] ^= Zobrist[14];
-  if(((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
-    board[QBBHASH] ^= Zobrist[15];
- 
-  // file en passant
-  sqep = ( GETPTYPE(GETPFROM(move))==PAWN
-          &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
-            -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
-          )?GETSQTO(move):0x0;
-  if (sqep)
-  {
-    zobrist = Zobrist[16];
-    board[QBBHASH] ^= ((zobrist<<GETFILE(sqep))|(zobrist>>(64-GETFILE(sqep))));; // rotate left 64
-  }
-*/
-  // color flipping
-  board[QBBHASH] ^= 0x1;
+  // compute new hash
+  board[QBBHASH] = computehash(board, GETCOLOR(pfrom));
 
   // store hmc   
   board[QBBHMC] = hmc;
