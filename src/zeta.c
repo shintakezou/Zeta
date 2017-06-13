@@ -724,7 +724,7 @@ Hash computehash(Bitboard *board, bool stm)
   }
 */ 
   // site to move
-  if (!stm)
+  if (stm)
     hash ^= 0x1ULL;
 
   return hash;
@@ -888,7 +888,7 @@ void domove(Bitboard *board, Move move)
   hmc = (GETPTYPE(pcpt)!=PNONE)?0:hmc;  // capture move
 
   // compute new hash
-  board[QBBHASH] = computehash(board, GETCOLOR(pfrom));
+  board[QBBHASH] = computehash(board, !GETCOLOR(GETPFROM(move)));
 
   // store hmc   
   board[QBBHMC] = hmc;
