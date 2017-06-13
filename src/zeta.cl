@@ -2378,10 +2378,6 @@ __kernel void alphabeta_gpu(
           &&!qs
           &&sd>1 // not on root
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
-//          &&!(localSearchMode[sd]&LMRSEARCH)
-          &&!(localNodeStates[sd]&QS)
-          &&!(localNodeStates[sd]&KIC)
-          &&!(localNodeStates[sd]&EXT)
        )
       {
         bbWork = localHashHistory[sd];    
