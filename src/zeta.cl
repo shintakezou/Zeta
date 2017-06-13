@@ -2331,7 +2331,8 @@ __kernel void alphabeta_gpu(
 
       // draw by 3 fold repetition, x1
       bbWork = localHashHistory[sd];
-      for (n=ply+ply_init-2;lid==0&&!qs&&sd>1&&n>=0&&n>=ply+ply_init-(s32)localHMCHistory[sd];n-=2)
+      tmpscore = (s32)localHMCHistory[sd];
+      for (n=ply+ply_init-2;lid==0&&!qs&&sd>1&&n>=0&&n>=ply+ply_init-tmpscore;n-=2)
       {
         if (bbWork==HashHistory[gid*MAXGAMEPLY+n])
         {
@@ -2757,8 +2758,7 @@ __kernel void alphabeta_gpu(
       localHashHistory[sd] = bbAttacks;
       HashHistory[gid*MAXGAMEPLY+ply+ply_init] = bbAttacks;
       // halfmove clock
-      localHMCHistory[sd]               = localHMCHistory[sd-1];
-      localHMCHistory[sd]++; // increase
+      localHMCHistory[sd]               = localHMCHistory[sd-1]+1; // increase
       // reset hmc
       if ((GETPTYPE(GETPFROM(move))==PAWN))  // pawn move
         localHMCHistory[sd] = 0;
