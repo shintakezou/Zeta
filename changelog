@@ -1,3 +1,16 @@
+Zeta (099b) alpha; urgency=low
+
+  * switch from KoggeStone based move generation to Dumb7Fill
+  * two hash table slots, always replace and depth replace scheme
+  * little tunings and cleanups
+  * Zeta 099b on Nvidia GeForce GTX 750, 64 workers, ~ 1,5 Mnps, STS* Elo 1978
+  * Zeta 099b on Nvidia GeForce GTX 750, 1 worker, ~ 45 Knps, STS* Elo 1770
+  * Zeta 099b on AMD Radeon HD 7750, 64 workers, ~ 900 Knps, STS* Elo 1905
+  * Zeta 099b on Nvidia GeForce 8800 GT, 28 workers, ~ 250 Knps, STS* Elo 1814
+  * *Strategic Test Suite 1-15, 2 seconds, Elo estimation on CCRL scale
+
+ -- Srdja Matovic <s.matovic@app26.de> Jun 2017
+
 Zeta (099a) alpha; urgency=low
 
   * switch from best first minimax search to parallel alphabeta (lazy smp)
