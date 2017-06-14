@@ -2618,17 +2618,9 @@ __kernel void alphabeta_gpu(
       bbWork = localHashHistory[sd];    
       bbTemp = bbWork&(ttindex-1);
       if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score^(Hash)TT2[bbTemp].depth))
-      {
         ttmove = TT2[bbTemp].bestmove;
-          // TThits counter
-          COUNTERS[gid*64+4]++;      
-      }
       else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score^(Hash)TT1[bbTemp].depth))
-      {
         ttmove = TT1[bbTemp].bestmove;
-          // TThits counter
-          COUNTERS[gid*64+3]++;      
-      }
       n       = 0;
       move    = MOVENONE;
       score  = -INFMOVESCORE;
@@ -2692,7 +2684,7 @@ __kernel void alphabeta_gpu(
         {
           tmpscore = INFMOVESCORE-100; // score as highest move
           // TThits counter
-//          COUNTERS[gid*64+3]++;      
+          COUNTERS[gid*64+3]++;      
         }
         // get move with highest score
         if (tmpscore<score)
@@ -2851,8 +2843,8 @@ __kernel void alphabeta_gpu(
   // ################################
   if (lid==0) // early bird
     atom_inc(finito);    // set termination flag
-  if (gid==0&&lid==0)
   // collect pv for gui output
+  if (gid==0&&lid==0)
   {
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
