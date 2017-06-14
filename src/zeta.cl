@@ -1590,7 +1590,7 @@ __kernel void alphabeta_gpu(
                       const __global Bitboard *bbInBetween,
                       const __global Bitboard *bbLine,
                             __global TTE *TT1,
-//                            __global TTE *TT2,
+                            __global TTE *TT2,
 //                            __global TTE *TT3,
 //                            __global TTE *TT4,
                             __global Move *Killers,
@@ -2371,7 +2371,7 @@ __kernel void alphabeta_gpu(
       // stand pat in qsearch
       // set alpha
       if (mode==MOVEUP&&qs&&!rootkic&&score>localAlphaBetaScores[sd*2+ALPHA])
-        localAlphaBetaScores[sd*2+ALPHA]=score; // fail soft
+        localAlphaBetaScores[sd*2+ALPHA] = score; // fail soft
 
       // set alpha with ttscore from hash table, TODO: unstable, fix it
       if (mode==MOVEUP
@@ -2382,30 +2382,21 @@ __kernel void alphabeta_gpu(
       {
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex-1);
-        score = (Score)TT1[bbTemp].score;
-        if (!(slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)score^(Hash)TT1[bbTemp].depth))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW))
-        {
-          score = -INF;
-        }
+        score  = -INF;
+        if (slots>=2&&(TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score^(Hash)TT2[bbTemp].depth))&&(s32)TT2[bbTemp].depth>=localDepth[sd]&&TT2[bbTemp].flag>FAILLOW)
+          score = (Score)TT2[bbTemp].score;
+        else if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score^(Hash)TT1[bbTemp].depth))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
+          score = (Score)TT1[bbTemp].score;
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
+//            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
             &&!ISDRAW(score)
            )
         {
           // set alpha
           if (score>localAlphaBetaScores[sd*2+ALPHA])
-          {
             localAlphaBetaScores[sd*2+ALPHA] = score;
-          }
-/*
-          // set beta
-          if (score>localAlphaBetaScores[sd*2+BETA]&&TT1[bbTemp].flag==FAILHIGH)
-          {
-            localAlphaBetaScores[sd*2+BETA] = score;
-          }
-*/
           // check for beta cutoff
           if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
           {
@@ -2517,14 +2508,23 @@ __kernel void alphabeta_gpu(
             bbTemp = bbWork&(ttindex-1);
             bbWork = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd]; // xor trick for avoiding race conditions
 
-            // slot 1, allways replace
-            if (slots>=1&&(u8)localDepth[sd]>=TT1[bbTemp].depth)
+            // slot 1, always replace
+            if (slots>=1)
             {
               TT1[bbTemp].hash      = bbWork;
               TT1[bbTemp].bestmove  = move;
               TT1[bbTemp].score     = (TTScore)score;
               TT1[bbTemp].flag      = flag;
               TT1[bbTemp].depth     = (u8)localDepth[sd];
+            }
+            // slot 2, depth replace
+            if (slots>=2&&(u8)localDepth[sd]>=TT2[bbTemp].depth)
+            {
+              TT2[bbTemp].hash      = bbWork;
+              TT2[bbTemp].bestmove  = move;
+              TT2[bbTemp].score     = (TTScore)score;
+              TT2[bbTemp].flag      = flag;
+              TT2[bbTemp].depth     = (u8)localDepth[sd];
             }
           } // end save to hash table
           // save killer and counter move heuristic for quiet moves
@@ -2613,11 +2613,22 @@ __kernel void alphabeta_gpu(
       // get killer move and counter move
       Move killermove = Killers[gid*MAXPLY+sd];
       Move countermove = Counters[gid*64*64+GETSQFROM(move)*64+GETSQTO(move)];
+      // load move from transposition table
       Move ttmove = MOVENONE;
       bbWork = localHashHistory[sd];    
       bbTemp = bbWork&(ttindex-1);
-      if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score^(Hash)TT1[bbTemp].depth))
+      if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score^(Hash)TT2[bbTemp].depth))
+      {
+        ttmove = TT2[bbTemp].bestmove;
+          // TThits counter
+          COUNTERS[gid*64+4]++;      
+      }
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score^(Hash)TT1[bbTemp].depth))
+      {
         ttmove = TT1[bbTemp].bestmove;
+          // TThits counter
+          COUNTERS[gid*64+3]++;      
+      }
       n       = 0;
       move    = MOVENONE;
       score  = -INFMOVESCORE;
@@ -2681,7 +2692,7 @@ __kernel void alphabeta_gpu(
         {
           tmpscore = INFMOVESCORE-100; // score as highest move
           // TThits counter
-          COUNTERS[gid*64+3]++;      
+//          COUNTERS[gid*64+3]++;      
         }
         // get move with highest score
         if (tmpscore<score)
@@ -2856,9 +2867,14 @@ __kernel void alphabeta_gpu(
       // load ttmove from hash table
       tmpmove = MOVENONE;
       bbTemp = bbWork&(ttindex-1);
-      score = (Score)TT1[bbTemp].score;
-      if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)score^(Hash)TT1[bbTemp].depth))
+      if (slots>=2&&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score^(Hash)TT2[bbTemp].depth))
       {
+        score = (Score)TT2[bbTemp].score;
+        tmpmove = TT2[bbTemp].bestmove;
+      }
+      else if (slots>=1&&TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score^(Hash)TT1[bbTemp].depth))
+      {
+        score = (Score)TT1[bbTemp].score;
         tmpmove = TT1[bbTemp].bestmove;
       }
       // set score
