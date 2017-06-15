@@ -701,28 +701,17 @@ Hash computehash(Bitboard *board, bool stm)
       hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
     }
   }
-/*
   // castle rights
-  if (((~board[QBBPMVD])&SMCRWHITEK)==SMCRWHITEK)
-      hash ^= Zobrist[12];
-  if (((~board[QBBPMVD])&SMCRWHITEQ)==SMCRWHITEQ)
-      hash ^= Zobrist[13];
-  if (((~board[QBBPMVD])&SMCRBLACKK)==SMCRBLACKK)
-      hash ^= Zobrist[14];
-  if (((~board[QBBPMVD])&SMCRBLACKQ)==SMCRBLACKQ)
-      hash ^= Zobrist[15];
- 
-  sqep = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
+  hash ^= ((~board[QBBPMVD])&SMCRALL);
+
+  // en passant flag
+  sq = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
           &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
             -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
           )?GETSQTO(board[QBBLAST]):0x0;
-  if (sqep)
-  {
-    sq = GETFILE(sqep);
-    zobrist = Zobrist[16];
-    hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
-  }
-*/ 
+  if (sq)
+    hash ^= Zobrist[10+GETFILE(sq)];
+
   // site to move
   if (stm)
     hash ^= 0x1ULL;
@@ -859,7 +848,7 @@ void domove(Bitboard *board, Move move)
     board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto+1);
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto+1);
     // set piece moved flag, for castle rights
-    board[QBBPMVD]  |= SETMASKBB(sqfrom-4);
+//    board[QBBPMVD]  |= SETMASKBB(sqfrom-4);
     // reset halfmoveclok
     hmc = 0;
   }
@@ -879,7 +868,7 @@ void domove(Bitboard *board, Move move)
     board[QBBP2]    |= ((pcastle>>2)&0x1)<<(sqto-1);
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqto-1);
     // set piece moved flag, for castle rights
-    board[QBBPMVD]  |= SETMASKBB(sqfrom+3);
+//    board[QBBPMVD]  |= SETMASKBB(sqfrom+3);
     // reset halfmoveclok
     hmc = 0;
   }
@@ -887,13 +876,14 @@ void domove(Bitboard *board, Move move)
   hmc = (GETPTYPE(pfrom)==PAWN)?0:hmc;   // pawn move
   hmc = (GETPTYPE(pcpt)!=PNONE)?0:hmc;  // capture move
 
-  // compute new hash
-  board[QBBHASH] = computehash(board, !GETCOLOR(GETPFROM(move)));
-
   // store hmc   
   board[QBBHMC] = hmc;
   // store lastmove in board
   board[QBBLAST] = move;
+
+  // compute new hash
+  board[QBBHASH] = computehash(board, !GETCOLOR(GETPFROM(move)));
+
 }
 // restore board again
 void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash, u64 hmc)

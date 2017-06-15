@@ -565,7 +565,7 @@ void undomove(Bitboard *board, Move move)
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom+3);
   }
 }
-Hash computehash(__private Bitboard *board, bool stm)
+Hash computehash(__private Bitboard *board, bool stm, Move lastmove, Bitboard bbCR)
 {
   Piece piece;
   Bitboard bbWork;
@@ -588,29 +588,17 @@ Hash computehash(__private Bitboard *board, bool stm)
       hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
     }
   }
-/*
   // castle rights
-  if ((~cr&SMCRWHITEK)==SMCRWHITEK)
-      hash ^= Zobrist[12];
-  if ((~cr&SMCRWHITEQ)==SMCRWHITEQ)
-      hash ^= Zobrist[13];
-  if ((~cr&SMCRBLACKK)==SMCRBLACKK)
-      hash ^= Zobrist[14];
-  if ((~cr&SMCRBLACKQ)==SMCRBLACKQ)
-      hash ^= Zobrist[15];
- 
-  // file en passant
+  hash ^= ~bbCR&SMCRALL;
+
+  // en passant flag
   sqep = ( GETPTYPE(GETPFROM(lastmove))==PAWN
           &&GETRRANK(GETSQTO(lastmove),GETCOLOR(GETPFROM(lastmove)))
             -GETRRANK(GETSQFROM(lastmove),GETCOLOR(GETPFROM(lastmove)))==2
           )?GETSQTO(lastmove):0x0;
   if (sqep)
-  {
-    sq = GETFILE(sqep);
-    zobrist = Zobrist[16];
-    hash ^= ((zobrist<<sq)|(zobrist>>(64-sq)));; // rotate left 64
-  }
-*/ 
+    hash ^= Zobrist[10+GETFILE(sqep)];
+
   // site to move
   if (stm)
     hash ^= 0x1UL;
@@ -2756,6 +2744,14 @@ __kernel void alphabeta_gpu(
     {
       for (int i=0;i<64;i++)
         bbWork ^= bbTmp64[i];
+
+      // en passant flag
+      sqto = ( GETPTYPE(GETPFROM(move))==PAWN
+              &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
+                -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
+              )?GETSQTO(move):0x0;
+      if (sqto) 
+        bbWork ^= Zobrist[10+GETFILE(sqto)];
       // site to move
       if (stm)
         bbWork ^= 0x1UL;
@@ -2764,12 +2760,13 @@ __kernel void alphabeta_gpu(
 
     if (lid==0&&mode==MOVEUP)
     {
-      // set piece moved flags for castlre right
+      // set piece moved flags for castle right
       bbTemp   = localCrHistory[sd-1];
       bbTemp  |= SETMASKBB(GETSQFROM(move));
       bbTemp  |= SETMASKBB(GETSQTO(move));
       bbTemp  |= SETMASKBB(GETSQCPT(move));
       localCrHistory[sd] = bbTemp;
+      bbWork ^= ((~bbTemp)&SMCRALL); // hashing new castle rights
       // set new zobrist hash
       localHashHistory[sd] = bbWork;
       HashHistory[gid*MAXGAMEPLY+ply+ply_init] = bbWork;
@@ -2858,6 +2855,7 @@ __kernel void alphabeta_gpu(
     board[QBBP2]    = BOARD[QBBP2];
     board[QBBP3]    = BOARD[QBBP3];
     bbWork          = BOARD[QBBHASH]; // hash
+    bbMask          = BOARD[QBBPMVD]; // bb castle rights
     stm             = (bool)stm_init;
     n = 0;
     do
@@ -2886,7 +2884,12 @@ __kernel void alphabeta_gpu(
       {
         domove(board, tmpmove);
         stm = !stm;
-        bbWork = computehash(board, stm);
+        // set piece moved flags for castle right
+        bbMask  |= SETMASKBB(GETSQFROM(tmpmove));
+        bbMask  |= SETMASKBB(GETSQTO(tmpmove));
+        bbMask  |= SETMASKBB(GETSQCPT(tmpmove));
+        // compute hash x1
+        bbWork = computehash(board, stm, tmpmove, bbMask);
       }
     }while(tmpmove!=MOVENONE&&n<MAXPLY);
   } // end collect pv
