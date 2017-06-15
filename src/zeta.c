@@ -702,7 +702,14 @@ Hash computehash(Bitboard *board, bool stm)
     }
   }
   // castle rights
-  hash ^= ((~board[QBBPMVD])&SMCRALL);
+  if ((~board[QBBPMVD])&SMCRWHITEQ)
+    hash^= Zobrist[6];
+  if ((~board[QBBPMVD])&SMCRWHITEK)
+    hash^= Zobrist[7];
+  if ((~board[QBBPMVD])&SMCRBLACKQ)
+    hash^= Zobrist[8];
+  if ((~board[QBBPMVD])&SMCRBLACKK)
+    hash^= Zobrist[9];
 
   // en passant flag
   sq = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
