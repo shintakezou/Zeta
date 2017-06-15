@@ -703,13 +703,13 @@ Hash computehash(Bitboard *board, bool stm)
   }
   // castle rights
   if ((~board[QBBPMVD])&SMCRWHITEQ)
-    hash^= Zobrist[6];
+    hash^= Zobrist[12];
   if ((~board[QBBPMVD])&SMCRWHITEK)
-    hash^= Zobrist[7];
+    hash^= Zobrist[13];
   if ((~board[QBBPMVD])&SMCRBLACKQ)
-    hash^= Zobrist[8];
+    hash^= Zobrist[14];
   if ((~board[QBBPMVD])&SMCRBLACKK)
-    hash^= Zobrist[9];
+    hash^= Zobrist[15];
 
   // en passant flag
   sq = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
@@ -717,7 +717,7 @@ Hash computehash(Bitboard *board, bool stm)
             -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
           )?GETSQTO(board[QBBLAST]):0x0;
   if (sq)
-    hash ^= Zobrist[10+GETFILE(sq)];
+    hash ^= ((Zobrist[16]<<GETFILE(sq))|(Zobrist[16]>>(64-GETFILE(sq)))); /* rotate left 64 */
 
   // site to move
   if (stm)

@@ -589,13 +589,13 @@ Hash computehash(__private Bitboard *board, bool stm, Move lastmove, Bitboard bb
   }
   // castle rights
   if ((~bbCR)&SMCRWHITEQ)
-    hash^= Zobrist[6];
+    hash^= Zobrist[12];
   if ((~bbCR)&SMCRWHITEK)
-    hash^= Zobrist[7];
+    hash^= Zobrist[13];
   if ((~bbCR)&SMCRBLACKQ)
-    hash^= Zobrist[8];
+    hash^= Zobrist[14];
   if ((~bbCR)&SMCRBLACKK)
-    hash^= Zobrist[9];
+    hash^= Zobrist[15];
 
   // en passant flag
   sqep = ( GETPTYPE(GETPFROM(lastmove))==PAWN
@@ -603,7 +603,7 @@ Hash computehash(__private Bitboard *board, bool stm, Move lastmove, Bitboard bb
             -GETRRANK(GETSQFROM(lastmove),GETCOLOR(GETPFROM(lastmove)))==2
           )?GETSQTO(lastmove):0x0;
   if (sqep)
-    hash ^= Zobrist[10+GETFILE(sqep)];
+    hash ^= ((Zobrist[16]<<GETFILE(sqep))|(Zobrist[16]>>(64-GETFILE(sqep))));
 
   // site to move
   if (stm)
@@ -2757,7 +2757,7 @@ __kernel void alphabeta_gpu(
                 -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
               )?GETSQTO(move):0x0;
       if (sqto) 
-        bbWork ^= Zobrist[10+GETFILE(sqto)];
+        bbWork ^= ((Zobrist[16]<<GETFILE(sqto))|(Zobrist[16]>>(64-GETFILE(sqto))));
       // site to move
       if (stm)
         bbWork ^= 0x1UL;
@@ -2774,13 +2774,13 @@ __kernel void alphabeta_gpu(
       localCrHistory[sd] = bbTemp;
       // compute hash castle rights
       if ((~bbTemp)&SMCRWHITEQ)
-        bbWork^= Zobrist[6];
+        bbWork^= Zobrist[12];
       if ((~bbTemp)&SMCRWHITEK)
-        bbWork^= Zobrist[7];
+        bbWork^= Zobrist[13];
       if ((~bbTemp)&SMCRBLACKQ)
-        bbWork^= Zobrist[8];
+        bbWork^= Zobrist[14];
       if ((~bbTemp)&SMCRBLACKK)
-        bbWork^= Zobrist[9];
+        bbWork^= Zobrist[15];
       // set new zobrist hash
       localHashHistory[sd] = bbWork;
       HashHistory[gid*MAXGAMEPLY+ply+ply_init] = bbWork;
