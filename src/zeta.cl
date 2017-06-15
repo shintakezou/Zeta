@@ -224,15 +224,14 @@ enum Squares
 // is score default inf
 #define ISINF(val)    (((val)==INF||(val)==-INF)?true:false)
 // rotate left based zobrist hashing
-__constant Hash Zobrist[17]=
+__constant Hash Zobrist[18]=
 {
   0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,
   0x75834465489C0C89, 0x3290AC3A203001BF, 0x0FBBAD1F61042279, 0xE83A908FF2FB60CA,
   0x0D7E765D58755C10, 0x1A083822CEAFE02D, 0x9605D5F0E25EC3B0, 0xD021FF5CD13A2ED5,
   0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC,
-  0x05D1A1AE85B49AA1
+  0x05D1A1AE85B49AA1, 0x679F848F6E8FC971
 };
-
 //  piece square tables based on proposal by Tomasz Michniewski
 //  https://chessprogramming.wikispaces.com/Simplified+evaluation+function
 
