@@ -78,8 +78,8 @@ typedef struct
 #define LMR             8
 //#define IIDSEARCH       8
 // defaults
-#define VERSION "099b"
-// quad bitboard array index definition
+#define VERSION "099c"
+// quad bitboard arcay index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
 #define QBBP2     2     // piece type second bit
@@ -1837,7 +1837,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen << 1) & bbPro;
       bbTemp |= bbGen = (bbGen << 1) & bbPro;
       bbTemp |=         (bbGen << 1) & bbPro;
-      bbChecked |=         (bbTemp<< 1) & BBNOTAFILE;
+      bbChecked |=      (bbTemp<< 1) & BBNOTAFILE;
 
       bbPro  = bbMask;
       bbTemp = bbGen = SETMASKBB(sqto);
@@ -1848,7 +1848,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen << 8) & bbPro;
       bbTemp |= bbGen = (bbGen << 8) & bbPro;
       bbTemp |=         (bbGen << 8) & bbPro;
-      bbChecked |=         (bbTemp<< 8);
+      bbChecked |=      (bbTemp<< 8);
 
       bbPro  = bbMask;
       bbPro &= BBNOTHFILE;
@@ -1860,7 +1860,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen >> 1) & bbPro;
       bbTemp |= bbGen = (bbGen >> 1) & bbPro;
       bbTemp |=         (bbGen >> 1) & bbPro;
-      bbChecked |=         (bbTemp>> 1) & BBNOTHFILE;
+      bbChecked |=      (bbTemp>> 1) & BBNOTHFILE;
 
       bbPro  = bbMask;
       bbTemp = bbGen = SETMASKBB(sqto);
@@ -1871,7 +1871,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen >> 8) & bbPro;
       bbTemp |= bbGen = (bbGen >> 8) & bbPro;
       bbTemp |=         (bbGen >> 8) & bbPro;
-      bbChecked |=         (bbTemp>> 8);
+      bbChecked |=      (bbTemp>> 8);
     }
 
     // get superking, bishops n queems via dumb7fill
@@ -1936,6 +1936,7 @@ __kernel void alphabeta_gpu(
         bbPinned |= bbTemp;
 
       // bishops n queems via dumb7fill
+      bbMask = ~(bbBlockers^SETMASKBB(sqking));
       bbPro  = bbMask;
       bbPro &= BBNOTAFILE;
       bbTemp = bbGen = SETMASKBB(sqto);
@@ -1946,7 +1947,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen << 9) & bbPro;
       bbTemp |= bbGen = (bbGen << 9) & bbPro;
       bbTemp |=         (bbGen << 9) & bbPro;
-      bbChecked |=         (bbTemp<< 9) & BBNOTAFILE;
+      bbChecked |=      (bbTemp<< 9) & BBNOTAFILE;
 
       bbPro  = bbMask;
       bbPro &= BBNOTHFILE;
@@ -1958,7 +1959,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen << 7) & bbPro;
       bbTemp |= bbGen = (bbGen << 7) & bbPro;
       bbTemp |=         (bbGen << 7) & bbPro;
-      bbChecked |=         (bbTemp<< 7) & BBNOTHFILE;
+      bbChecked |=      (bbTemp<< 7) & BBNOTHFILE;
 
       bbPro  = bbMask;
       bbPro &= BBNOTHFILE;
@@ -1970,7 +1971,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen >> 9) & bbPro;
       bbTemp |= bbGen = (bbGen >> 9) & bbPro;
       bbTemp |=         (bbGen >> 9) & bbPro;
-      bbChecked |=         (bbTemp>> 9) & BBNOTHFILE;
+      bbChecked |=      (bbTemp>> 9) & BBNOTHFILE;
 
       bbPro  = bbMask;
       bbPro &= BBNOTAFILE;
@@ -1982,7 +1983,7 @@ __kernel void alphabeta_gpu(
       bbTemp |= bbGen = (bbGen >> 7) & bbPro;
       bbTemp |= bbGen = (bbGen >> 7) & bbPro;
       bbTemp |=         (bbGen >> 7) & bbPro;
-      bbChecked |=         (bbTemp>> 7) & BBNOTAFILE;
+      bbChecked |=      (bbTemp>> 7) & BBNOTAFILE;
     }
 
     // generate own moves and opposite attacks
@@ -2449,6 +2450,7 @@ __kernel void alphabeta_gpu(
           move  = localMoveHistory[sd];
 
           // lazy smp, set rand mode on movedown
+/*
           randomize = false;
           // lazy smp, randomize move order on leaf
           if (
@@ -2462,6 +2464,7 @@ __kernel void alphabeta_gpu(
           {
             randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%4)+1))&&localTodoIndex[sd]>=1)?true:randomize;
           }
+*/
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
           // nullmove hack, avoid alpha setting, set score only when score >= beta
@@ -2583,17 +2586,22 @@ __kernel void alphabeta_gpu(
       if (bresearch)
         lmove = localMoveHistory[sd];
 
-      // lazy smp, randomize move order on root
-//      randomize = false;
+      // lazy smp, randomize move order
+      randomize = false;
       if (
           lmove==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localSearchMode[sd]&LMRSEARCH)
           &&!(localNodeStates[sd]&QS)
-          &&localDepth[sd]>0
+          &&!(localNodeStates[sd]&KIC)
+          &&!(localNodeStates[sd]&EXT)
+          &&localDepth[sd]>1
+          &&gid>0
+//          &&sd>1
+          &&localTodoIndex[sd]>=2 // previous searched moves
           )
       {
-        randomize = (gid>0&&((gid%2)==0)&&sd<=(gid%4)+1&&localTodoIndex[sd]>=1)?true:randomize;
+        randomize = true;
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2830,8 +2838,6 @@ __kernel void alphabeta_gpu(
           localSearchMode[sd] |= LMRSEARCH;
         }
       }
-      // lazy smp, set rand mode
-      randomize = false;
     } // end moveup x1
     if (lid==0&&*finito)
       mode = EXIT;

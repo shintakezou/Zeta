@@ -52,7 +52,7 @@ typedef u8      Piece;
 typedef u8 File;
 typedef u8 Rank;
 
-#define VERSION "099b"
+#define VERSION "099c"
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit

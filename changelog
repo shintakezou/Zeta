@@ -1,3 +1,9 @@
+Zeta (099c) alpha; urgency=low
+
+  * little tuning in parallel search (lazy smp) randomized move order
+
+ -- Srdja Matovic <s.matovic@app26.de> Jun 2017
+
 Zeta (099b) alpha; urgency=low
 
   * switch from KoggeStone based move generation to Dumb7Fill
