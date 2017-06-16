@@ -1,8 +1,9 @@
 Zeta (099c) alpha; urgency=low
 
-  * little tuning in parallel search (lazy smp) randomized move order
+  * tuning in parallel search (lazy smp) randomized move order
+  * tuning of depth replace hash sheme
   * added en passant flag and castle rights to zobrist hash again
-  * Zeta 099b on Nvidia GeForce GTX 750, 64 workers, ~ 1,5 Mnps, STS* Elo 2004
+  * Zeta 099c on Nvidia GeForce GTX 750, 64 workers, ~ 1,5 Mnps, STS* Elo 2004
   * *Strategic Test Suite 1-15, 2 seconds per move, Elo estimation on CCRL scale
 
  -- Srdja Matovic <s.matovic@app26.de> Jun 2017
