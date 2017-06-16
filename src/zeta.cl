@@ -2443,22 +2443,6 @@ __kernel void alphabeta_gpu(
 
           move  = localMoveHistory[sd];
 
-          // lazy smp, set rand mode on movedown
-/*
-          randomize = false;
-          // lazy smp, randomize move order on leaf
-          if (
-              move!=MOVENONE
-              &&move!=NULLMOVE
-              &&!(localSearchMode[sd]&NULLMOVESEARCH)
-              &&!(localSearchMode[sd]&LMRSEARCH)
-              &&!(localNodeStates[sd]&QS)
-              &&localDepth[sd]>0
-              )
-          {
-            randomize = (gid>0&&((gid%2)==1)&&sd<=search_depth&&(sd>=search_depth-((gid%4)+1))&&localTodoIndex[sd]>=1)?true:randomize;
-          }
-*/
           score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
           // nullmove hack, avoid alpha setting, set score only when score >= beta
@@ -2503,21 +2487,29 @@ __kernel void alphabeta_gpu(
           {
             bbWork = localHashHistory[sd];    
             bbTemp = bbWork&(ttindex-1);
-            bbWork = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd]; // xor trick for avoiding race conditions
+            // xor trick for avoiding race conditions
+            bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
 
             // slot 1, always replace
             if (slots>=1)
             {
-              TT1[bbTemp].hash      = bbWork;
+              TT1[bbTemp].hash      = bbMask;
               TT1[bbTemp].bestmove  = move;
               TT1[bbTemp].score     = (TTScore)score;
               TT1[bbTemp].flag      = flag;
               TT1[bbTemp].depth     = (u8)localDepth[sd];
             }
-            // slot 2, depth replace
-            if (slots>=2&&(u8)localDepth[sd]>=TT2[bbTemp].depth)
-            {
-              TT2[bbTemp].hash      = bbWork;
+            // slot 2, depth and score replace
+            if (
+                 (slots>=2&&(u8)localDepth[sd]>TT2[bbTemp].depth)
+                 ||
+                 (slots>=2&&(u8)localDepth[sd]>=TT2[bbTemp].depth
+                  &&TT2[bbTemp].hash==(bbWork^(Hash)TT2[bbTemp].bestmove^(Hash)TT2[bbTemp].score^(Hash)TT2[bbTemp].depth)
+                  &&score>TT2[bbTemp].score
+                 )
+               ) 
+           {
+              TT2[bbTemp].hash      = bbMask;
               TT2[bbTemp].bestmove  = move;
               TT2[bbTemp].score     = (TTScore)score;
               TT2[bbTemp].flag      = flag;
