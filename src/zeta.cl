@@ -2372,7 +2372,7 @@ __kernel void alphabeta_gpu(
       if (mode==MOVEUP
           &&!qs
           &&sd>1 // not on root
-          &&!(localSearchMode[sd]&NULLMOVESEARCH)
+//          &&!(localSearchMode[sd]&NULLMOVESEARCH)
        )
       {
         bbWork = localHashHistory[sd];    
@@ -2382,6 +2382,7 @@ __kernel void alphabeta_gpu(
           score = (Score)TT2[bbTemp].score;
         else if (slots>=1&&(TT1[bbTemp].hash==(bbWork^(Hash)TT1[bbTemp].bestmove^(Hash)TT1[bbTemp].score^(Hash)TT1[bbTemp].depth))&&(s32)TT1[bbTemp].depth>=localDepth[sd]&&TT1[bbTemp].flag>FAILLOW)
           score = (Score)TT1[bbTemp].score;
+
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
