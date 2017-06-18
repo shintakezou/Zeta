@@ -1,9 +1,17 @@
+Zeta (099d) alpha; urgency=low
+
+  * fix in null move hashing
+  * Zeta 099d on Nvidia GeForce GTX 750, 64 workers, ~ 1.5 Mnps, STS* Elo 2004
+  * *Strategic Test Suite 1-15, 2 seconds per move, Elo estimation on CCRL scale
+
+ -- Srdja Matovic <s.matovic@app26.de> Jun 2017
+
 Zeta (099c) alpha; urgency=low
 
   * tuning in parallel search (lazy smp) randomized move order
   * tuning of depth replace hash sheme
   * added en passant flag and castle rights to zobrist hash again
-  * Zeta 099c on Nvidia GeForce GTX 750, 64 workers, ~ 1,5 Mnps, STS* Elo 2004
+  * Zeta 099c on Nvidia GeForce GTX 750, 64 workers, ~ 1.5 Mnps, STS* Elo 2004
   * *Strategic Test Suite 1-15, 2 seconds per move, Elo estimation on CCRL scale
 
  -- Srdja Matovic <s.matovic@app26.de> Jun 2017
@@ -13,7 +21,7 @@ Zeta (099b) alpha; urgency=low
   * switch from KoggeStone based move generation to Dumb7Fill
   * two hash table slots, always replace and depth replace scheme
   * little tunings and cleanups
-  * Zeta 099b on Nvidia GeForce GTX 750, 64 workers, ~ 1,5 Mnps, STS* Elo 1978
+  * Zeta 099b on Nvidia GeForce GTX 750, 64 workers, ~ 1.5 Mnps, STS* Elo 1978
   * Zeta 099b on Nvidia GeForce GTX 750, 1 worker, ~ 45 Knps, STS* Elo 1770
   * Zeta 099b on AMD Radeon HD 7750, 64 workers, ~ 900 Knps, STS* Elo 1905
   * Zeta 099b on Nvidia GeForce 8800 GT, 28 workers, ~ 250 Knps, STS* Elo 1814
