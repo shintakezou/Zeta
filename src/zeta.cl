@@ -2773,6 +2773,9 @@ __kernel void alphabeta_gpu(
         bbWork^= Zobrist[14];
       if ((~bbTemp)&SMCRBLACKK)
         bbWork^= Zobrist[15];
+      // compute hash nullmove
+      if (move==NULLMOVE)
+        bbWork ^= 0x1UL;
       // set new zobrist hash
       localHashHistory[sd] = bbWork;
       HashHistory[gid*MAXGAMEPLY+ply+ply_init] = bbWork;
