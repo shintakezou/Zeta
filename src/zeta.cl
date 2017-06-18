@@ -2372,7 +2372,7 @@ __kernel void alphabeta_gpu(
       if (mode==MOVEUP
           &&!qs
           &&sd>1 // not on root
-//          &&!(localSearchMode[sd]&NULLMOVESEARCH)
+          &&!(localSearchMode[sd]&NULLMOVESEARCH)
        )
       {
         bbWork = localHashHistory[sd];    
