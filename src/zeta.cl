@@ -70,15 +70,15 @@ typedef struct
 #define SEARCH          1
 #define NULLMOVESEARCH  2
 #define LMRSEARCH       4
+//#define IIDSEARCH       8
 // node states
 #define STATENONE       0
 #define KIC             1
 #define QS              2
 #define EXT             4
 #define LMR             8
-//#define IIDSEARCH       8
 // defaults
-#define VERSION "099c"
+#define VERSION "099d"
 // quad bitboard arcay index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
