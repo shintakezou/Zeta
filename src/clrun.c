@@ -253,6 +253,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+/*
   GLOBAL_bbInBetween_Buffer = clCreateBuffer(
                             			     context, 
                                        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
@@ -276,6 +277,7 @@ bool cl_init_device(char *kernelname)
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_bbLine_Buffer)\n");
     return false;
   }
+*/
 
   // initialize transposition table
   ttbits = 0;
@@ -600,6 +602,7 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   }
   i++;
 
+/*
   status = clSetKernelArg(
                           kernel, 
                           i, 
@@ -623,6 +626,7 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
     return false;
   }
   i++;
+*/
 
   status = clSetKernelArg(
                           kernel, 
@@ -881,6 +885,7 @@ bool cl_run_perft(bool stm, s32 depth)
   }
   i++;
 
+/*
   status = clSetKernelArg(
                           kernel, 
                           i, 
@@ -904,6 +909,7 @@ bool cl_run_perft(bool stm, s32 depth)
     return false;
   }
   i++;
+*/
 
   temp = (s32)stm;
   status = clSetKernelArg(
@@ -1161,6 +1167,7 @@ bool cl_release_device() {
 		return false; 
 	}
 
+/*
 	status = clReleaseMemObject(GLOBAL_bbInBetween_Buffer);
   if(status!=CL_SUCCESS)
 	{
@@ -1174,6 +1181,7 @@ bool cl_release_device() {
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbLine_Buffer)\n");
 		return false; 
 	}
+*/
 
 	status = clReleaseMemObject(GLOBAL_TT1_Buffer);
   if(status!=CL_SUCCESS)
