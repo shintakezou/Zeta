@@ -78,7 +78,7 @@ typedef struct
 #define EXT             4
 #define LMR             8
 // defaults
-#define VERSION "099d"
+#define VERSION "099e"
 // quad bitboard arcay index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
