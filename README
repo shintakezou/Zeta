@@ -30,11 +30,11 @@ First make sure you have an working OpenCL Runtime Environment,
 start the zeta executable in command line with -dl option to list
 all available OpenCL devices on host
 
-Second check the OpenCL device and create a config.ini file for the engine,
+Second check the OpenCL device and create a config.txt file for the engine,
 zeta -p 0 -d 0 --guessconfigx
 Where p is the selected platform id and d is the selected device id.
 
-Third rename the created config file to config.ini and start the engine.
+Third rename the created config file to config.txt and start the engine.
 
 
 All Options:
