@@ -2043,11 +2043,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 
   if ((!xboard_mode)||xboard_debug)
   {
-    fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, and %" PRIu64 " ttscorehits, ebf: %lf, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+    fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " ttmovehits, and %" PRIu64 " ttscorehits, ebf: %lf, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " tthits, and %" PRIu64 " ttscorehits, ebf: %lf, nps: %" PRIu64 "  \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+      fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " ttmovehits, and %" PRIu64 " ttscorehits, ebf: %lf, nps: %" PRIu64 "  \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
     }
   }
 
