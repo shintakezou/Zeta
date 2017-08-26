@@ -808,6 +808,8 @@ __kernel void perft_gpu(
                             __global u64 *COUNTERS,
                             __global Bitboard *globalbbMoves,
                             __global Hash *HashHistory,
+                      const __global Bitboard *bbInBetween,
+                      const __global Bitboard *bbLine,
                                const s32 stm_init,
                                const s32 ply_init,
                                const s32 search_depth,
@@ -828,12 +830,14 @@ __kernel void perft_gpu(
   __local Cr localCrHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
 
+  __local Square sqchecker;
+
   __local s32 movecount;
 
   __local Move lmove;
 
-  __local Bitboard bbMeAttacks;
-  __local Bitboard bbOppAttacks;
+  __local Bitboard bbAttacks;
+  __local Bitboard bbCheckers;
 
   const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
   const Square lid = (Square)get_local_id(2);
@@ -842,7 +846,6 @@ __kernel void perft_gpu(
   bool color;
   bool kic;
   bool rootkic;
-  bool kingcap;
   bool qs;
   bool stm;
 
@@ -873,6 +876,9 @@ __kernel void perft_gpu(
   Bitboard bbWork;
   Bitboard bbMask;
   Bitboard bbMoves;
+
+  Bitboard bbPinned;
+  Bitboard bbChecked;
 
   Bitboard bbPro;
   Bitboard bbGen; 
@@ -919,11 +925,13 @@ __kernel void perft_gpu(
     // ####     movegenerator x64  ####
     // ################################
     // reset locals
-    movecount = 0;
-    lmove = MOVENONE;
-    bbMeAttacks = BBEMPTY;
-    bbOppAttacks = BBEMPTY;
-    kingcap = false;
+    movecount   = 0;
+    lmove       = MOVENONE;
+    sqchecker   = 0x0;
+    bbAttacks   = BBEMPTY;
+    bbCheckers  = BBEMPTY;
+    bbPinned    = BBEMPTY;
+    bbChecked   = BBEMPTY;
     // inits
     n = 0;
     // enter quiescence search?
@@ -931,6 +939,234 @@ __kernel void perft_gpu(
     bbBlockers  = board[QBBP1]|board[QBBP2]|board[QBBP3];
     bbMe        =  (stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     bbOpp       = (!stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
+
+    // get colored king
+    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
+    // get king square
+    sqking = first1(bbTemp);
+
+    // calc superking and get pinned pieces
+    // get superking, rooks n queens via dumb7fill
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |=         (bbGen << 1) & bbPro;
+    bbWork |=         (bbTemp<< 1) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |=         (bbGen << 8) & bbPro;
+    bbWork |=         (bbTemp<< 8);
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |=         (bbGen >> 1) & bbPro;
+    bbWork |=         (bbTemp>> 1) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |=         (bbGen >> 8) & bbPro;
+    bbWork |=         (bbTemp>> 8);
+
+    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
+    // get pinned pieces
+    while (bbWork)
+    {
+      sqto = popfirst1(&bbWork);
+      bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
+      if (count1s(bbTemp)==1)
+        bbPinned |= bbTemp;
+
+      // rooks n queens via dumb7fill
+      bbTemp = BBEMPTY;
+      bbMask = ~(bbBlockers^SETMASKBB(sqking));
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |=         (bbGen << 1) & bbPro;
+      bbChecked |=         (bbTemp<< 1) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |=         (bbGen << 8) & bbPro;
+      bbChecked |=         (bbTemp<< 8);
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |=         (bbGen >> 1) & bbPro;
+      bbChecked |=         (bbTemp>> 1) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |=         (bbGen >> 8) & bbPro;
+      bbChecked |=         (bbTemp>> 8);
+    }
+
+    // get superking, bishops n queems via dumb7fill
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |=         (bbGen << 9) & bbPro;
+    bbWork |=         (bbTemp<< 9) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |=         (bbGen << 7) & bbPro;
+    bbWork |=         (bbTemp<< 7) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |=         (bbGen >> 9) & bbPro;
+    bbWork |=         (bbTemp>> 9) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |=         (bbGen >> 7) & bbPro;
+    bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
+
+    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
+    // get pinned pieces
+    while (bbWork)
+    {
+      sqto = popfirst1(&bbWork);
+      bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
+      if (count1s(bbTemp)==1)
+        bbPinned |= bbTemp;
+
+      // bishops n queens via dumb7fill
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |=         (bbGen << 9) & bbPro;
+      bbChecked |=         (bbTemp<< 9) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |=         (bbGen << 7) & bbPro;
+      bbChecked |=         (bbTemp<< 7) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |=         (bbGen >> 9) & bbPro;
+      bbChecked |=         (bbTemp>> 9) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |=         (bbGen >> 7) & bbPro;
+      bbChecked |=         (bbTemp>> 7) & BBNOTAFILE;
+    }
+
+
     // generate own moves and opposite attacks
     pfrom  = GETPIECE(board, lid);
     color  = GETCOLOR(pfrom);
@@ -1041,39 +1277,56 @@ __kernel void perft_gpu(
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
     bbMoves|= (color==stm&&!qs)?(bbMask&bbWork&~bbBlockers):BBEMPTY; 
 
-    // collect my attacks
-    bbTmp64[lid] = (color==stm)?bbMoves:BBEMPTY;
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (lid==0)
-    {
-      for (int i=0;i<64;i++)
-        bbMeAttacks |= bbTmp64[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-    // collect opp attacks
     bbTmp64[lid] = (color!=stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
+    // collect opp attacks
     if (lid==0)
     {
       for (int i=0;i<64;i++)
-        bbOppAttacks |= bbTmp64[i];
+        bbAttacks |= bbTmp64[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // get king checkers
+    bbTmp64[lid] = BBEMPTY;
+    if (bbMoves&SETMASKBB(sqking))
+    {
+      sqchecker = lid;
+      bbTmp64[lid] = SETMASKBB(lid);
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // collect king checkers
+    if (lid==0)
+    {
+      for (int i=0;i<64;i++)
+        bbCheckers |= bbTmp64[i];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // get opp king
-    bbTemp = bbOpp&board[QBBP1]&board[QBBP2]&~board[QBBP3];
-    // get king square
-    sqking = first1(bbTemp);
-    // kingcapture?
-    kingcap = (bbMeAttacks&SETMASKBB(sqking))?true:false;
-    // get my king
-    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
-    sqking = first1(bbTemp);
-    // in check?
-    rootkic = (bbOppAttacks&SETMASKBB(sqking))?true:false;
+    // in check
+    rootkic = (bbCheckers)?true:false;
 
-    // extract only own or valid moves
-    bbMoves = (color!=stm||kingcap)?BBEMPTY:bbMoves;
+    // extract only own moves
+    bbMoves = (color==stm)?bbMoves:BBEMPTY;
+
+    n = count1s(bbCheckers);
+
+    // double check, king moves only
+    tmpb = (n>=2&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves = (tmpb)?BBEMPTY:bbMoves;
+
+    // consider pinned pieces
+    tmpb = (SETMASKBB(lid)&bbPinned)?true:false;
+    bbMoves &= (tmpb)?bbLine[lid*64+sqking]:BBFULL;
+
+    // consider king and opp attacks
+    tmpb = (GETPTYPE(pfrom)==KING)?true:false;
+    bbMoves &= (tmpb)?~bbAttacks:BBFULL;
+    tmpb = (n>=1&&GETPTYPE(pfrom)==KING)?true:false;
+    bbMoves &= (tmpb)?~bbChecked:BBFULL;
+
+    // consider single checker
+    tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
 
     // gen en passant moves, TODO: reimplement as x64?
     bbTemp = BBEMPTY;
@@ -1113,7 +1366,7 @@ __kernel void perft_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
     // check for king and empty squares in check
-    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid-1))|(bbOppAttacks&SETMASKBB(lid-2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
 
@@ -1125,7 +1378,7 @@ __kernel void perft_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
     // check for king and empty squares in check
-    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid+1))|(bbOppAttacks&SETMASKBB(lid+2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
@@ -1148,15 +1401,8 @@ __kernel void perft_gpu(
     // #################################
     if (lid==0)
     {
-      // kingcap, illegal move
-      if (kingcap)
-      {
-        movecount = 0;
-        localMoveCounter[sd-1]--;
-        localTodoIndex[sd-1]--;
-      }
       // max search depth reached
-      if (sd>search_depth&&!kingcap)
+      if (sd>search_depth)
       {
         // nodecounter
         COUNTERS[gid*64+1]++;
@@ -1301,6 +1547,8 @@ __kernel void alphabeta_gpu(
                             __global Move *PV,
                             __global Bitboard *globalbbMoves,
                             __global Hash *HashHistory,
+                      const __global Bitboard *bbInBetween,
+                      const __global Bitboard *bbLine,
                             __global TTE *TT1,
                             __global TTE *TT2,
                             __global Move *Killers,
@@ -1337,12 +1585,14 @@ __kernel void alphabeta_gpu(
   __local bool randomize;   // randomize move order flag
   __local bool lexit;       // exit the main loop flag
 
+  __local Square sqchecker;
+
   __local s32 lscore;
   __local s32 movecount;
   __local Move lmove;
 
-  __local Bitboard bbMeAttacks;
-  __local Bitboard bbOppAttacks;
+  __local Bitboard bbAttacks;
+  __local Bitboard bbCheckers;
 
   const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
   const Square lid = (Square)get_local_id(2);
@@ -1351,7 +1601,6 @@ __kernel void alphabeta_gpu(
   bool color;
   bool kic;
   bool rootkic;
-  bool kingcap;
   bool qs;
   bool stm;
 
@@ -1390,6 +1639,9 @@ __kernel void alphabeta_gpu(
   Bitboard bbMask;
   Bitboard bbMoves;
 
+  Bitboard bbPinned;
+  Bitboard bbChecked;
+
   Bitboard bbPro;
   Bitboard bbGen; 
 
@@ -1406,7 +1658,6 @@ __kernel void alphabeta_gpu(
   lexit           = false;
   lmove           = MOVENONE;
   randomize       = false;
-  kingcap         = 0x0;
 
   // init ab search var stack
   localAlphaBetaScores[0*2+ALPHA] =-INF;
@@ -1452,13 +1703,243 @@ __kernel void alphabeta_gpu(
     movecount = 0;
     lmove = MOVENONE;
     lscore = DRAWSCORE;
-    bbMeAttacks = BBEMPTY;
-    bbOppAttacks = BBEMPTY;
+    sqchecker   = 0x0;
+    bbAttacks   = BBEMPTY;
+    bbCheckers  = BBEMPTY;
+    bbPinned    = BBEMPTY;
+    bbChecked   = BBEMPTY;
     // inits
     n = 0;
     bbBlockers  = board[QBBP1]|board[QBBP2]|board[QBBP3];
     bbMe        =  (stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     bbOpp       = (!stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
+
+    // get colored king
+    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
+    // get king square
+    sqking = first1(bbTemp);
+
+    // calc superking and get pinned pieces
+    // get superking, rooks n queens via dumb7fill
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |= bbGen = (bbGen << 1) & bbPro;
+    bbTemp |=         (bbGen << 1) & bbPro;
+    bbWork |=         (bbTemp<< 1) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |= bbGen = (bbGen << 8) & bbPro;
+    bbTemp |=         (bbGen << 8) & bbPro;
+    bbWork |=         (bbTemp<< 8);
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+    bbTemp |=         (bbGen >> 1) & bbPro;
+    bbWork |=         (bbTemp>> 1) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+    bbTemp |=         (bbGen >> 8) & bbPro;
+    bbWork |=         (bbTemp>> 8);
+
+    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
+    // get pinned pieces
+    while (bbWork)
+    {
+      sqto = popfirst1(&bbWork);
+      bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
+      if (count1s(bbTemp)==1)
+        bbPinned |= bbTemp;
+
+      // rooks n queens via dumb7fill
+      bbTemp = BBEMPTY;
+      bbMask = ~(bbBlockers^SETMASKBB(sqking));
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |= bbGen = (bbGen << 1) & bbPro;
+      bbTemp |=         (bbGen << 1) & bbPro;
+      bbChecked |=         (bbTemp<< 1) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |= bbGen = (bbGen << 8) & bbPro;
+      bbTemp |=         (bbGen << 8) & bbPro;
+      bbChecked |=         (bbTemp<< 8);
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
+      bbTemp |=         (bbGen >> 1) & bbPro;
+      bbChecked |=         (bbTemp>> 1) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
+      bbTemp |=         (bbGen >> 8) & bbPro;
+      bbChecked |=         (bbTemp>> 8);
+    }
+
+    // get superking, bishops n queems via dumb7fill
+    bbWork = BBEMPTY;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |= bbGen = (bbGen << 9) & bbPro;
+    bbTemp |=         (bbGen << 9) & bbPro;
+    bbWork |=         (bbTemp<< 9) & BBNOTAFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |= bbGen = (bbGen << 7) & bbPro;
+    bbTemp |=         (bbGen << 7) & bbPro;
+    bbWork |=         (bbTemp<< 7) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTHFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+    bbTemp |=         (bbGen >> 9) & bbPro;
+    bbWork |=         (bbTemp>> 9) & BBNOTHFILE;
+
+    bbPro  = BBFULL;
+    bbPro &= BBNOTAFILE;
+    bbTemp = bbGen = SETMASKBB(sqking);
+
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+    bbTemp |=         (bbGen >> 7) & bbPro;
+    bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
+
+    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+
+    // get pinned pieces
+    while (bbWork)
+    {
+      sqto = popfirst1(&bbWork);
+      bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
+      if (count1s(bbTemp)==1)
+        bbPinned |= bbTemp;
+
+      // bishops n queens via dumb7fill
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |= bbGen = (bbGen << 9) & bbPro;
+      bbTemp |=         (bbGen << 9) & bbPro;
+      bbChecked |=         (bbTemp<< 9) & BBNOTAFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |= bbGen = (bbGen << 7) & bbPro;
+      bbTemp |=         (bbGen << 7) & bbPro;
+      bbChecked |=         (bbTemp<< 7) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTHFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
+      bbTemp |=         (bbGen >> 9) & bbPro;
+      bbChecked |=         (bbTemp>> 9) & BBNOTHFILE;
+
+      bbPro  = bbMask;
+      bbPro &= BBNOTAFILE;
+      bbTemp = bbGen = SETMASKBB(sqto);
+
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
+      bbTemp |=         (bbGen >> 7) & bbPro;
+      bbChecked |=         (bbTemp>> 7) & BBNOTAFILE;
+    }
+
     // generate own moves and opposite attacks
     pfrom  = GETPIECE(board, lid);
     color  = GETCOLOR(pfrom);
@@ -1566,45 +2047,41 @@ __kernel void alphabeta_gpu(
     bbMask  = AttackTables[n*64+lid];
     bbMoves = (color==stm)?(bbMask&bbWork&bbOpp):(bbMask&bbWork);
 
-    // collect my attacks
-    bbTmp64[lid] = (color==stm)?bbMoves:BBEMPTY;
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (lid==0)
-    {
-      for (int i=0;i<64;i++)
-        bbMeAttacks |= bbTmp64[i];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-    // collect opp attacks
     bbTmp64[lid] = (color!=stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
+    // collect opp attacks
     if (lid==0)
     {
       for (int i=0;i<64;i++)
-        bbOppAttacks |= bbTmp64[i];
+        bbAttacks |= bbTmp64[i];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // get king checkers
+    bbTmp64[lid] = BBEMPTY;
+    if (bbMoves&SETMASKBB(sqking))
+    {
+      sqchecker = lid;
+      bbTmp64[lid] = SETMASKBB(lid);
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // collect king checkers
+    if (lid==0)
+    {
+      for (int i=0;i<64;i++)
+        bbCheckers |= bbTmp64[i];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // get opp king
-    bbTemp = bbOpp&board[QBBP1]&board[QBBP2]&~board[QBBP3];
-    // get king square
-    sqking = first1(bbTemp);
-    // kingcapture?
-    kingcap = (bbMeAttacks&SETMASKBB(sqking))?true:false;
-    // get my king
-    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
-    sqking = first1(bbTemp);
-    // in check?
-    rootkic = (bbOppAttacks&SETMASKBB(sqking))?true:false;
+    // in check
+    rootkic = (bbCheckers)?true:false;
 
     // depth extension
     if (lid==0
         &&(localDepth[sd]>=0)
         &&
         (
-          rootkic // in check
+          rootkic
           ||
-          // pawn promo
           (GETPTYPE(GETPFROM(localMoveHistory[sd]))==PAWN&&GETPTYPE(GETPTO(localMoveHistory[sd]))==QUEEN)
         )
        )
@@ -1621,11 +2098,28 @@ __kernel void alphabeta_gpu(
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
     bbMoves|= (color==stm&&!qs)?(bbMask&bbWork&~bbBlockers):BBEMPTY; 
 
-    // avoid king captures
-    bbMoves &= (GETPTYPE(pfrom)==KING)?~bbOppAttacks:BBFULL;
+    // extract only own moves
+    bbMoves = (color==stm)?bbMoves:BBEMPTY;
 
-    // extract only own or valid moves
-    bbMoves = (color!=stm||kingcap)?BBEMPTY:bbMoves;
+    n = count1s(bbCheckers);
+
+    // double check, king moves only
+    tmpb = (n>=2&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves = (tmpb)?BBEMPTY:bbMoves;
+
+    // consider pinned pieces
+    tmpb = (SETMASKBB(lid)&bbPinned)?true:false;
+    bbMoves &= (tmpb)?bbLine[lid*64+sqking]:BBFULL;
+
+    // consider king and opp attacks
+    tmpb = (GETPTYPE(pfrom)==KING)?true:false;
+    bbMoves &= (tmpb)?~bbAttacks:BBFULL;
+    tmpb = (n>=1&&GETPTYPE(pfrom)==KING)?true:false;
+    bbMoves &= (tmpb)?~bbChecked:BBFULL;
+
+    // consider single checker
+    tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
+    bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
 
     // gen en passant moves, TODO: reimplement as x64?
     bbTemp = BBEMPTY;
@@ -1665,7 +2159,7 @@ __kernel void alphabeta_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
     // check for king and empty squares in check
-    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid-1))|(bbOppAttacks&SETMASKBB(lid-2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
 
@@ -1677,7 +2171,7 @@ __kernel void alphabeta_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
     // check for king and empty squares in check
-    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid+1))|(bbOppAttacks&SETMASKBB(lid+2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
@@ -1772,13 +2266,13 @@ __kernel void alphabeta_gpu(
       // negamaxed scores
       score = (stm)?-lscore:lscore;
       // checkmate
-      score = (!qs&&rootkic&&movecount==0&&!kingcap)?-INF+sd:score;
+      score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
       // stalemate
-      score = (!qs&&!rootkic&&movecount==0&&!kingcap)?STALEMATESCORE:score;
+      score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
       // draw by 3 fold repetition, x1
       bbWork = localHashHistory[sd];
-      for (n=ply+ply_init-2;lid==0&&!qs&&!kingcap&&sd>1&&n>=0&&n>=ply+ply_init-(s32)localHMCHistory[sd];n-=2)
+      for (n=ply+ply_init-2;lid==0&&!qs&&sd>1&&n>=0&&n>=ply+ply_init-(s32)localHMCHistory[sd];n-=2)
       {
         if (bbWork==HashHistory[gid*MAXGAMEPLY+n])
         {
@@ -1799,17 +2293,6 @@ __kernel void alphabeta_gpu(
       // check bounds
       if (sd>=MAXPLY)
         movecount = 0;
-      // kingcap, illegal move
-      if (kingcap)
-      {
-        movecount = 0;
-        localMoveCounter[sd-1]--;
-        localTodoIndex[sd-1]--;
-        // ignore score
-        score = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-        kingcap = 0x0;
-        COUNTERS[gid*64+1]--;
-      }
       // terminal or leaf node
       if (movecount==0)
         localAlphaBetaScores[sd*2+ALPHA]=score;
@@ -1857,8 +2340,8 @@ __kernel void alphabeta_gpu(
             COUNTERS[gid*64+4]++;      
           }
           // check for beta cutoff
-//          if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
-//            movecount = 0;
+          if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
+            movecount = 0;
         }
       }
       // store move counter in local memory
@@ -1908,26 +2391,16 @@ __kernel void alphabeta_gpu(
         score = -localAlphaBetaScores[(sd+1)*2+ALPHA];
 
         // nullmove hack, avoid alpha setting, set score only when score >= beta
-        if (move==NULLMOVE&&score<localAlphaBetaScores[sd*2+BETA]&&localMoveCounter[sd]>0)
+        if (move==NULLMOVE&&score<localAlphaBetaScores[sd*2+BETA])
           score = localAlphaBetaScores[sd*2+ALPHA];  // ignore score
 
         // late move reductions hack, init research
         if (localNodeStates[sd+1]&LMR
             &&score>localAlphaBetaScores[sd*2+ALPHA]
-            &&localMoveCounter[sd]>0
             )
         {
           score = localAlphaBetaScores[sd*2+ALPHA];  // ignore score
           bresearch = true;
-        }
-
-        // kingcap, no legal moves left
-        if (localMoveCounter[sd]==0)
-        {
-          if (!(localNodeStates[sd]&QS)&&(localNodeStates[sd]&KIC))
-            score = -INF+sd; // checkmate
-          else if (!(localNodeStates[sd]&QS)&&!(localNodeStates[sd]&KIC))
-            score = STALEMATESCORE; // stalemate
         }
 
         // set negamaxed alpha score
@@ -1955,7 +2428,6 @@ __kernel void alphabeta_gpu(
             &&move!=MOVENONE
             &&move!=NULLMOVE
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
-            &&localMoveCounter[sd]>0
            )
         {
           bbWork = localHashHistory[sd];    
@@ -1997,7 +2469,6 @@ __kernel void alphabeta_gpu(
             &&move!=MOVENONE
             &&move!=NULLMOVE
             &&GETPCPT(move)==PNONE // quiet moves only
-            &&localMoveCounter[sd]>0
            )
         {
           // save killer move
@@ -2274,9 +2745,13 @@ __kernel void alphabeta_gpu(
          &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
         )
       {
-        localDepth[sd]  = localDepth[sd]-LMRR; // depth reduction
-        localNodeStates[sd] |= LMR;
-        localSearchMode[sd] |= LMRSEARCH;
+        // no check giving moves
+        if (!squareunderattack(board, !stm, getkingsq(board, stm)))
+        {
+          localDepth[sd]  = localDepth[sd]-LMRR; // depth reduction
+          localNodeStates[sd] |= LMR;
+          localSearchMode[sd] |= LMRSEARCH;
+        }
       }
     } // end moveup x1
     barrier(CLK_LOCAL_MEM_FENCE);
