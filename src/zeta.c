@@ -19,17 +19,25 @@
   GNU General Public License for more details.
 */
 
-#include <stdio.h>      // for print and scan
-#include <stdlib.h>     // for malloc free
-#include <string.h>     // for string compare 
-#include <getopt.h>     // for getopt_long
-#include <math.h>       // for pow
+#include <stdio.h>        // for print and scan
+#include <stdlib.h>       // for malloc free
+#include <string.h>       // for string compare 
+#include <getopt.h>       // for getopt_long
+#include <math.h>         // for pow
 
-#include "bitboard.h"   // bit functions
+#include "bitboard.h"     // bit functions
 #include "timer.h"
 #include "types.h"
-#include "zetacl.h"     // OpenCL source file zeta.cl as string
-#include "zobrist.h"
+
+// different opencl devices with different feature sets
+// 1st gen => global int32 atomics
+// 2nd gen => local int32 atomics
+// 3rd gen => local int64 extended atomics
+#include "zetacl1stgen.h" // OpenCL source file zeta1stgen.cl as string
+#include "zetacl2ndgen.h" // OpenCL source file zeta2ndgen.cl as string
+#include "zetacl3rdgen.h" // OpenCL source file zeta3rdgen.cl as string
+
+#include "zobrist.h"      // random numbers for zobrist hashing
 
 // global variables
 FILE *LogFile = NULL;         // logfile for debug
@@ -54,6 +62,7 @@ s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 s32 opencl_user_device  = -1;
 s32 opencl_user_platform= -1;
+s32 opencl_gpugen       =  1;
 // further config
 u64 max_nps_per_move    =  0;
 s32 search_depth        =  0;
@@ -1484,14 +1493,14 @@ bool read_and_init_config(char configfile[])
   {
     fprintf(stdout,"Error (");
     fprintf(stdout, "%s file missing) ", configfile);
-    fprintf(stdout, "try --guessconfig option to create a config.ini file ");
+    fprintf(stdout, "try --guessconfig option to create a config.txt file ");
     fprintf(stdout, "or --help option for further options\n");
     if (LogFile)
     {
       fprintdate(LogFile);
       fprintf(LogFile,"Error (");
       fprintf(LogFile, "%s file missing) ", configfile);
-      fprintf(LogFile, "try --guessconfig option to create a config.ini file ");
+      fprintf(LogFile, "try --guessconfig option to create a config.txt file ");
       fprintf(LogFile, "or --help option for further options\n");
     }
     return false;
@@ -1505,6 +1514,7 @@ bool read_and_init_config(char configfile[])
     sscanf(line, "memory_slots: %" PRIu64 ";", &memory_slots);
     sscanf(line, "opencl_platform_id: %d;", &opencl_platform_id);
     sscanf(line, "opencl_device_id: %d;", &opencl_device_id);
+    sscanf(line, "opencl_gpugen: %d;", &opencl_gpugen);
   }
   fclose(fcfg);
 
@@ -1793,11 +1803,11 @@ static void print_help(void)
   fprintf(stdout,"start the zeta executable in command line with -dl option to list\n");
   fprintf(stdout,"all available OpenCL devices on host\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Second check the OpenCL device and create a config.ini file for the engine,\n");
+  fprintf(stdout,"Second check the OpenCL device and create a config.txt file for the engine,\n");
   fprintf(stdout,"zeta -p 0 -d 0 --guessconfigx\n");
   fprintf(stdout,"Where p is the selected platform id and d is the selected device id.\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Third rename the created config file to config.ini and start the engine.\n");
+  fprintf(stdout,"Third rename the created config file to config.txt and start the engine.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"All Options:\n");
@@ -2185,7 +2195,7 @@ int main(int argc, char* argv[])
 {
   // config file
   bool state;
-  char configfile[256] = "config.ini";
+  char configfile[256] = "config.txt";
   // xboard states
   s32 xboard_protover = 0;      // Zeta works with protocoll version >= v2
   // for get opt
@@ -2743,7 +2753,7 @@ int main(int argc, char* argv[])
     // opp time left, ignore
 		if (!strcmp(Command, "otim"))
       continue;
-    // xboard memory in mb, ignore, use config.ini file
+    // xboard memory in mb, ignore, use config.txt file
 		if (!strcmp(Command, "memory"))
     {
       continue;

@@ -19,15 +19,19 @@
   GNU General Public License for more details.
 */
 
+// 1st generation gpgpu devices
 // for setting termination flag
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics         : enable
+
+// 2nd generation gpgpu devices
+// for collecting movecounter and score via local atomics
 #pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics          : enable
 #pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics      : enable
 
-//#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics        : enable
-//#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics    : enable
-//#pragma OPENCL EXTENSION cl_khr_int64_base_atomics              : enable
+// 3rd generation gpgpu devices
+// for collecting bbAttacks and Hash
 //#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics          : enable
+
 // otpional
 //#pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
 
@@ -79,7 +83,7 @@ typedef struct
 #define LMR             8
 // defaults
 #define VERSION "099e"
-// quad bitboard arcay index definition
+// quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
 #define QBBP2     2     // piece type second bit
@@ -340,7 +344,7 @@ u8 count1s(u64 x)
   return (u8)x;
 }
 #else
-// wrapper for casting
+// wrapper
 u8 count1s(u64 x) 
 {
   return (u8)popcount(x);
@@ -361,7 +365,9 @@ u8 popfirst1(u64 *a)
 // bit twiddling hacks
 //  bb_work=bb_temp&-bb_temp;  // get lsb 
 //  bb_temp&=bb_temp-1;       // clear lsb
+
 /*
+  // PRNG
   // xorshift32
 	x ^= x << 13;
 	x ^= x >> 17;
@@ -824,11 +830,10 @@ __kernel void perft_gpu(
 
   __local s32 movecount;
 
-  __local s32 kingcap;
-
   __local Move lmove;
 
-  __local Bitboard bbAttacks;
+  __local Bitboard bbMeAttacks;
+  __local Bitboard bbOppAttacks;
 
   const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
   const Square lid = (Square)get_local_id(2);
@@ -837,6 +842,7 @@ __kernel void perft_gpu(
   bool color;
   bool kic;
   bool rootkic;
+  bool kingcap;
   bool qs;
   bool stm;
 
@@ -881,9 +887,6 @@ __kernel void perft_gpu(
   sd              = 1;
 
   // inits
-  lmove           = MOVENONE;
-  kingcap         = 0x0;
-
   // init ab search var stack
   localAlphaBetaScores[0*2+ALPHA] =-INF;
   localAlphaBetaScores[0*2+BETA]  = INF;
@@ -918,8 +921,9 @@ __kernel void perft_gpu(
     // reset locals
     movecount = 0;
     lmove = MOVENONE;
-    bbAttacks = BBEMPTY;
-    kingcap = 0x0;
+    bbMeAttacks = BBEMPTY;
+    bbOppAttacks = BBEMPTY;
+    kingcap = false;
     // inits
     n = 0;
     // enter quiescence search?
@@ -927,15 +931,10 @@ __kernel void perft_gpu(
     bbBlockers  = board[QBBP1]|board[QBBP2]|board[QBBP3];
     bbMe        =  (stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     bbOpp       = (!stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
-    // get colored king
-    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
-    // get king square
-    sqking = first1(bbTemp);
     // generate own moves and opposite attacks
     pfrom  = GETPIECE(board, lid);
     color  = GETCOLOR(pfrom);
     bbWork = BBEMPTY;
-
     // dumb7fill for 8 directions
     bbPro  = ~bbBlockers;
     bbPro &= BBNOTAFILE;
@@ -1042,36 +1041,39 @@ __kernel void perft_gpu(
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
     bbMoves|= (color==stm&&!qs)?(bbMask&bbWork&~bbBlockers):BBEMPTY; 
 
-    // collect opp attacks
-// local 64 bit atomics not supported on all devices :(
-/*
+    // collect my attacks
+    bbTmp64[lid] = (color==stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
-    atom_or(&bbAttacks, ((color!=stm)?bbMoves:BBEMPTY));
-    // get king checkers
-    if (color!=stm&&(bbMoves&SETMASKBB(sqking)))
+    if (lid==0)
     {
-      atom_or(&bbCheckers, SETMASKBB(lid));
-      sqchecker = lid;
+      for (int i=0;i<64;i++)
+        bbMeAttacks |= bbTmp64[i];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-*/
+    // collect opp attacks
     bbTmp64[lid] = (color!=stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
     {
       for (int i=0;i<64;i++)
-        bbAttacks |= bbTmp64[i];
+        bbOppAttacks |= bbTmp64[i];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    rootkic = (bbAttacks&SETMASKBB(sqking))?true:false;
+    // get opp king
+    bbTemp = bbOpp&board[QBBP1]&board[QBBP2]&~board[QBBP3];
+    // get king square
+    sqking = first1(bbTemp);
+    // kingcapture?
+    kingcap = (bbMeAttacks&SETMASKBB(sqking))?true:false;
+    // get my king
+    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
+    sqking = first1(bbTemp);
+    // in check?
+    rootkic = (bbOppAttacks&SETMASKBB(sqking))?true:false;
 
-    // extract only own moves
-    bbMoves = (color==stm)?bbMoves:BBEMPTY;
-
-    // kingcapture
-    if (bbMoves&(bbOpp&(board[QBBP1]&board[QBBP2]&~board[QBBP3])))
-      kingcap+=1;
+    // extract only own or valid moves
+    bbMoves = (color!=stm||kingcap)?BBEMPTY:bbMoves;
 
     // gen en passant moves, TODO: reimplement as x64?
     bbTemp = BBEMPTY;
@@ -1111,7 +1113,7 @@ __kernel void perft_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
+    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid-1))|(bbOppAttacks&SETMASKBB(lid-2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
 
@@ -1123,16 +1125,14 @@ __kernel void perft_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
+    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid+1))|(bbOppAttacks&SETMASKBB(lid+2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
     // store move bitboards in global memory for movepicker
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
-    // movecount in local memory
-//    atom_add(&movecount, count1s(bbMoves));
-//    barrier(CLK_LOCAL_MEM_FENCE);
 
+    // store movecount in local temp
     scrTmp64[lid] = count1s(bbMoves);
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect movecount
@@ -1181,6 +1181,7 @@ __kernel void perft_gpu(
       ply--;
       stm = !stm; // switch site to move
       undomove(board, localMoveHistory[sd]);
+      barrier(CLK_GLOBAL_MEM_FENCE);
     }
     if (sd<1)  // this is the end
       break;
@@ -1300,12 +1301,8 @@ __kernel void alphabeta_gpu(
                             __global Move *PV,
                             __global Bitboard *globalbbMoves,
                             __global Hash *HashHistory,
-//                      const __global Bitboard *bbInBetween,
-//                      const __global Bitboard *bbLine,
                             __global TTE *TT1,
                             __global TTE *TT2,
-//                            __global TTE *TT3,
-//                            __global TTE *TT4,
                             __global Move *Killers,
                             __global Move *Counters,
                                const s32 stm_init,
@@ -1336,21 +1333,16 @@ __kernel void alphabeta_gpu(
   __local u8 localHMCHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
 
-  __local bool bresearch;
-
-  __local bool randomize;
-
-  __local bool lexit;
-
-  __local s32 kingcap;
+  __local bool bresearch;   // late move reduction reseach flag
+  __local bool randomize;   // randomize move order flag
+  __local bool lexit;       // exit the main loop flag
 
   __local s32 lscore;
-
   __local s32 movecount;
-
   __local Move lmove;
 
-  __local Bitboard bbAttacks;
+  __local Bitboard bbMeAttacks;
+  __local Bitboard bbOppAttacks;
 
   const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
   const Square lid = (Square)get_local_id(2);
@@ -1359,6 +1351,7 @@ __kernel void alphabeta_gpu(
   bool color;
   bool kic;
   bool rootkic;
+  bool kingcap;
   bool qs;
   bool stm;
 
@@ -1379,7 +1372,7 @@ __kernel void alphabeta_gpu(
   Score score;
   Score tmpscore;
 
-  u32 prn = RNUMBERS[gid*64+lid]; // get init pseudo random number
+  u32 prn = RNUMBERS[gid*64+lid]; // get init pseudo random number, seeded on host
 /*
   // xorshift32 PRNG
 	x ^= x << 13;
@@ -1449,7 +1442,7 @@ __kernel void alphabeta_gpu(
   // ################################
   // ####       main loop        ####
   // ################################
-  while(true)
+  while(!lexit)
   {
     // ################################
     // ####     movegenerator x64  ####
@@ -1459,22 +1452,17 @@ __kernel void alphabeta_gpu(
     movecount = 0;
     lmove = MOVENONE;
     lscore = DRAWSCORE;
-    bbAttacks = BBEMPTY;
-    kingcap = 0x0;
+    bbMeAttacks = BBEMPTY;
+    bbOppAttacks = BBEMPTY;
     // inits
     n = 0;
     bbBlockers  = board[QBBP1]|board[QBBP2]|board[QBBP3];
     bbMe        =  (stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     bbOpp       = (!stm)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
-    // get colored king
-    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
-    // get king square
-    sqking = first1(bbTemp);
     // generate own moves and opposite attacks
     pfrom  = GETPIECE(board, lid);
     color  = GETCOLOR(pfrom);
     bbWork = BBEMPTY;
-
     // dumb7fill for 8 directions
     bbPro  = ~bbBlockers;
     bbPro &= BBNOTAFILE;
@@ -1578,23 +1566,36 @@ __kernel void alphabeta_gpu(
     bbMask  = AttackTables[n*64+lid];
     bbMoves = (color==stm)?(bbMask&bbWork&bbOpp):(bbMask&bbWork);
 
-/*
-    // local 64 bit atomics not supported on all devices :(
+    // collect my attacks
+    bbTmp64[lid] = (color==stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
-    atom_or(&bbAttacks, ((color!=stm)?bbMoves:BBEMPTY));
+    if (lid==0)
+    {
+      for (int i=0;i<64;i++)
+        bbMeAttacks |= bbTmp64[i];
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
-*/
     // collect opp attacks
     bbTmp64[lid] = (color!=stm)?bbMoves:BBEMPTY;
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
     {
       for (int i=0;i<64;i++)
-        bbAttacks |= bbTmp64[i];
+        bbOppAttacks |= bbTmp64[i];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    rootkic = (bbAttacks&SETMASKBB(sqking))?true:false;
+    // get opp king
+    bbTemp = bbOpp&board[QBBP1]&board[QBBP2]&~board[QBBP3];
+    // get king square
+    sqking = first1(bbTemp);
+    // kingcapture?
+    kingcap = (bbMeAttacks&SETMASKBB(sqking))?true:false;
+    // get my king
+    bbTemp = bbMe&board[QBBP1]&board[QBBP2]&~board[QBBP3];
+    sqking = first1(bbTemp);
+    // in check?
+    rootkic = (bbOppAttacks&SETMASKBB(sqking))?true:false;
 
     // depth extension
     if (lid==0
@@ -1620,12 +1621,11 @@ __kernel void alphabeta_gpu(
     bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
     bbMoves|= (color==stm&&!qs)?(bbMask&bbWork&~bbBlockers):BBEMPTY; 
 
-    // extract only own moves
-    bbMoves = (color==stm)?bbMoves:BBEMPTY;
+    // avoid king captures
+    bbMoves &= (GETPTYPE(pfrom)==KING)?~bbOppAttacks:BBFULL;
 
-    // kingcapture
-    if (bbMoves&(bbOpp&(board[QBBP1]&board[QBBP2]&~board[QBBP3])))
-      kingcap+=1;
+    // extract only own or valid moves
+    bbMoves = (color!=stm||kingcap)?BBEMPTY:bbMoves;
 
     // gen en passant moves, TODO: reimplement as x64?
     bbTemp = BBEMPTY;
@@ -1656,8 +1656,7 @@ __kernel void alphabeta_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
-
-    // TODO: speedup
+    // gen caslte moves, TODO: speedup, less registers
     bbTemp = localCrHistory[sd]; // get castle rights via piece moved flags
     // gen castle moves queenside
     tmpb = (lid==sqking&&!qs&&(bbTemp&SMCRALL)&&((stm&&(((~bbTemp)&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~bbTemp)&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
@@ -1666,7 +1665,7 @@ __kernel void alphabeta_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
+    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid-1))|(bbOppAttacks&SETMASKBB(lid-2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
 
@@ -1678,25 +1677,16 @@ __kernel void alphabeta_gpu(
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
+    bbWork =  (bbOppAttacks&SETMASKBB(lid))|(bbOppAttacks&SETMASKBB(lid+1))|(bbOppAttacks&SETMASKBB(lid+2));
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
     // store move bitboards in global memory for movepicker
     globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid] = bbMoves;
 
-    // movecount in local memory
+    // store movecount in local 
     atom_add(&movecount, count1s(bbMoves));
-/*
-    scrTmp64[lid] = count1s(bbMoves);
-    barrier(CLK_LOCAL_MEM_FENCE);
-    // collect movecount
-    if (lid==0)
-    {
-      for (int i=0;i<64;i++)
-        movecount += scrTmp64[i];
-    }
-*/
+
     // store node state in local memory
     if (lid==0)
     {
@@ -1757,19 +1747,8 @@ __kernel void alphabeta_gpu(
       score+= (stm)?-1:1;
     }
 
+    // store score in local
     atom_add(&lscore, score);
-/*
-    // store scores in local memory
-    scrTmp64[lid] = score;
-    barrier(CLK_LOCAL_MEM_FENCE);
-    // collect score
-    if (lid==0)
-    {
-      score = 0;
-      for (int i=0;i<64;i++)
-        score+= scrTmp64[i];
-    }
-*/
     barrier(CLK_LOCAL_MEM_FENCE);
     // #################################
     // ####   negmax and scoring x1  ###
@@ -1815,7 +1794,7 @@ __kernel void alphabeta_gpu(
         // ignore score
         score = -localAlphaBetaScores[(sd-1)*2+ALPHA];
         kingcap = 0x0;
-        COUNTERS[gid*64+0]--;
+        COUNTERS[gid*64+1]--;
       }
       // terminal or leaf node
       if (movecount==0)
@@ -1882,13 +1861,12 @@ __kernel void alphabeta_gpu(
     // undomove x64
     while (
             (
-               // all children searched
-               localTodoIndex[sd]>=localMoveCounter[sd] 
+              // all children searched
+              localTodoIndex[sd]>=localMoveCounter[sd] 
               ||
               // apply alphabeta pruning downwards the tree
               localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
             )
-            &&sd>=1
             &&!bresearch
           ) 
     {
@@ -1898,6 +1876,11 @@ __kernel void alphabeta_gpu(
       stm = !stm; // switch site to move
 
       undomove(board, localMoveHistory[sd]);
+
+      if (sd<1)
+        break;
+
+      barrier(CLK_LOCAL_MEM_FENCE);
 
       // ########################################
       // #### alphabeta negamax scoring++ x1 ####
@@ -1958,6 +1941,7 @@ __kernel void alphabeta_gpu(
             &&move!=MOVENONE
             &&move!=NULLMOVE
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
+            &&localMoveCounter[sd]>0
            )
         {
           bbWork = localHashHistory[sd];    
@@ -1999,6 +1983,7 @@ __kernel void alphabeta_gpu(
             &&move!=MOVENONE
             &&move!=NULLMOVE
             &&GETPCPT(move)==PNONE // quiet moves only
+            &&localMoveCounter[sd]>0
            )
         {
           // save killer move
@@ -2144,27 +2129,7 @@ __kernel void alphabeta_gpu(
     if (lscore==score&&!bresearch&&lmove==MOVENONE)
       lmove = move;
     barrier(CLK_LOCAL_MEM_FENCE);
-/*
-    // store score and move in local memory
-    scrTmp64[lid] = score;
-    bbTmp64[lid] = move;
     barrier(CLK_LOCAL_MEM_FENCE);
-    // collect bestscore and bestmove
-    if (lid==0)
-    {
-      score  = -INFMOVESCORE;
-      for (int i=0;i<64;i++)
-      {
-        tmpscore = scrTmp64[i];
-        if (tmpscore>score)
-        {
-          score = tmpscore;
-          lmove = (Move)bbTmp64[i];
-        }
-      }
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-*/
     // ################################
     // ####         moveup         ####
     // ################################
@@ -2193,6 +2158,7 @@ __kernel void alphabeta_gpu(
     pfrom = GETPIECE(board,lid);
     bbTemp = (GETPTYPE(pfrom))?Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1]:HASHNONE;
     bbTemp = ((bbTemp<<lid)|(bbTemp>>(64-lid))); // rotate left 64
+    // store hash in local temp
     bbTmp64[lid] =  bbTemp;
     // collect hashes
     barrier(CLK_LOCAL_MEM_FENCE);

@@ -35,6 +35,9 @@ extern void read_config();
 bool cl_guess_config(bool extreme)
 {
   bool failed = false;
+  bool fgint32 = false;
+  bool flint32 = false;
+  bool flint64 = false;
   cl_int status = 0;
   size_t paramSize;
   char *deviceName;
@@ -473,6 +476,7 @@ bool cl_guess_config(bool extreme)
         } 
 
         // global in32 atomics
+        fgint32 = false;
         if ((!strstr(ExtensionsValue, "cl_khr_global_int32_base_atomics")))
         {
           fprintf(stdout, "#> Error: Device extension cl_khr_global_int32_base_atomics not supported.\n");
@@ -485,6 +489,7 @@ bool cl_guess_config(bool extreme)
         }
         else
         {
+          fgint32 = true;
           fprintf(stdout, "#> OK, Device extension cl_khr_global_int32_base_atomics is supported.\n");
           if (LogFile)
           {
@@ -514,19 +519,19 @@ bool cl_guess_config(bool extreme)
 */
         
         // local 32 bit atomics
-/*
+        flint32 = false;
         if ((!strstr(ExtensionsValue, "cl_khr_local_int32_base_atomics")))
         {
-          fprintf(stdout, "#> Error: Device extension cl_khr_local_int32_base_atomics not supported.\n");
+          fprintf(stdout, "#> OK: Device extension cl_khr_local_int32_base_atomics not supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Device extension cl_khr_local_int32_base_atomics not supported.\n");
+            fprintf(LogFile, "#> OK: Device extension cl_khr_local_int32_base_atomics not supported.\n");
           }
-          failed |= true;
         }
         else
         {
+          flint32 = true;
           fprintf(stdout, "#> OK, Device extension cl_khr_local_int32_base_atomics is supported.\n");
           if (LogFile)
           {
@@ -535,6 +540,7 @@ bool cl_guess_config(bool extreme)
           }
         }
         // local 32 bit atomics
+/*
         if ((!strstr(ExtensionsValue, "cl_khr_local_int32_extended_atomics")))
         {
           fprintf(stdout, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
@@ -555,20 +561,20 @@ bool cl_guess_config(bool extreme)
           }
         }
 */
-        // 64 bit atomics, removed, Nvidia >= sm35 does not report the support
-/*
+        // 64 bit atomics, Nvidia >= sm35 does not report the support
+        flint64 = false;
         if ((!strstr(ExtensionsValue, "cl_khr_int64_extended_atomics")))
         {
-          fprintf(stdout, "#> Unknown: Device extension cl_khr_int64_extended_atomics maybe not supported.\n");
+          fprintf(stdout, "#> OK: Device extension cl_khr_int64_extended_atomics not supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Unknown: Device extension cl_khr_int64_extended_atomics maybe not supported.\n");
+            fprintf(LogFile, "#> OK: Device extension cl_khr_int64_extended_atomics not supported.\n");
           }
-//          failed |= true;
         }
         else
         {
+          flint64 = true;
           fprintf(stdout, "#> OK, Device extension cl_khr_int64_extended_atomics is supported.\n");
           if (LogFile)
           {
@@ -576,7 +582,11 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_int64_extended_atomics is supported.\n");
           }
         }
-*/
+        // define gpu generation, which kernel to use
+        opencl_gpugen = (fgint32)?1:0;
+        opencl_gpugen = (fgint32&&flint32)?2:opencl_gpugen;
+        opencl_gpugen = (fgint32&&flint32&&flint64)?3:opencl_gpugen;
+
         // get work group size
         status = clGetDeviceInfo (devices[j],
                                   CL_DEVICE_MAX_WORK_GROUP_SIZE,
@@ -954,7 +964,8 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", 1, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
-        fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
+        fprintf(Cfg, "opencl_device_id: %i;\n",j);
+        fprintf(Cfg, "opencl_gpugen: %i;\n\n",opencl_gpugen);
         fprintf(Cfg,"\n");
         fprintf(Cfg,"threadsX\n");
         fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
@@ -971,7 +982,9 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"opencl_platform_id\n");
         fprintf(Cfg,"Which OpenCL platform to use\n");
         fprintf(Cfg,"opencl_device_id\n");
-        fprintf(Cfg,"Which OpenCL device to use\n\n");
+        fprintf(Cfg,"Which OpenCL device to use\n");
+        fprintf(Cfg,"opencl_gpugen\n");
+        fprintf(Cfg,"Which gpgpu generation with specific device features\n\n");
         fclose(Cfg);
 
         fprintf(stdout, "#\n");
@@ -1101,7 +1114,8 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
-            fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
+            fprintf(Cfg, "opencl_device_id: %i;\n",j);
+            fprintf(Cfg, "opencl_gpugen: %i;\n\n",opencl_gpugen);
             fprintf(Cfg,"\n");
             fclose(Cfg);
 
@@ -1172,7 +1186,7 @@ bool cl_guess_config(bool extreme)
         k = strlen(confignamefile);
         sprintf(confignamefile + k , "_%d_%d_", i,j );
         k = strlen(confignamefile);
-        sprintf(confignamefile + k , ".ini");
+        sprintf(confignamefile + k , ".txt");
         remove(confignamefile);
 
         Cfg = fopen(confignamefile, "w");
@@ -1183,7 +1197,8 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
-        fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
+        fprintf(Cfg, "opencl_device_id: %i;\n",j);
+        fprintf(Cfg, "opencl_gpugen: %i;\n\n",opencl_gpugen);
         fprintf(Cfg,"\n");
         fprintf(Cfg,"threadsX\n");
         fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
@@ -1200,7 +1215,9 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"opencl_platform_id\n");
         fprintf(Cfg,"Which OpenCL platform to use\n");
         fprintf(Cfg,"opencl_device_id\n");
-        fprintf(Cfg,"Which OpenCL device to use\n\n");
+        fprintf(Cfg,"Which OpenCL device to use\n");
+        fprintf(Cfg,"opencl_gpugen\n");
+        fprintf(Cfg,"Which gpgpu generation with specific device features\n\n");
         fclose(Cfg);
 
         fprintf(stdout, "#\n");
@@ -1212,7 +1229,8 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
         fprintf(stdout, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
-        fprintf(stdout, "opencl_device_id: %i;\n\n",j);
+        fprintf(stdout, "opencl_device_id: %i;\n",j);
+        fprintf(stdout, "opencl_gpugen: %i;\n\n",opencl_gpugen);
         if (LogFile)
         {
           fprintdate(LogFile);
@@ -1225,18 +1243,19 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
           fprintf(LogFile, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
-          fprintf(LogFile, "opencl_device_id: %i;\n\n",j);
+          fprintf(LogFile, "opencl_device_id: %i;\n",j);
+          fprintf(LogFile, "opencl_gpugen: %i;\n\n",opencl_gpugen);
         }
 
         fprintf(stdout, "##### Above output was saved in file %s \n", confignamefile);
-        fprintf(stdout, "##### rename it to config.ini to let engine use it\n");
+        fprintf(stdout, "##### rename it to config.txt to let engine use it\n");
         fprintf(stdout, "#\n");
         if (LogFile)
         {
           fprintdate(LogFile);
           fprintf(LogFile, "##### Above output was saved in file %s \n", confignamefile);
           fprintdate(LogFile);
-          fprintf(LogFile, "##### rename it to config.ini to let engine use it\n");
+          fprintf(LogFile, "##### rename it to config.txt to let engine use it\n");
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
         }
