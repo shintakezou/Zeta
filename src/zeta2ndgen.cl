@@ -1569,8 +1569,6 @@ __kernel void alphabeta_gpu(
       if (movecount>0
           &&!qs
           &&sd>1 // not on root
-//          &&!(localSearchMode[sd]&NULLMOVESEARCH)
-//          &&localAlphaBetaScores[sd*2+ALPHA]<localAlphaBetaScores[sd*2+BETA]
        )
       {
         bbWork = localHashHistory[sd];    
@@ -1596,9 +1594,6 @@ __kernel void alphabeta_gpu(
             // tt score hit counter
             COUNTERS[gid*64+4]++;      
           }
-          // check for beta cutoff
-          if (localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
-            movecount = 0;
         }
       }
       // store move counter in local memory
