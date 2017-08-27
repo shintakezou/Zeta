@@ -90,6 +90,8 @@ extern const char zeta2ndgen_cl[];
 extern const size_t zeta2ndgen_cl_len;
 extern const char zeta3rdgen_cl[];
 extern const size_t zeta3rdgen_cl_len;
+extern const char zetaperft_cl[];
+extern const size_t zetaperft_cl_len;
 
 #endif // ZETA_H_INCLUDED
 

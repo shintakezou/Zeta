@@ -36,6 +36,7 @@
 #include "zetacl1stgen.h" // OpenCL source file zeta1stgen.cl as string
 #include "zetacl2ndgen.h" // OpenCL source file zeta2ndgen.cl as string
 #include "zetacl3rdgen.h" // OpenCL source file zeta3rdgen.cl as string
+#include "zetaclperft.h"  // OpenCL source file zetaperft.cl as string
 
 #include "zobrist.h"      // random numbers for zobrist hashing
 

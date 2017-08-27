@@ -117,7 +117,52 @@ bool cl_init_device(char *kernelname)
     return false;
   }
   // build OpenCL program object
-  if (program==NULL)
+  if (program==NULL&&strstr(kernelname, "perft_gpu"))
+  {
+    const char *content = zetaperft_cl;
+    const size_t len = zetaperft_cl_len;
+
+    program = clCreateProgramWithSource(
+                            	          context, 
+                                        1, 
+                                        &content,
+                              		      &len,
+                                        &status);
+    if(status!=CL_SUCCESS) 
+    { 
+      print_debug((char *)"Error: Loading Binary into cl_program (clCreateProgramWithBinary)\n");
+      return false;
+    }   
+    // create program for all the devices specified */
+    status = clBuildProgram(program, 1, &devices[opencl_device_id], coptions, NULL, NULL);
+    // get build log and print
+    if(status!=CL_SUCCESS) 
+    { 
+      char* build_log=0;
+      size_t log_size=0;
+      FILE 	*temp=0;
+
+	    print_debug((char *)"Error: Building Program (clBuildProgram)\n");
+      // shows the log
+      // first call to know the proper size
+      clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+      build_log = (char *) malloc(log_size+1);
+      // second call to get the log
+      status = clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
+      //build_log[log_size] = '\0';
+      temp = fopen("zeta.log", "a");
+      fprintdate(temp);
+      fprintf(temp, "buildlog: %s \n", build_log);
+      fclose(temp);
+      if(status!=CL_SUCCESS) 
+      { 
+        print_debug((char *)"Error: Building Log (clGetProgramBuildInfo)\n");
+      }
+      return false;
+    }
+  }
+  // build OpenCL program object
+  if (program==NULL&&strstr(kernelname, "alphabeta_gpu"))
   {
     const char *content = (opencl_gpugen==3)?zeta3rdgen_cl:(opencl_gpugen==2)?zeta2ndgen_cl:zeta1stgen_cl;
     const size_t len = (opencl_gpugen==3)?zeta3rdgen_cl_len:(opencl_gpugen==2)?zeta2ndgen_cl_len:zeta1stgen_cl_len;
