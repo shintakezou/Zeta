@@ -827,6 +827,10 @@ __kernel void alphabeta_gpu(
   // Quadbitboard
   __private Bitboard board[4]; 
 
+  // temporary place holders
+  __local Bitboard bbTmp64[64];
+  __local Score scrTmp64[64];
+
   // iterative var stack
   __local u8 localNodeStates[MAXPLY];
   __local u8 localSearchMode[MAXPLY];
@@ -1321,6 +1325,7 @@ __kernel void alphabeta_gpu(
     // depth extension
     if (lid==0
         &&(localDepth[sd]>=0)
+        &&!(localNodeStates[sd]&LMR)
         &&
         (
           rootkic
@@ -1329,18 +1334,14 @@ __kernel void alphabeta_gpu(
         )
        )
     {
+      // LMR, no check giving moves
+      if (localNodeStates[sd]&LMR)
+      {
+        localDepth[sd]+=LMRR;
+        localNodeStates[sd]^=LMR;
+      }
       localDepth[sd]++;
       localNodeStates[sd] |= EXT;
-    }
-
-    // LMR, no check giving moves
-    if (lid==0  
-        &&rootkic
-        &&localNodeStates[sd]&LMR
-       )
-    {
-      localDepth[sd]+=LMRR;
-      localNodeStates[sd]^=LMR;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1563,9 +1564,9 @@ __kernel void alphabeta_gpu(
         if (
             !ISINF(score)
             &&!ISMATE(score)
+            &&!ISDRAW(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
             &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
-            &&!ISDRAW(score)
            )
         {
           // set alpha
@@ -1713,16 +1714,8 @@ __kernel void alphabeta_gpu(
       } // end scoring x1
       barrier(CLK_LOCAL_MEM_FENCE);
     } // end while movedown loop
-    if (lid==0)
-    {
-      lexit = (sd<1)?true:lexit;  // this is the end
-      lexit = (COUNTERS[1]>max_nodes)?true:lexit; // nodecount based termination
-      lexit = (*finito)?true:lexit; // termination flag by helper threads
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (lexit)
+    if (sd<1)
       break;
-    barrier(CLK_GLOBAL_MEM_FENCE);
     // ################################
     // ####        movepicker      ####
     // ################################
@@ -1844,9 +1837,8 @@ __kernel void alphabeta_gpu(
     // collect bestmove by score
     atom_max(&lscore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (lscore==score&&!bresearch&&lmove==MOVENONE)
+    if (atom_cmpxchg(&lscore,score,score)==score&&!bresearch&&lmove==MOVENONE)
       lmove = move;
-    bbAttacks = HASHNONE; // reset for collecting hashes
     barrier(CLK_LOCAL_MEM_FENCE);
     // ################################
     // ####         moveup         ####
@@ -1872,15 +1864,19 @@ __kernel void alphabeta_gpu(
     sd++;       // increase depth counter
     ply++;      // increase ply counter
     // compute hash x64
+    bbWork = HASHNONE; // set empty hash
     pfrom = GETPIECE(board,lid);
     bbTemp = (GETPTYPE(pfrom))?Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1]:HASHNONE;
     bbTemp = ((bbTemp<<lid)|(bbTemp>>(64-lid))); // rotate left 64
+    // store hash in local temp
+    bbTmp64[lid] =  bbTemp;
     // collect hashes
-    atom_xor(&bbAttacks, bbTemp);
+    // atom_xor has poor performance on GCN 1.0
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lid==0)
     {
-      bbWork = bbAttacks;
+      for (int i=0;i<64;i++)
+        bbWork ^= bbTmp64[i];
 
       // en passant flag
       sqto = ( GETPTYPE(GETPFROM(move))==PAWN
@@ -1968,6 +1964,13 @@ __kernel void alphabeta_gpu(
         localSearchMode[sd] |= LMRSEARCH;
       }
     } // end moveup x1
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (lid==0)
+    {
+      lexit = (sd<1)?true:lexit;  // this is the end
+      lexit = (COUNTERS[1]>max_nodes)?true:lexit; // nodecount based termination
+      lexit = (*finito)?true:lexit; // termination flag by helper threads
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);
   } // end main loop

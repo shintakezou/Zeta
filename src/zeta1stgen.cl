@@ -1348,18 +1348,14 @@ __kernel void alphabeta_gpu(
         )
        )
     {
+      // LMR, no check giving moves
+      if (localNodeStates[sd]&LMR)
+      {
+        localDepth[sd]+=LMRR;
+        localNodeStates[sd]^=LMR;
+      }
       localDepth[sd]++;
       localNodeStates[sd] |= EXT;
-    }
-
-    // LMR, no check giving moves
-    if (lid==0
-        &&rootkic
-        &&localNodeStates[sd]&LMR
-       )
-    {
-      localDepth[sd]+=LMRR;
-      localNodeStates[sd]^=LMR;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1598,9 +1594,9 @@ __kernel void alphabeta_gpu(
         if (
             !ISINF(score)
             &&!ISMATE(score)
+            &&!ISDRAW(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
             &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
-            &&!ISDRAW(score)
            )
         {
           // set alpha
