@@ -82,7 +82,8 @@ typedef struct
 #define EXT             4
 #define LMR             8
 // defaults
-#define VERSION "099e"
+#define VERSION "099f"
+
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
@@ -902,7 +903,6 @@ __kernel void alphabeta_gpu(
   Bitboard bbMoves;
 
   Bitboard bbPinned;
-  Bitboard bbChecked;
 
   Bitboard bbPro;
   Bitboard bbGen; 
@@ -969,7 +969,6 @@ __kernel void alphabeta_gpu(
     bbAttacks   = BBEMPTY;
     bbCheckers  = BBEMPTY;
     bbPinned    = BBEMPTY;
-    bbChecked   = BBEMPTY;
     // inits
     n = 0;
     bbBlockers  = board[QBBP1]|board[QBBP2]|board[QBBP3];
@@ -1040,55 +1039,6 @@ __kernel void alphabeta_gpu(
       bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
-
-      // rooks n queens via dumb7fill
-      bbTemp = BBEMPTY;
-      bbMask = ~(bbBlockers^SETMASKBB(sqking));
-      bbPro  = bbMask;
-      bbPro &= BBNOTAFILE;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen << 1) & bbPro;
-      bbTemp |= bbGen = (bbGen << 1) & bbPro;
-      bbTemp |= bbGen = (bbGen << 1) & bbPro;
-      bbTemp |= bbGen = (bbGen << 1) & bbPro;
-      bbTemp |= bbGen = (bbGen << 1) & bbPro;
-      bbTemp |=         (bbGen << 1) & bbPro;
-      bbChecked |=         (bbTemp<< 1) & BBNOTAFILE;
-
-      bbPro  = bbMask;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen << 8) & bbPro;
-      bbTemp |= bbGen = (bbGen << 8) & bbPro;
-      bbTemp |= bbGen = (bbGen << 8) & bbPro;
-      bbTemp |= bbGen = (bbGen << 8) & bbPro;
-      bbTemp |= bbGen = (bbGen << 8) & bbPro;
-      bbTemp |=         (bbGen << 8) & bbPro;
-      bbChecked |=         (bbTemp<< 8);
-
-      bbPro  = bbMask;
-      bbPro &= BBNOTHFILE;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 1) & bbPro;
-      bbTemp |=         (bbGen >> 1) & bbPro;
-      bbChecked |=         (bbTemp>> 1) & BBNOTHFILE;
-
-      bbPro  = bbMask;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 8) & bbPro;
-      bbTemp |=         (bbGen >> 8) & bbPro;
-      bbChecked |=         (bbTemp>> 8);
     }
 
     // get superking, bishops n queems via dumb7fill
@@ -1151,55 +1101,6 @@ __kernel void alphabeta_gpu(
       bbTemp = bbInBetween[sqto*64+sqking]&bbBlockers;
       if (count1s(bbTemp)==1)
         bbPinned |= bbTemp;
-
-      // bishops n queens via dumb7fill
-      bbPro  = bbMask;
-      bbPro &= BBNOTAFILE;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen << 9) & bbPro;
-      bbTemp |= bbGen = (bbGen << 9) & bbPro;
-      bbTemp |= bbGen = (bbGen << 9) & bbPro;
-      bbTemp |= bbGen = (bbGen << 9) & bbPro;
-      bbTemp |= bbGen = (bbGen << 9) & bbPro;
-      bbTemp |=         (bbGen << 9) & bbPro;
-      bbChecked |=         (bbTemp<< 9) & BBNOTAFILE;
-
-      bbPro  = bbMask;
-      bbPro &= BBNOTHFILE;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen << 7) & bbPro;
-      bbTemp |= bbGen = (bbGen << 7) & bbPro;
-      bbTemp |= bbGen = (bbGen << 7) & bbPro;
-      bbTemp |= bbGen = (bbGen << 7) & bbPro;
-      bbTemp |= bbGen = (bbGen << 7) & bbPro;
-      bbTemp |=         (bbGen << 7) & bbPro;
-      bbChecked |=         (bbTemp<< 7) & BBNOTHFILE;
-
-      bbPro  = bbMask;
-      bbPro &= BBNOTHFILE;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 9) & bbPro;
-      bbTemp |=         (bbGen >> 9) & bbPro;
-      bbChecked |=         (bbTemp>> 9) & BBNOTHFILE;
-
-      bbPro  = bbMask;
-      bbPro &= BBNOTAFILE;
-      bbTemp = bbGen = SETMASKBB(sqto);
-
-      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
-      bbTemp |= bbGen = (bbGen >> 7) & bbPro;
-      bbTemp |=         (bbGen >> 7) & bbPro;
-      bbChecked |=         (bbTemp>> 7) & BBNOTAFILE;
     }
 
     // generate own moves and opposite attacks
@@ -1207,7 +1108,7 @@ __kernel void alphabeta_gpu(
     color  = GETCOLOR(pfrom);
     bbWork = BBEMPTY;
     // dumb7fill for 8 directions
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbPro &= BBNOTAFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
@@ -1219,7 +1120,7 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen << 9) & bbPro;
     bbWork |=         (bbTemp<< 9) & BBNOTAFILE;
 
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbPro &= BBNOTAFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
@@ -1231,7 +1132,7 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen << 1) & bbPro;
     bbWork |=         (bbTemp<< 1) & BBNOTAFILE;
 
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbPro &= BBNOTHFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
@@ -1243,7 +1144,7 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen << 7) & bbPro;
     bbWork |=         (bbTemp<< 7) & BBNOTHFILE;
 
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
     bbTemp |= bbGen = (bbGen << 8) & bbPro;
@@ -1254,7 +1155,7 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen << 8) & bbPro;
     bbWork |=         (bbTemp<< 8);
 
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbPro &= BBNOTHFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
@@ -1266,7 +1167,7 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen >> 9) & bbPro;
     bbWork |=         (bbTemp>> 9) & BBNOTHFILE;
 
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbPro &= BBNOTHFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
@@ -1278,7 +1179,7 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen >> 1) & bbPro;
     bbWork |=         (bbTemp>> 1) & BBNOTHFILE;
 
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbPro &= BBNOTAFILE;
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
@@ -1290,7 +1191,7 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen >> 7) & bbPro;
     bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
 
-    bbPro  = ~bbBlockers;
+    bbPro  = (color==stm)?~bbBlockers:~(bbBlockers^SETMASKBB(sqking));
     bbTemp = bbGen = bbBlockers&SETMASKBB(lid);
 
     bbTemp |= bbGen = (bbGen >> 8) & bbPro;
@@ -1322,6 +1223,12 @@ __kernel void alphabeta_gpu(
     // in check
     rootkic = (bbCheckers)?true:false;
 
+    // LMR, no check giving moves
+    if (lid==0&&rootkic&&localNodeStates[sd]&LMR)
+    {
+      localDepth[sd]+=LMRR;
+      localNodeStates[sd]^=LMR;
+    }
     // depth extension
     if (lid==0
         &&(localDepth[sd]>=0)
@@ -1330,16 +1237,10 @@ __kernel void alphabeta_gpu(
         (
           rootkic
           ||
-          (GETPTYPE(GETPFROM(localMoveHistory[sd]))==PAWN&&GETPTYPE(GETPTO(localMoveHistory[sd]))==QUEEN)
+          (GETPTYPE(GETPFROM(localMoveHistory[sd-1]))==PAWN&&GETPTYPE(GETPTO(localMoveHistory[sd-1]))==QUEEN)
         )
        )
     {
-      // LMR, no check giving moves
-      if (localNodeStates[sd]&LMR)
-      {
-        localDepth[sd]+=LMRR;
-        localNodeStates[sd]^=LMR;
-      }
       localDepth[sd]++;
       localNodeStates[sd] |= EXT;
     }
@@ -1369,8 +1270,6 @@ __kernel void alphabeta_gpu(
     // consider king and opp attacks
     tmpb = (GETPTYPE(pfrom)==KING)?true:false;
     bbMoves &= (tmpb)?~bbAttacks:BBFULL;
-    tmpb = (n>=1&&GETPTYPE(pfrom)==KING)?true:false;
-    bbMoves &= (tmpb)?~bbChecked:BBFULL;
 
     // consider single checker
     tmpb = (n==1&&GETPTYPE(pfrom)!=KING)?true:false;
@@ -1505,7 +1404,7 @@ __kernel void alphabeta_gpu(
       // negamaxed scores
       score = (stm)?-lscore:lscore;
       // checkmate
-      score = (!qs&&rootkic&&movecount==0)?-INF+sd:score;
+      score = (!qs&&rootkic&&movecount==0)?-INF+(sd-1):score;
       // stalemate
       score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
