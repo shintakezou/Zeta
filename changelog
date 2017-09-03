@@ -1,3 +1,9 @@
+Zeta (099f) alpha; urgency=low
+
+  * bugfix in move generation
+
+ -- Srdja Matovic <s.matovic@app26.de> Sep 2017
+
 Zeta (099e) alpha; urgency=low
 
   * cleanups
