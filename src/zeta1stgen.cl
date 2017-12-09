@@ -65,7 +65,7 @@ typedef struct
 // tunebale search params
 #define NULLR           2 // nullmove pruning reduction
 #define LMRR            1 // late move reduction 
-#define RANDBRO         2 // how many brothers searched before randomized order
+#define RANDBRO         1 // how many brothers searched before randomized order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
@@ -82,7 +82,7 @@ typedef struct
 #define EXT             4
 #define LMR             8
 // defaults
-#define VERSION "099f"
+#define VERSION "099g"
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
@@ -1238,15 +1238,15 @@ __kernel void alphabeta_gpu(
     rootkic = (bbCheckers)?true:false;
 
     // LMR, no check giving moves
-    if (lid==0&&rootkic&&localNodeStates[sd]&LMR)
+    if (lid==0&&rootkic&&(localNodeStates[sd]&LMR))
     {
       localDepth[sd]+=LMRR;
       localNodeStates[sd]^=LMR;
     }
     // depth extension
     if (lid==0
-        &&(localDepth[sd]>=0)
-        &&!(localNodeStates[sd]&LMR)
+        &&!(localNodeStates[sd-1]&QS)
+        &&(localDepth[sd]>=0) 
         &&
         (
           rootkic
@@ -1555,14 +1555,14 @@ __kernel void alphabeta_gpu(
 
         // nullmove hack, avoid alpha setting, set score only when score >= beta
         if (move==NULLMOVE&&score<localAlphaBetaScores[sd*2+BETA])
-          score = localAlphaBetaScores[sd*2+ALPHA];  // ignore score
+          score = -INF;  // ignore score
 
         // late move reductions hack, init research
         if (localNodeStates[sd+1]&LMR
             &&score>localAlphaBetaScores[sd*2+ALPHA]
             )
         {
-          score = localAlphaBetaScores[sd*2+ALPHA];  // ignore score
+          score = -INF;  // ignore score
           bresearch = true;
         }
 
@@ -1590,7 +1590,6 @@ __kernel void alphabeta_gpu(
             &&flag>FAILLOW
             &&move!=MOVENONE
             &&move!=NULLMOVE
-            &&!(localSearchMode[sd]&NULLMOVESEARCH)
            )
         {
           bbWork = localHashHistory[sd];    
@@ -1661,13 +1660,13 @@ __kernel void alphabeta_gpu(
     {
       // check for nullmove pruning
       if (!bresearch
-          &&sd>2
+          &&sd>1
           &&localMoveHistory[sd]==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
-          &&localDepth[sd]>=4
+          &&!(localNodeStates[sd]&LMR)
           )
       {
         lmove = NULLMOVE;
@@ -1685,7 +1684,7 @@ __kernel void alphabeta_gpu(
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
-          &&localDepth[sd]>1
+          &&localDepth[sd]>0
           &&gid>0
 //          &&sd>1
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
@@ -1744,7 +1743,7 @@ __kernel void alphabeta_gpu(
       tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
       tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
       // MVV-LVA
-      tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
+      tmpscore = (GETPTYPE(pcpt)!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
       // check counter move heuristic
       if (countermove==tmpmove)
       {
@@ -1759,6 +1758,7 @@ __kernel void alphabeta_gpu(
       if (tmpb)
       {
         tmpscore = prn%INF;
+//        tmpscore = (GETPCPT(move)==PNONE)?tmpscore:tmpscore*INF;
       }
       // check tt move
       if (ttmove==tmpmove)
@@ -1888,7 +1888,7 @@ __kernel void alphabeta_gpu(
       {
         localTodoIndex[sd-1]--;
         localSearchMode[sd]              |= NULLMOVESEARCH;
-        localDepth[sd]                    = localDepth[sd]-NULLR; // dept reduction
+        localDepth[sd]                   -= NULLR; // dept reduction
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
         localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
       }
@@ -1901,14 +1901,14 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&QS)
          &&!(localNodeStates[sd-1]&KIC)
          &&!(localNodeStates[sd-1]&EXT)
+//         &&!(localSearchMode[sd]&NULLMOVESEARCH)
 //         &&!(localSearchMode[sd-1]&LMRSEARCH)
-         &&localDepth[sd]>=2
-         &&localTodoIndex[sd-1]>2 // previous moves searched
-         &&count1s(board[QBBBLACK])>=2
-         &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
+//         &&localDepth[sd]>0
+         &&localTodoIndex[sd-1]>RANDBRO // previous moves searched
+         &&count1s(board[QBBP1]|board[QBBP2]|board[QBBP3])>=4
         )
       {
-        localDepth[sd]  = localDepth[sd]-LMRR; // depth reduction
+        localDepth[sd]      -= LMRR; // depth reduction
         localNodeStates[sd] |= LMR;
         localSearchMode[sd] |= LMRSEARCH;
       }

@@ -1464,7 +1464,6 @@ __kernel void alphabeta_gpu(
       if (movecount>0
           &&!qs
           &&sd>1 // not on root
-//          &&!(localSearchMode[sd]&NULLMOVESEARCH)
        )
       {
         bbWork = localHashHistory[sd];    
@@ -1575,7 +1574,6 @@ __kernel void alphabeta_gpu(
             &&flag>FAILLOW
             &&move!=MOVENONE
             &&move!=NULLMOVE
-//            &&!(localSearchMode[sd]&NULLMOVESEARCH)
            )
         {
           bbWork = localHashHistory[sd];    
