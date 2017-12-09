@@ -1646,7 +1646,7 @@ __kernel void alphabeta_gpu(
     {
       lexit = (sd<1)?true:lexit;  // this is the end
       lexit = (COUNTERS[1]>max_nodes)?true:lexit; // nodecount based termination
-      lexit = (*finito)?true:lexit; // termination flag by helper threads
+      lexit = (atom_cmpxchg(finito,0,0)>0)?true:lexit; // termination flag by helper threads
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lexit)
