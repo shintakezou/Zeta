@@ -1,3 +1,11 @@
+Zeta (099g) alpha; urgency=low
+
+  * mod in search termination, gives now linear nps scaling on AMD GCN devices
+  * fix in nullmovepruning
+  * fix in late move reductions
+
+ -- Srdja Matovic <s.matovic@app26.de> Dez 2017
+
 Zeta (099f) alpha; urgency=low
 
   * bugfix in move generation
