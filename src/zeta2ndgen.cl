@@ -1474,12 +1474,13 @@ __kernel void alphabeta_gpu(
 
         if (slots>=1)
           TT = TT1[bbTemp];
-        if (slots>=1&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
+        if (slots>=1&&(TT.hash==(bbWork^(Hash)TT.bestmove))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
           score = (Score)TT.score;
         if (slots>=2)
           TT = TT2[bbTemp];
-        if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
+        if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
           score = (Score)TT.score;
+
         if (
             !ISINF(score)
             &&!ISMATE(score)
@@ -1585,7 +1586,7 @@ __kernel void alphabeta_gpu(
           bbWork = localHashHistory[sd];    
           bbTemp = bbWork&(ttindex-1);
           // xor trick for avoiding race conditions
-          bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
+          bbMask = bbWork^(Hash)move;
 
           // slot 1, always replace
           if (slots>=1)
@@ -1604,7 +1605,7 @@ __kernel void alphabeta_gpu(
                (slots>=2&&(u8)localDepth[sd]>TT.depth)
                ||
                (slots>=2&&(u8)localDepth[sd]>=TT.depth
-                &&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth)
+                &&TT.hash==(bbWork^(Hash)TT.bestmove)
                 &&score>TT.score
                )
              ) 
@@ -1705,11 +1706,11 @@ __kernel void alphabeta_gpu(
     bbTemp = bbWork&(ttindex-1);
     if (slots>=1)
       TT = TT1[bbTemp];
-    if (slots>=1&&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
+    if (slots>=1&&TT.hash==(bbWork^(Hash)TT.bestmove))
       ttmove = TT.bestmove;
     if (slots>=2)
       TT = TT2[bbTemp];
-    if (slots>=2&&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
+    if (slots>=2&&TT.hash==(bbWork^(Hash)TT.bestmove))
       ttmove = TT.bestmove;
     n       = 0;
     move    = MOVENONE;
@@ -1925,14 +1926,14 @@ __kernel void alphabeta_gpu(
       bbTemp = bbWork&(ttindex-1);
       if (slots>=1)
         TT = TT1[bbTemp];
-      if (slots>=1&&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
+      if (slots>=1&&TT.hash==(bbWork^(Hash)TT.bestmove))
       {
         score = (Score)TT.score;
         tmpmove = TT.bestmove;
       }
       if (slots>=2)
         TT = TT2[bbTemp];
-      if (slots>=2&&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
+      if (slots>=2&&TT.hash==(bbWork^(Hash)TT.bestmove))
       {
         score = (Score)TT.score;
         tmpmove = TT.bestmove;
