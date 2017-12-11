@@ -1567,6 +1567,7 @@ __kernel void alphabeta_gpu(
             &&flag>FAILLOW
             &&move!=MOVENONE
             &&move!=NULLMOVE
+            &&!(localSearchMode[sd]&NULLMOVESEARCH)
            )
         {
           bbWork = localHashHistory[sd];    
