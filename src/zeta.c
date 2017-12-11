@@ -3208,22 +3208,22 @@ int main(int argc, char* argv[])
           threadsY*=2; 
       }
       // print results
-      fprintf(stdout,"### workers\t#nps\t\t#nps speedup\t#time in s\t#time to depth speedup ###\n");
-      fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1);
+      fprintf(stdout,"### workers\t#nps\t\t#nps speedup\t#time in s\t#ttd speedup \t#relative speedup ###\n");
+      fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1, (double)1);
       if (LogFile)
       {
         fprintdate(LogFile);
-        fprintf(LogFile,"### workers\t#nps\t\t#nps speedup\t#time in s\t#time to depth speedup ###\n");
+        fprintf(LogFile,"### workers\t#nps\t\t#nps speedup\t#time in s\t#ttd speedup\t#relative speedup ###\n");
         fprintdate(LogFile);
-        fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1);
+        fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1, (double)1);
       }
       for (int i=1;i<iter;i++)
       {
-        fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i]);
+        fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i], timearr[i-1]/timearr[i]);
         if (LogFile)
         {
           fprintdate(LogFile);
-          fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i]);
+          fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i], timearr[i-1]/timearr[i]);
         }
        
       }
