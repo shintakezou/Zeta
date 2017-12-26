@@ -1501,8 +1501,10 @@ __kernel void alphabeta_gpu(
 
         if (
             !ISINF(score)
+            &&!ISMATE(score)
             &&!ISDRAW(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
+            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
         {
           // set alpha
@@ -1525,6 +1527,7 @@ __kernel void alphabeta_gpu(
             &&!ISMATE(score)
             &&!ISDRAW(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
+            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
         {
           // set alpha
@@ -1742,20 +1745,21 @@ __kernel void alphabeta_gpu(
     Move killermove = Killers[gid*MAXPLY+sd];
     Move countermove = Counters[gid*64*64+GETSQFROM(move)*64+GETSQTO(move)];
     // load move from transposition table
-    Move ttmove = MOVENONE;
+    Move ttmove1 = MOVENONE;
+    Move ttmove2 = MOVENONE;
     bbWork = localHashHistory[sd];    
     bbTemp = bbWork&(ttindex-1);
     if (slots>=1)
     {
       TT = TT1[bbTemp];
       if (TT.hash==(bbWork^(Hash)TT.bestmove))
-        ttmove = TT.bestmove;
+        ttmove1 = TT.bestmove;
     }
     if (slots>=2)
     {
       TT = TT2[bbTemp];
       if (TT.hash==(bbWork^(Hash)TT.bestmove))
-        ttmove = TT.bestmove;
+        ttmove2 = TT.bestmove;
     }
     n       = 0;
     move    = MOVENONE;
@@ -1805,7 +1809,14 @@ __kernel void alphabeta_gpu(
 //        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF;
       }
       // check tt move
-      if (ttmove==tmpmove)
+      if (ttmove1==tmpmove&&ttmove1!=ttmove2)
+      {
+        tmpscore = INFMOVESCORE-200; // score as second highest move
+        // TThits counter
+        COUNTERS[gid*64+3]++;      
+      }
+      // check tt move
+      if (ttmove2==tmpmove)
       {
         tmpscore = INFMOVESCORE-100; // score as highest move
         // TThits counter
