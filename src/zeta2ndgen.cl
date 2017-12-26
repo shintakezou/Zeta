@@ -1487,6 +1487,7 @@ __kernel void alphabeta_gpu(
       // set alpha with ttscore from hash table, TODO: a bit unstable, fix it
       if (movecount>0
           &&!qs
+          &&!evasion
           &&sd>1 // not on root
        )
       {
@@ -1498,6 +1499,25 @@ __kernel void alphabeta_gpu(
           TT = TT1[bbTemp];
         if (slots>=1&&(TT.hash==(bbWork^(Hash)TT.bestmove))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
           score = (Score)TT.score;
+
+        if (
+            !ISINF(score)
+            &&!ISMATE(score)
+            &&!ISDRAW(score)
+            &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
+            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
+           )
+        {
+          // set alpha
+          if (score>localAlphaBetaScores[sd*2+ALPHA])
+          {
+            localAlphaBetaScores[sd*2+ALPHA] = score;
+            // tt score hit counter
+            COUNTERS[gid*64+4]++;      
+          }
+        }
+
+        score  = -INF;
         if (slots>=2)
           TT = TT2[bbTemp];
         if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
@@ -1604,6 +1624,7 @@ __kernel void alphabeta_gpu(
             &&move!=MOVENONE
             &&move!=NULLMOVE
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
+            &&!(localNodeStates[sd+1]&LMR)
            )
         {
           bbWork = localHashHistory[sd];    
@@ -1619,7 +1640,7 @@ __kernel void alphabeta_gpu(
             TT.score     = (TTScore)score;
             TT.flag      = flag;
             TT.depth     = (u8)localDepth[sd];
-            TT1[bbTemp] = TT;
+            TT1[bbTemp]  = TT;
           }
           if (slots>=2)
             TT = TT2[bbTemp]; 
@@ -1638,7 +1659,7 @@ __kernel void alphabeta_gpu(
             TT.score     = (TTScore)score;
             TT.flag      = flag;
             TT.depth     = (u8)localDepth[sd];
-            TT2[bbTemp] = TT;
+            TT2[bbTemp]  = TT;
           }
         } // end save to hash table
         // save killer and counter move heuristic for quiet moves
@@ -1718,7 +1739,6 @@ __kernel void alphabeta_gpu(
     // ####     movepicker x64     ####
     // ################################
     // move picker, extract moves x64 parallel
-    tmpb = randomize;
     // get moves from global stack
     bbMoves = globalbbMoves[gid*MAXPLY*64+sd*64+(s32)lid];
     move = localMoveHistory[sd-1];
@@ -1730,13 +1750,17 @@ __kernel void alphabeta_gpu(
     bbWork = localHashHistory[sd];    
     bbTemp = bbWork&(ttindex-1);
     if (slots>=1)
+    {
       TT = TT1[bbTemp];
-    if (slots>=1&&TT.hash==(bbWork^(Hash)TT.bestmove))
-      ttmove = TT.bestmove;
+      if (TT.hash==(bbWork^(Hash)TT.bestmove))
+        ttmove = TT.bestmove;
+    }
     if (slots>=2)
+    {
       TT = TT2[bbTemp];
-    if (slots>=2&&TT.hash==(bbWork^(Hash)TT.bestmove))
-      ttmove = TT.bestmove;
+      if (TT.hash==(bbWork^(Hash)TT.bestmove))
+        ttmove = TT.bestmove;
+    }
     n       = 0;
     move    = MOVENONE;
     score  = -INFMOVESCORE;
@@ -1779,7 +1803,7 @@ __kernel void alphabeta_gpu(
         tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; // score as highest quiet move
       }
       // lazy smp, randomize move order
-      if (tmpb)
+      if (randomize)
       {
         tmpscore = (prn%INF)+INF;
 //        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF;
@@ -1950,18 +1974,22 @@ __kernel void alphabeta_gpu(
       tmpmove = MOVENONE;
       bbTemp = bbWork&(ttindex-1);
       if (slots>=1)
-        TT = TT1[bbTemp];
-      if (slots>=1&&TT.hash==(bbWork^(Hash)TT.bestmove))
       {
-        score = (Score)TT.score;
-        tmpmove = TT.bestmove;
+        TT = TT1[bbTemp];
+        if (TT.hash==(bbWork^(Hash)TT.bestmove))
+        {
+          score = (Score)TT.score;
+          tmpmove = TT.bestmove;
+        }
       }
       if (slots>=2)
-        TT = TT2[bbTemp];
-      if (slots>=2&&TT.hash==(bbWork^(Hash)TT.bestmove))
       {
-        score = (Score)TT.score;
-        tmpmove = TT.bestmove;
+        TT = TT2[bbTemp];
+        if (TT.hash==(bbWork^(Hash)TT.bestmove))
+        {
+          score = (Score)TT.score;
+          tmpmove = TT.bestmove;
+        }
       }
       // set score
       if (tmpmove!=MOVENONE&&n==0)
