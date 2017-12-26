@@ -1502,10 +1502,8 @@ __kernel void alphabeta_gpu(
 
         if (
             !ISINF(score)
-            &&!ISMATE(score)
             &&!ISDRAW(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
         {
           // set alpha
@@ -1528,7 +1526,6 @@ __kernel void alphabeta_gpu(
             &&!ISMATE(score)
             &&!ISDRAW(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
         {
           // set alpha
