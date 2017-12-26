@@ -829,7 +829,6 @@ __kernel void alphabeta_gpu(
 
   // temporary place holders
   __local Bitboard bbTmp64[64];
-  __local Score scrTmp64[64];
 
   __local TTE TT;
 
