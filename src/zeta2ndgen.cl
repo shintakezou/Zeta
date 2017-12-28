@@ -62,6 +62,7 @@ typedef struct
   u8 flag;
   u8 depth;
 } TTE;
+
 // tunebale search params
 #define NULLR           2 // nullmove pruning reduction
 #define LMRR            1 // late move reduction 
@@ -186,10 +187,15 @@ typedef struct
                            |  (((board[QBBP3]>>(sq))&0x1)<<2) \
                              )
 // file enumeration
-enum Files
-{
-  FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NONE
-};
+#define FILE_A              0
+#define FILE_B              1
+#define FILE_C              2
+#define FILE_D              3
+#define FILE_E              4
+#define FILE_F              5
+#define FILE_G              6
+#define FILE_H              7
+// file bitmasks
 #define BBFILEA             0x0101010101010101UL
 #define BBFILEB             0x0202020202020202UL
 #define BBFILEC             0x0404040404040404UL
@@ -201,10 +207,15 @@ enum Files
 #define BBNOTHFILE          0x7F7F7F7F7F7F7F7FUL
 #define BBNOTAFILE          0xFEFEFEFEFEFEFEFEUL
 // rank enumeration
-enum Ranks
-{
-  RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NONE
-};
+#define RANK_1              0
+#define RANK_2              1
+#define RANK_3              2
+#define RANK_4              3
+#define RANK_5              4
+#define RANK_6              5
+#define RANK_7              6
+#define RANK_8              7
+// rank bitmasks
 #define BBRANK7             0x00FF000000000000UL
 #define BBRANK5             0x000000FF00000000UL
 #define BBRANK4             0x00000000FF000000UL
@@ -921,8 +932,6 @@ __kernel void alphabeta_gpu(
 
   // inits
   lexit           = false;
-  lmove           = MOVENONE;
-  randomize       = false;
 
   // init ab search var stack
   localAlphaBetaScores[0*2+ALPHA] =-INF;
@@ -962,6 +971,7 @@ __kernel void alphabeta_gpu(
   {
     standpat = false;
     evasion = false;
+    randomize = false;
     bresearch = false;
     movecount = 0;
     lmove = MOVENONE;
@@ -978,6 +988,7 @@ __kernel void alphabeta_gpu(
       localDepth[sd]+=LMRR;
       localNodeStates[sd]^=LMR;
     }
+
     // depth extension
     if (lid==0
         &&
@@ -989,8 +1000,8 @@ __kernel void alphabeta_gpu(
        )
     {
       localDepth[sd]++;
-      evasion = (localDepth[sd]<=0)?true:false;
-      localDepth[sd] = (evasion)?1:localDepth[sd];
+      evasion = (localDepth[sd]<=0&&rootkic)?true:false;
+      localDepth[sd] = (localDepth[sd]<=0)?1:localDepth[sd];
       localNodeStates[sd] |= EXT;
     }
 
@@ -1452,13 +1463,13 @@ __kernel void alphabeta_gpu(
     {
       score = evalscore;
       // checkmate
-      score = (rootkic&&movecount==0)?-INF+(sd-1):score;
+      score = (rootkic&&movecount==0)?-INF+ply:score;
       // stalemate
       score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
       // draw by 3 fold repetition, x1
       bbWork = localHashHistory[sd];
-      for (n=ply+ply_init-2;lid==0&&!qs&&sd>1&&n>=0&&n>=ply+ply_init-(s32)localHMCHistory[sd];n-=2)
+      for (n=ply+ply_init-2;lid==0&&movecount>0&&!qs&&sd>1&&n>=0&&n>=ply+ply_init-(s32)localHMCHistory[sd];n-=2)
       {
         if (bbWork==HashHistory[gid*MAXGAMEPLY+n])
         {
@@ -1483,7 +1494,7 @@ __kernel void alphabeta_gpu(
       if (movecount==0)
         localAlphaBetaScores[sd*2+ALPHA]=score;
 
-      // set alpha with ttscore from hash table, TODO: a bit unstable, fix it
+      // update alpha with ttscore from hash table
       if (movecount>0
           &&!qs
           &&!evasion
@@ -1496,13 +1507,13 @@ __kernel void alphabeta_gpu(
 
         if (slots>=1)
           TT = TT1[bbTemp];
-        if (slots>=1&&(TT.hash==(bbWork^(Hash)TT.bestmove))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
+        if (slots>=1&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
           score = (Score)TT.score;
 
         if (
             !ISINF(score)
-            &&!ISMATE(score)
             &&!ISDRAW(score)
+            &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
             &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
@@ -1519,13 +1530,13 @@ __kernel void alphabeta_gpu(
         score  = -INF;
         if (slots>=2)
           TT = TT2[bbTemp];
-        if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
+        if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
           score = (Score)TT.score;
 
         if (
             !ISINF(score)
-            &&!ISMATE(score)
             &&!ISDRAW(score)
+            &&!ISMATE(score)
             &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
             &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
@@ -1607,7 +1618,7 @@ __kernel void alphabeta_gpu(
           if (sd==1&&gid==0&&move!=MOVENONE&&move!=NULLMOVE)
           {
             PV[0] = (u64)score;
-            PV[1] = move;
+            PV[1] = (u64)move;
           }
         }
         if (score>=localAlphaBetaScores[sd*2+BETA])
@@ -1629,7 +1640,7 @@ __kernel void alphabeta_gpu(
           bbWork = localHashHistory[sd];    
           bbTemp = bbWork&(ttindex-1);
           // xor trick for avoiding race conditions
-          bbMask = bbWork^(Hash)move;
+          bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
 
           // slot 1, always replace
           if (slots>=1)
@@ -1648,8 +1659,8 @@ __kernel void alphabeta_gpu(
                (slots>=2&&(u8)localDepth[sd]>TT.depth)
                ||
                (slots>=2&&(u8)localDepth[sd]>=TT.depth
-                &&TT.hash==(bbWork^(Hash)TT.bestmove)
-                &&score>TT.score
+                &&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth)
+                &&score>(Score)TT.score
                )
              ) 
          {
@@ -1726,7 +1737,7 @@ __kernel void alphabeta_gpu(
           &&localDepth[sd]>0
           &&gid>0
 //          &&sd>1
-//          &&sd<=((gid/2)%search_depth)+1
+          &&sd<=((gid/2)%search_depth)+1
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
@@ -1752,13 +1763,13 @@ __kernel void alphabeta_gpu(
     if (slots>=1)
     {
       TT = TT1[bbTemp];
-      if (TT.hash==(bbWork^(Hash)TT.bestmove))
+      if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
         ttmove1 = TT.bestmove;
     }
     if (slots>=2)
     {
       TT = TT2[bbTemp];
-      if (TT.hash==(bbWork^(Hash)TT.bestmove))
+      if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
         ttmove2 = TT.bestmove;
     }
     n       = 0;
@@ -1806,7 +1817,7 @@ __kernel void alphabeta_gpu(
       if (randomize)
       {
         tmpscore = (prn%INF)+INF;
-//        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF;
+//        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF; // captures first
       }
       // check tt move
       if (ttmove1==tmpmove&&ttmove1!=ttmove2)
@@ -1835,10 +1846,10 @@ __kernel void alphabeta_gpu(
     // ################################
     // ####         moveup         ####
     // ################################
+    // move up in tree
     move = lmove;
     if (lid==0&&!bresearch)
     {
-      // move up in tree
       // clear move from bb moves
       if (move!=NULLMOVE&&move!=MOVENONE)
       {
@@ -1850,11 +1861,13 @@ __kernel void alphabeta_gpu(
       localTodoIndex[sd]++;
       localMoveHistory[sd]    = move;
     }
+
     // domove x64
     domove(board, move);
     stm = !stm; // switch site to move
     sd++;       // increase depth counter
     ply++;      // increase ply counter
+
     // compute hash x64
     bbWork = HASHNONE; // set empty hash
     pfrom = GETPIECE(board,lid);
@@ -1862,10 +1875,13 @@ __kernel void alphabeta_gpu(
     bbTemp = ((bbTemp<<lid)|(bbTemp>>(64-lid))); // rotate left 64
     // store hash in local temp
     bbTmp64[lid] =  bbTemp;
-    // collect hashes
+
     barrier(CLK_LOCAL_MEM_FENCE);
+
+    // moveup x1
     if (lid==0)
     {
+      // collect hashes
       for (int i=0;i<64;i++)
         bbWork ^= bbTmp64[i];
 
@@ -1962,9 +1978,13 @@ __kernel void alphabeta_gpu(
   // ####      collect pv        ####
   // ################################
   if (lid==0) // early bird
-    atom_inc(finito);    // set termination flag
+    n = (s32)atom_inc(finito);    // set termination flag
+
+  barrier(CLK_LOCAL_MEM_FENCE);
+  barrier(CLK_GLOBAL_MEM_FENCE);
+
   // collect pv for gui output
-  if (gid==0&&lid==0)
+  if (lid==0&&n==0)
   {
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
@@ -1973,50 +1993,54 @@ __kernel void alphabeta_gpu(
     board[QBBP3]    = BOARD[QBBP3];
     bbWork          = BOARD[QBBHASH]; // hash
     bbMask          = BOARD[QBBPMVD]; // bb castle rights
+    bbTemp          = bbWork&(ttindex-1);
     stm             = (bool)stm_init;
-    n = 0;
+    n               = 1;
+
     do
     {
-      // load ttmove from hash table
       tmpmove = MOVENONE;
-      bbTemp = bbWork&(ttindex-1);
+      score = -INF;
+
+      // load ttmove from hash table
       if (slots>=1)
       {
         TT = TT1[bbTemp];
-        if (TT.hash==(bbWork^(Hash)TT.bestmove))
+        if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
         {
           score = (Score)TT.score;
           tmpmove = TT.bestmove;
         }
       }
-      if (slots>=2)
+      if (slots>=2&&ISINF(score))
       {
         TT = TT2[bbTemp];
-        if (TT.hash==(bbWork^(Hash)TT.bestmove))
+        if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
         {
           score = (Score)TT.score;
           tmpmove = TT.bestmove;
         }
       }
-      // set score
-      if (tmpmove!=MOVENONE&&n==0)
-        PV[n] = (Move)score;
-      n++;
-      // set bestmove
-      if (tmpmove!=MOVENONE&&n>=1)
-        PV[n] = tmpmove;
-      if (tmpmove!=MOVENONE)
-      {
-        domove(board, tmpmove);
-        stm = !stm;
-        // set piece moved flags for castle right
-        bbMask  |= SETMASKBB(GETSQFROM(tmpmove));
-        bbMask  |= SETMASKBB(GETSQTO(tmpmove));
-        bbMask  |= SETMASKBB(GETSQCPT(tmpmove));
-        // compute hash x1
-        bbWork = computehash(board, stm, tmpmove, bbMask);
-      }
-    }while(tmpmove!=MOVENONE&&n<MAXPLY);
+
+      if (tmpmove==MOVENONE||ISINF(score))
+        break;
+
+      if (n==1)
+        PV[0] = (u64)score;
+
+      PV[n] = (u64)tmpmove;
+
+      domove(board, tmpmove);
+      stm = !stm;
+      // set piece moved flags for castle right
+      bbMask  |= SETMASKBB(GETSQFROM(tmpmove));
+      bbMask  |= SETMASKBB(GETSQTO(tmpmove));
+      bbMask  |= SETMASKBB(GETSQCPT(tmpmove));
+      // compute hash x1
+      bbWork = computehash(board, stm, tmpmove, bbMask);
+      bbTemp = bbWork&(ttindex-1);
+
+    }while(++n<MAXPLY);
   } // end collect pv
 } // end kernel alphabeta_gpu
 
