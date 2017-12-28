@@ -164,8 +164,14 @@ bool cl_init_device(char *kernelname)
   // build OpenCL program object
   if (program==NULL&&strstr(kernelname, "alphabeta_gpu"))
   {
+
+// gpugen deprecated, now inlined preprocessor directives in zeta.cl
+/*
     const char *content = (opencl_gpugen==3)?zeta3rdgen_cl:(opencl_gpugen==2)?zeta2ndgen_cl:zeta1stgen_cl;
     const size_t len = (opencl_gpugen==3)?zeta3rdgen_cl_len:(opencl_gpugen==2)?zeta2ndgen_cl_len:zeta1stgen_cl_len;
+*/
+    const char *content = zeta_cl;
+    const size_t len = zeta_cl_len;
 
     program = clCreateProgramWithSource(
                             	          context, 

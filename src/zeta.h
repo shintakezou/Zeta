@@ -84,14 +84,19 @@ cl_platform_id platform;
 cl_uint deviceListSize;
 cl_context_properties cps[3];
 // zeta.cl as zetacl.h
+extern const char zeta_cl[];
+extern const size_t zeta_cl_len;
+extern const char zetaperft_cl[];
+extern const size_t zetaperft_cl_len;
+
+/* deprecated
 extern const char zeta1stgen_cl[];
 extern const size_t zeta1stgen_cl_len;
 extern const char zeta2ndgen_cl[];
 extern const size_t zeta2ndgen_cl_len;
 extern const char zeta3rdgen_cl[];
 extern const size_t zeta3rdgen_cl_len;
-extern const char zetaperft_cl[];
-extern const size_t zetaperft_cl_len;
+*/
 
 #endif // ZETA_H_INCLUDED
 

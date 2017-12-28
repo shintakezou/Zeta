@@ -29,16 +29,10 @@
 #include "timer.h"
 #include "types.h"
 
-// different opencl devices with different feature sets
-// 1st gen => global int32 atomics
-// 2nd gen => local int32 atomics
-// 3rd gen => local int64 extended atomics
-#include "zetacl1stgen.h" // OpenCL source file zeta1stgen.cl as string
-#include "zetacl2ndgen.h" // OpenCL source file zeta2ndgen.cl as string
-#include "zetacl3rdgen.h" // OpenCL source file zeta3rdgen.cl as string
-#include "zetaclperft.h"  // OpenCL source file zetaperft.cl as string
+#include "zetacl.h"        // OpenCL source file zeta.cl as string
+#include "zetaclperft.h"   // OpenCL source file zetaperft.cl as string
 
-#include "zobrist.h"      // random numbers for zobrist hashing
+#include "zobrist.h"       // random numbers for zobrist hashing
 
 // global variables
 FILE *LogFile = NULL;         // logfile for debug
