@@ -1770,8 +1770,6 @@ __kernel void alphabeta_gpu(
           &&!(localNodeStates[sd]&EXT)
           &&localDepth[sd]>0
           &&gid>0
-//          &&sd>1
-          &&sd<=((gid/2)%search_depth)+1
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
@@ -1854,14 +1852,14 @@ __kernel void alphabeta_gpu(
 //        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF; // captures first
       }
       // check tt move
-      if (ttmove1==tmpmove&&ttmove1!=ttmove2)
+      if (ttmove2==tmpmove&&ttmove2!=ttmove1)
       {
         tmpscore = INFMOVESCORE-200; // score as second highest move
         // TThits counter
         COUNTERS[gid*64+3]++;      
       }
       // check tt move
-      if (ttmove2==tmpmove)
+      if (ttmove1==tmpmove)
       {
         tmpscore = INFMOVESCORE-100; // score as highest move
         // TThits counter
