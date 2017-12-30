@@ -1583,7 +1583,7 @@ __kernel void alphabeta_gpu(
             COUNTERS[gid*64+4]++;      
           }
         }
-      }
+      } // end update alpha x1
     } // end ab flow x1
     if (lid==0)
     {
@@ -1651,8 +1651,8 @@ __kernel void alphabeta_gpu(
           // collect bestmove and score
           if (sd==1&&gid==0&&move!=MOVENONE&&move!=NULLMOVE)
           {
-            PV[0] = (u64)score;
-            PV[1] = (u64)move;
+            PV[0] = (Move)score;
+            PV[1] = (Move)move;
           }
         }
         if (score>=localAlphaBetaScores[sd*2+BETA])
@@ -1770,6 +1770,7 @@ __kernel void alphabeta_gpu(
           &&!(localNodeStates[sd]&EXT)
           &&localDepth[sd]>0
           &&gid>0
+          &&sd<=((gid/2)%search_depth)+1
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
@@ -1852,14 +1853,14 @@ __kernel void alphabeta_gpu(
 //        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF; // captures first
       }
       // check tt move
-      if (ttmove2==tmpmove&&ttmove2!=ttmove1)
+      if (ttmove1==tmpmove&&ttmove2!=ttmove1)
       {
         tmpscore = INFMOVESCORE-200; // score as second highest move
         // TThits counter
         COUNTERS[gid*64+3]++;      
       }
       // check tt move
-      if (ttmove1==tmpmove)
+      if (ttmove2==tmpmove)
       {
         tmpscore = INFMOVESCORE-100; // score as highest move
         // TThits counter
@@ -1879,7 +1880,7 @@ __kernel void alphabeta_gpu(
 #else
     // store score and move in local temp
     scrTmp64[lid] = score;
-    bbTmp64[lid] = move;
+    bbTmp64[lid] = (u64)move;
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect bestscore and bestmove x1
     if (lid==0)
@@ -1932,7 +1933,7 @@ __kernel void alphabeta_gpu(
     bbTemp = (GETPTYPE(pfrom))?Zobrist[GETCOLOR(pfrom)*6+GETPTYPE(pfrom)-1]:HASHNONE;
     bbTemp = ((bbTemp<<lid)|(bbTemp>>(64-lid))); // rotate left 64
 
-#ifdef cl_khr_int64_extended_atomics && !defined OLDSCHOOL
+#if defined cl_khr_int64_extended_atomics && !defined OLDSCHOOL
     // collect hashes x64
     atom_xor(&bbAttacks, bbTemp);
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2078,7 +2079,7 @@ __kernel void alphabeta_gpu(
           tmpmove = TT.bestmove;
         }
       }
-      if (slots>=2&&ISINF(score))
+      if (slots>=2&&!ISMATE(score))
       {
         TT = TT2[bbTemp];
         if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
@@ -2092,9 +2093,9 @@ __kernel void alphabeta_gpu(
         break;
 
       if (n==1)
-        PV[0] = (u64)score;
+        PV[0] = (Move)score;
 
-      PV[n] = (u64)tmpmove;
+      PV[n] = (Move)tmpmove;
 
       domove(board, tmpmove);
       stm = !stm;
