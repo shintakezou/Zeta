@@ -974,15 +974,15 @@ __kernel void alphabeta_gpu(
   // ################################
   while(!lexit)
   {
-    standpat = false;
-    evasion = false;
-    randomize = false;
-    bresearch = false;
-    movecount = 0;
-    lmove = MOVENONE;
-    evalscore = DRAWSCORE;
-    movescore = -INFMOVESCORE;
-    // reset locals
+    // reset vars
+    standpat    = false;
+    evasion     = false;
+    randomize   = false;
+    bresearch   = false;
+    movecount   = 0;
+    lmove       = MOVENONE;
+    evalscore   = DRAWSCORE;
+    movescore   = -INFMOVESCORE;
     sqchecker   = 0x0;
     bbAttacks   = BBEMPTY;
     bbCheckers  = BBEMPTY;
@@ -1031,38 +1031,40 @@ __kernel void alphabeta_gpu(
     bbMe    =  (color)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     bbOpp   =  (color)?(board[QBBBLACK]^bbBlockers):board[QBBBLACK];
     score= 0;
+    Square sqfrom = (color)?lid:FLIPFLOP(lid);
     // piece bonus
-    score+= (pfrom!=PNONE)?(color)?-10:10:0;
+    score+= (pfrom!=PNONE)?10:0;
     // wood count
-    score+= (pfrom!=PNONE)?(color)?-EvalPieceValues[pfrom]:EvalPieceValues[pfrom]:0;
+    score+= (pfrom!=PNONE)?EvalPieceValues[pfrom]:0;
     // piece square tables
-    score+= (pfrom!=PNONE)?(color)?-EvalTable[pfrom*64+lid]:EvalTable[pfrom*64+FLIPFLOP(lid)]:0;
+    score+= (pfrom!=PNONE)?EvalTable[pfrom*64+sqfrom]:0;
     // square control table
-    score+= (pfrom!=PNONE)?(color)?-EvalControl[lid]:EvalControl[FLIPFLOP(lid)]:0;
+    score+= (pfrom!=PNONE)?EvalControl[sqfrom]:0;
     // simple pawn structure white
-    if (pfrom==PAWN&&color==WHITE)
-    {
-      // blocked
-      score-=(GETRANK(lid)<RANK_8&&(bbOpp&SETMASKBB(lid+8)))?15:0;
-        // chain
-      score+=(GETFILE(lid)<FILE_H&&(bbMask&bbMe&SETMASKBB(lid-7)))?10:0;
-      score+=(GETFILE(lid)>FILE_A&&(bbMask&bbMe&SETMASKBB(lid-9)))?10:0;
-      // column, TODO: popcount based
-      for(sqto=lid-8;sqto>7;sqto-=8)
-        score-=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
-    }
+    // blocked
+    tmpb = (pfrom==PAWN&&color==WHITE)?true:false;
+    score-=(tmpb&&GETRANK(lid)<RANK_8&&(bbOpp&SETMASKBB(lid+8)))?15:0;
+      // chain
+    score+=(tmpb&&GETFILE(lid)<FILE_H&&(bbMask&bbMe&SETMASKBB(lid-7)))?10:0;
+    score+=(tmpb&&GETFILE(lid)>FILE_A&&(bbMask&bbMe&SETMASKBB(lid-9)))?10:0;
+    // column, TODO: popcount based
+    for(sqto=lid-8;sqto>7&&tmpb;sqto-=8)
+      score-=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
+
     // simple pawn structure black
-    if (pfrom==PAWN&&color==BLACK)
-    {
-      // blocked
-      score+=(GETRANK(lid)>RANK_1&&(bbOpp&SETMASKBB(lid-8)))?15:0;
-        // chain
-      score-=(GETFILE(lid)>FILE_A&&(bbMask&bbMe&SETMASKBB(lid+7)))?10:0;
-      score-=(GETFILE(lid)<FILE_H&&(bbMask&bbMe&SETMASKBB(lid+9)))?10:0;
-      // column, TODO: popcount based
-      for(sqto=lid+8;sqto<56;sqto+=8)
-        score+=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
-    }
+    tmpb = (pfrom==PAWN&&color==BLACK)?true:false;
+    // blocked
+    score-=(tmpb&&GETRANK(lid)>RANK_1&&(bbOpp&SETMASKBB(lid-8)))?15:0;
+      // chain
+    score+=(tmpb&&GETFILE(lid)>FILE_A&&(bbMask&bbMe&SETMASKBB(lid+7)))?10:0;
+    score+=(tmpb&&GETFILE(lid)<FILE_H&&(bbMask&bbMe&SETMASKBB(lid+9)))?10:0;
+    // column, TODO: popcount based
+    for(sqto=lid+8;sqto<56&&tmpb;sqto+=8)
+      score-=(bbMask&bbMe&SETMASKBB(sqto))?30:0;
+
+    // negamaxed scores
+    score = (color)?-score:score;
+
     // duble bishop
     if (lid==0)
     {
@@ -1769,6 +1771,7 @@ __kernel void alphabeta_gpu(
           &&!(localNodeStates[sd]&EXT)
           &&localDepth[sd]>0
           &&gid>0
+          &&sd<=ceil(log2((float)gid+1))+1
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
