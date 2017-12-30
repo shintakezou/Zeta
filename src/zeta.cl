@@ -1760,7 +1760,6 @@ __kernel void alphabeta_gpu(
         lmove = localMoveHistory[sd];
 
       // lazy smp, randomize move order
-      randomize = false;
       if (
           lmove==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
@@ -1770,7 +1769,6 @@ __kernel void alphabeta_gpu(
           &&!(localNodeStates[sd]&EXT)
           &&localDepth[sd]>0
           &&gid>0
-          &&sd<=((gid/2)%search_depth)+1
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
