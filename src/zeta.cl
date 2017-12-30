@@ -37,7 +37,7 @@
 
 // hasck for nvidia OpenCL 1.0 devices
 #if __OPENCL_VERSION__ < 110
-//#define OLDSCHOOL
+#define OLDSCHOOL
 #endif
 
 typedef ulong   u64;
