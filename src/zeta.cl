@@ -96,8 +96,7 @@ typedef struct
 #define QBBP3     3     // piece type third bit
 #define QBBPMVD   4     // piece moved flags, for castle rights
 #define QBBHASH   5     // 64 bit board Zobrist hash
-#define QBBLAST   6     // lastmove
-#define QBBHMC    7     // half move clock
+#define QBBHMC    6     // half move clock
 /* move encoding 
    0  -  5  square from
    6  - 11  square to
@@ -584,7 +583,7 @@ void undomove(Bitboard *board, Move move)
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom+3);
   }
 }
-Hash computehash(__private Bitboard *board, bool stm, Move lastmove, Bitboard bbCR)
+Hash computehash(__private Bitboard *board, bool stm, Bitboard bbCR)
 {
   Piece piece;
   Bitboard bbWork;
@@ -618,10 +617,9 @@ Hash computehash(__private Bitboard *board, bool stm, Move lastmove, Bitboard bb
     hash^= Zobrist[15];
 
   // en passant flag
-  sqep = ( GETPTYPE(GETPFROM(lastmove))==PAWN
-          &&GETRRANK(GETSQTO(lastmove),GETCOLOR(GETPFROM(lastmove)))
-            -GETRRANK(GETSQFROM(lastmove),GETCOLOR(GETPFROM(lastmove)))==2
-          )?GETSQTO(lastmove):0x0;
+  bbWork = (~bbCR&0x000000FFFF000000);
+  sqep = (bbWork)?first1(bbWork):0x0;
+
   if (sqep)
     hash ^= ((Zobrist[16]<<GETFILE(sqep))|(Zobrist[16]>>(64-GETFILE(sqep))));
 
@@ -942,7 +940,7 @@ __kernel void alphabeta_gpu(
   localAlphaBetaScores[0*2+BETA]  = INF;
   localMoveCounter[0]             = 0;
   localTodoIndex[0]               = 0;
-  localMoveHistory[0]             = BOARD[QBBLAST];
+  localMoveHistory[0]             = MOVENONE;
   localCrHistory[0]               = BOARD[QBBPMVD];
   localHMCHistory[0]              = (u8)BOARD[QBBHMC];
   localHashHistory[0]             = BOARD[QBBHASH];
@@ -1319,13 +1317,11 @@ __kernel void alphabeta_gpu(
     bbMoves &= (tmpb)?(bbInBetween[sqchecker*64+sqking]|bbCheckers):BBFULL;
 
     // gen en passant moves, TODO: reimplement as x64?
-    bbTemp = BBEMPTY;
-    move = localMoveHistory[sd-1]; // lastmove
     // check for double pawn push
-    sqep   = ( GETPTYPE(GETPFROM(move))==PAWN
-               &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
-                -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
-             )?GETSQTO(move):0x0;
+    bbTemp  = ~localCrHistory[sd];
+    bbTemp &= 0x000000FFFF000000;
+    sqep    = (bbTemp)?first1(bbTemp):0x0;
+    // check pawns
     bbMask  = bbMe&(board[QBBP1]&~board[QBBP2]&~board[QBBP3]); // get our pawns
     bbMask &= (stm)?0xFF000000UL:0xFF00000000UL;
     bbTemp  = bbMask&(SETMASKBB(sqep+1)|SETMASKBB(sqep-1));
@@ -1942,6 +1938,15 @@ __kernel void alphabeta_gpu(
       bbTemp  |= SETMASKBB(GETSQFROM(move));
       bbTemp  |= SETMASKBB(GETSQTO(move));
       bbTemp  |= SETMASKBB(GETSQCPT(move));
+      // set en passant target square in piece moved flags
+      sqep   = ( GETPTYPE(GETPFROM(move))==PAWN
+                 &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
+                  -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
+               )?GETSQTO(move):0x0;
+      bbTemp |= 0x000000FFFF000000;
+      if (sqep)
+        bbTemp &= CLRMASKBB(sqep);
+      // store in local
       localCrHistory[sd] = bbTemp;
       // compute hash castle rights
       if ((~bbTemp)&SMCRWHITEQ)
@@ -2077,8 +2082,16 @@ __kernel void alphabeta_gpu(
       bbMask  |= SETMASKBB(GETSQFROM(tmpmove));
       bbMask  |= SETMASKBB(GETSQTO(tmpmove));
       bbMask  |= SETMASKBB(GETSQCPT(tmpmove));
+      // set en passant target square in piece moved flags
+      sqep   = ( GETPTYPE(GETPFROM(tmpmove))==PAWN
+                 &&GETRRANK(GETSQTO(tmpmove),GETCOLOR(GETPFROM(tmpmove)))
+                  -GETRRANK(GETSQFROM(tmpmove),GETCOLOR(GETPFROM(tmpmove)))==2
+               )?GETSQTO(tmpmove):0x0;
+      bbMask |= 0x000000FFFF000000;
+      if (sqep)
+        bbMask &= CLRMASKBB(sqep);
       // compute hash x1
-      bbWork = computehash(board, stm, tmpmove, bbMask);
+      bbWork = computehash(board, stm, bbMask);
       bbTemp = bbWork&(ttindex-1);
 
     }while(++n<MAXPLY);

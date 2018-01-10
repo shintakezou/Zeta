@@ -237,7 +237,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_BOARD_Buffer = clCreateBuffer(
                           			      context, 
                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                      sizeof(Bitboard) * 8,
+                                      sizeof(Bitboard) * 7,
                                       GLOBAL_BOARD, 
                                       &status);
   if(status!=CL_SUCCESS) 
@@ -459,7 +459,7 @@ bool cl_init_objects() {
                                 GLOBAL_BOARD_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(Bitboard) * 8,
+                                sizeof(Bitboard) * 7,
                                 GLOBAL_BOARD, 
                                 0,
                                 NULL,

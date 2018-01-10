@@ -95,7 +95,7 @@ u64 *HMCHistory;
 // Quad Bitboard
 // based on http://chessprogramming.wikispaces.com/Quad-Bitboards
 // by Gerd Isenberg
-Bitboard BOARD[8];
+Bitboard BOARD[7];
 /* quad bitboard array index definition
   0   pieces white
   1   piece type first bit
@@ -103,8 +103,7 @@ Bitboard BOARD[8];
   3   piece type third bit
   4   piece moved flags, for castle rigths
   5   zobrist hash
-  6   lastmove
-  7   half move clock
+  6   half move clock
 */
 // for exchange with OpenCL device
 Bitboard *GLOBAL_BOARD = NULL;
@@ -687,7 +686,7 @@ Hash computehash(Bitboard *board, bool stm)
   Piece piece;
   Bitboard bbWork;
   Square sq;
-//  Square sqep = 0x0;
+  Square sqep = 0x0;
   Hash hash = HASHNONE;
   Hash zobrist;
   u8 side;
@@ -716,12 +715,11 @@ Hash computehash(Bitboard *board, bool stm)
     hash^= Zobrist[15];
 
   // en passant flag
-  sq = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
-          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
-            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
-          )?GETSQTO(board[QBBLAST]):0x0;
-  if (sq)
-    hash ^= ((Zobrist[16]<<GETFILE(sq))|(Zobrist[16]>>(64-GETFILE(sq)))); /* rotate left 64 */
+  bbWork = (~board[QBBPMVD]&0x000000FFFF000000);
+  sqep = (bbWork)?first1(bbWork):0x0;
+
+  if (sqep)
+    hash ^= ((Zobrist[16]<<GETFILE(sqep))|(Zobrist[16]>>(64-GETFILE(sqep))));
 
   // site to move
   if (stm)
@@ -737,13 +735,11 @@ void donullmove(Bitboard *board)
 {
   // color flipping
   board[QBBHASH] ^= 0x1ULL;
-  board[QBBLAST] = MOVENONE|(CMMOVE&board[QBBLAST]);
 }
 // restore board again after nullmove
-void undonullmove(Bitboard *board, Move lastmove, Hash hash)
+void undonullmove(Bitboard *board, Hash hash)
 {
   board[QBBHASH] = hash;
-  board[QBBLAST] = lastmove;
 }
 // apply move on board, quick during move generation
 void domovequick(Bitboard *board, Move move)
@@ -810,7 +806,7 @@ void domove(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
-//  Square sqep     = 0x0;
+  Square sqep     = 0x0;
   Bitboard pfrom  = GETPFROM(move);
   Bitboard pto    = GETPTO(move);
   Bitboard pcpt   = GETPCPT(move);
@@ -842,6 +838,15 @@ void domove(Bitboard *board, Move move)
   board[QBBPMVD]  |= SETMASKBB(sqfrom);
   board[QBBPMVD]  |= SETMASKBB(sqto);
   board[QBBPMVD]  |= SETMASKBB(sqcpt);
+
+  // set en passant target square in piece moved flags
+  sqep   = ( GETPTYPE(GETPFROM(move))==PAWN
+             &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
+              -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
+           )?GETSQTO(move):0x0;
+  board[QBBPMVD]    |= 0x000000FFFF000000;
+  if (sqep)
+    board[QBBPMVD]  &= CLRMASKBB(sqep);
 
   // handle castle rook, queenside
   pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
@@ -889,15 +894,13 @@ void domove(Bitboard *board, Move move)
 
   // store hmc   
   board[QBBHMC] = hmc;
-  // store lastmove in board
-  board[QBBLAST] = move;
 
   // compute new hash
   board[QBBHASH] = computehash(board, !GETCOLOR(GETPFROM(move)));
 
 }
 // restore board again
-void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash, u64 hmc)
+void undomove(Bitboard *board, Move move, Cr cr, Hash hash, u64 hmc)
 {
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
@@ -911,8 +914,6 @@ void undomove(Bitboard *board, Move move, Move lastmove, Cr cr, Hash hash, u64 h
   if (move==MOVENONE)
     return;
 
-  // restore lastmove
-  board[QBBLAST] = lastmove;
   // restore castle rights. via piece moved flags
   board[QBBPMVD] = cr;
   // restore hash
@@ -1178,6 +1179,7 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
   char filec[8] = "abcdefgh";
   char *stringptr = fenstring;
   s32 spaces = 0;
+  Bitboard bbWork;
 
   // add pieces from board to string
   for (rank = RANK_8; rank >= RANK_1; rank--)
@@ -1248,11 +1250,10 @@ static void createfen(char *fenstring, Bitboard *board, bool stm, s32 gameply)
   stringptr+=sprintf(stringptr," ");
 
   // add en passant target square
+  // en passant flag
+  bbWork = (~board[QBBPMVD]&0x000000FFFF000000);
+  sq = (bbWork)?first1(bbWork):0x0;
   // file en passant
-  sq = ( GETPTYPE(GETPFROM(board[QBBLAST]))==PAWN
-          &&GETRRANK(GETSQTO(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))
-            -GETRRANK(GETSQFROM(board[QBBLAST]),GETCOLOR(GETPFROM(board[QBBLAST])))==2
-          )?GETSQTO(board[QBBLAST]):0x0;
   if (sq)
   {
     if (stm)
@@ -1290,7 +1291,6 @@ static bool setboard(Bitboard *board, char *fenstring)
   u64 j;
   u64 hmc = 0;        // half move clock
   u64 fendepth = 1;   // game depth
-  Move lastmove = MOVENONE;
   Bitboard bbCr = BBEMPTY;
 
   // memory, fen string ist max 1023 char in size
@@ -1339,7 +1339,6 @@ static bool setboard(Bitboard *board, char *fenstring)
   board[QBBP3]    = 0x0ULL;
   board[QBBPMVD]  = BBFULL;
   board[QBBHASH]  = 0x0ULL;
-  board[QBBLAST]  = 0x0ULL;
 
   // parse piece types and position from fen string
   file = FILE_A;
@@ -1424,7 +1423,7 @@ static bool setboard(Bitboard *board, char *fenstring)
   // store halfmovecounter into lastmove
   board[QBBHMC]    = hmc;
 
-  // set en passant target square in lastmove
+  // set en passant target square in piece moved flags
   tempchar = cep[0];
   file  = 0;
   rank  = 0;
@@ -1435,10 +1434,8 @@ static bool setboard(Bitboard *board, char *fenstring)
     rank  = cep[1] - 49;
     sq    = MAKESQ(file, rank);
   }
-  if (STM&&sq)
-    lastmove |= MAKEMOVE((Move)(sq+8),(Move)sq,(Move)sq,0x0,0x0,0x0);
-  else if (!STM&&sq)
-    lastmove |= MAKEMOVE((Move)(sq-8),(Move)sq,(Move)sq,0x0,0x0,0x0);
+  if (sq)
+    board[QBBPMVD] &= CLRMASKBB(sq);
 
   // ply starts at zero
   PLY = 0;
@@ -1449,10 +1446,8 @@ static bool setboard(Bitboard *board, char *fenstring)
   board[QBBHASH] = computehash(BOARD, STM);
   HashHistory[PLY] = board[QBBHASH];
 
-  // store lastmove+ in board
-  board[QBBLAST] = lastmove;
-  // store lastmove+ in history
-  MoveHistory[PLY] = lastmove;
+  // store lastmove in history
+  MoveHistory[PLY] = MOVENONE;
 
   // release memory
   if (position) 
@@ -2936,7 +2931,7 @@ int main(int argc, char* argv[])
     {
       if (PLY>0)
       {
-        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
+        undomove(BOARD, MoveHistory[PLY], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
         PLY--;
         STM = !STM;
       }
@@ -2947,10 +2942,10 @@ int main(int argc, char* argv[])
     {
       if (PLY>=2)
       {
-        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
+        undomove(BOARD, MoveHistory[PLY], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
         PLY--;
         STM = !STM;
-        undomove(BOARD, MoveHistory[PLY], MoveHistory[PLY-1], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
+        undomove(BOARD, MoveHistory[PLY], CRHistory[PLY], HashHistory[PLY], HMCHistory[PLY]);
         PLY--;
         STM = !STM;
       }

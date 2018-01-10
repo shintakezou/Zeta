@@ -60,8 +60,7 @@ typedef u8 Rank;
 #define QBBP3     3     // piece type third bit
 #define QBBPMVD   4     // piece moved flags, for castle rights
 #define QBBHASH   5     // 64 bit board Zobrist hash
-#define QBBLAST   6     // lastmove
-#define QBBHMC    7     // half move clock
+#define QBBHMC    6     // half move clock
 /* move encoding 
    0  -  5  square from
    6  - 11  square to
