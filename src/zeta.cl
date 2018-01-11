@@ -1658,33 +1658,33 @@ __kernel void alphabeta_gpu(
           // xor trick for avoiding race conditions
           bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
 
-          // slot 1, always replace
+          // slot 1, depth, score and age replace
           if (slots>=1)
-          {
-            TT.hash      = bbMask;
-            TT.bestmove  = move;
-            TT.score     = (TTScore)score;
-            TT.flag      = flag | (ttage&0xF)<<4;
-            TT.depth     = (u8)localDepth[sd];
-            TT1[bbTemp]  = TT;
-          }
-          if (slots>=2)
-            TT = TT2[bbTemp]; 
-          // slot 2, depth and score and age replace
+            TT = TT1[bbTemp]; 
           if (
-               (slots>=2&&(u8)localDepth[sd]>TT.depth)
+               (slots>=1&&(u8)localDepth[sd]>TT.depth)
                ||
-               (slots>=2&&(u8)localDepth[sd]>=TT.depth
+               (slots>=1&&(u8)localDepth[sd]>=TT.depth
                 &&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth)
                 &&score>(Score)TT.score
                )
                ||
-               (slots>=2
+               (slots>=1
                 &&ttage!=(TT.flag>>4)
                 &&ttage!=(TT.flag>>4)+2
                )
              ) 
-         {
+          {
+              TT.hash      = bbMask;
+              TT.bestmove  = move;
+              TT.score     = (TTScore)score;
+              TT.flag      = flag | (ttage&0xF)<<4;
+              TT.depth     = (u8)localDepth[sd];
+              TT1[bbTemp]  = TT;
+          }
+          // slot 2, always replace
+          if (slots>=2)
+          {
             TT.hash      = bbMask;
             TT.bestmove  = move;
             TT.score     = (TTScore)score;
@@ -1716,7 +1716,7 @@ __kernel void alphabeta_gpu(
     {
       lexit = (sd<1)?true:lexit;  // this is the end
       lexit = (COUNTERS[1]>max_nodes)?true:lexit; // nodecount based termination
-      lexit = (atom_cmpxchg(finito,0,0)>0)?true:lexit; // termination flag by helper threads
+      lexit = (gid>0&&atom_cmpxchg(finito,0,0)>0)?true:lexit; // termination flag for helper threads
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lexit)
@@ -1778,15 +1778,15 @@ __kernel void alphabeta_gpu(
     Move ttmove = MOVENONE;
     bbWork = localHashHistory[sd];    
     bbTemp = bbWork&(ttindex-1);
-    if (slots>=1)
-    {
-      TT = TT1[bbTemp];
-      if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
-        ttmove = TT.bestmove;
-    }
     if (slots>=2)
     {
       TT = TT2[bbTemp];
+      if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
+        ttmove = TT.bestmove;
+    }
+    if (slots>=1)
+    {
+      TT = TT1[bbTemp];
       if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
         ttmove = TT.bestmove;
     }
@@ -2038,7 +2038,7 @@ __kernel void alphabeta_gpu(
   barrier(CLK_GLOBAL_MEM_FENCE);
 
   // collect pv for gui output
-  if (lid==0&&n==0)
+  if (lid==0&&gid==0)
   {
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
@@ -2049,39 +2049,13 @@ __kernel void alphabeta_gpu(
     bbMask          = BOARD[QBBPMVD]; // bb castle rights
     bbTemp          = bbWork&(ttindex-1);
     stm             = (bool)stm_init;
-    n               = 1;
+    n               = 0;
 
-    do
+    tmpmove         = (Move)PV[1];
+    score           = (Score)PV[0];
+
+    while(n++<MAXPLY)
     {
-      tmpmove = MOVENONE;
-      score = -INF;
-
-      // load ttmove from hash table
-      if (slots>=1)
-      {
-        TT = TT1[bbTemp];
-        if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
-        {
-          score = (Score)TT.score;
-          tmpmove = TT.bestmove;
-        }
-      }
-      if (slots>=2&&!ISMATE(score))
-      {
-        TT = TT2[bbTemp];
-        if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
-        {
-          score = (Score)TT.score;
-          tmpmove = TT.bestmove;
-        }
-      }
-
-      if (tmpmove==MOVENONE||ISINF(score))
-        break;
-
-      if (n==1)
-        PV[0] = (Move)score;
-
       PV[n] = (Move)tmpmove;
 
       domove(board, tmpmove);
@@ -2102,7 +2076,23 @@ __kernel void alphabeta_gpu(
       bbWork = computehash(board, stm, bbMask);
       bbTemp = bbWork&(ttindex-1);
 
-    }while(++n<MAXPLY);
+      tmpmove = MOVENONE;
+      score = -INF;
+
+      // load ttmove from hash table
+      if (slots>=1)
+      {
+        TT = TT1[bbTemp];
+        if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
+        {
+          score = (Score)TT.score;
+          tmpmove = TT.bestmove;
+        }
+      }
+
+      if (tmpmove==MOVENONE||ISINF(score))
+        break;
+    }
   } // end collect pv
 } // end kernel alphabeta_gpu
 
