@@ -363,6 +363,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+/*
   if (max_memory<1||memory_slots<2)
     mem = 1;
 
@@ -377,7 +378,7 @@ bool cl_init_device(char *kernelname)
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT2_Buffer)\n");
     return false;
   }
-
+*/
 /*
   if (max_memory<1||memory_slots<3)
     mem = 1;
@@ -689,6 +690,7 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   }
   i++;
 
+/*
   status = clSetKernelArg(
                           kernel, 
                           i, 
@@ -700,6 +702,7 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
     return false;
   }
   i++;
+*/
 
 /*
   status = clSetKernelArg(
@@ -1235,6 +1238,8 @@ bool cl_release_device() {
 		return false; 
 	}
 
+
+/*
 	status = clReleaseMemObject(GLOBAL_TT2_Buffer);
   if(status!=CL_SUCCESS)
 	{
@@ -1242,7 +1247,6 @@ bool cl_release_device() {
 		return false; 
 	}
 
-/*
 	status = clReleaseMemObject(GLOBAL_TT3_Buffer);
   if(status!=CL_SUCCESS)
 	{

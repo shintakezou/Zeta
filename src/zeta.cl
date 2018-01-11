@@ -825,7 +825,7 @@ __kernel void alphabeta_gpu(
                       const __global Bitboard *bbInBetween,
                       const __global Bitboard *bbLine,
                             __global TTE *TT1,
-                            __global TTE *TT2,
+//                            __global TTE *TT2,
                             __global Move *Killers,
                             __global Move *Counters,
                                const s32 stm_init,
@@ -1542,29 +1542,6 @@ __kernel void alphabeta_gpu(
             COUNTERS[gid*64+4]++;      
           }
         }
-
-        score  = -INF;
-        if (slots>=2)
-          TT = TT2[bbTemp];
-        if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&(TT.flag&0x3)>FAILLOW)
-          score = (Score)TT.score;
-
-        if (
-            !ISINF(score)
-            &&!ISDRAW(score)
-            &&!ISMATE(score)
-            &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
-           )
-        {
-          // set alpha
-          if (score>localAlphaBetaScores[sd*2+ALPHA])
-          {
-            localAlphaBetaScores[sd*2+ALPHA] = score;
-            // tt score hit counter
-            COUNTERS[gid*64+4]++;      
-          }
-        }
       } // end update alpha x1
     } // end ab flow x1
     if (lid==0)
@@ -1682,16 +1659,6 @@ __kernel void alphabeta_gpu(
               TT.depth     = (u8)localDepth[sd];
               TT1[bbTemp]  = TT;
           }
-          // slot 2, always replace
-          if (slots>=2)
-          {
-            TT.hash      = bbMask;
-            TT.bestmove  = move;
-            TT.score     = (TTScore)score;
-            TT.flag      = flag | (ttage&0xF)<<4;
-            TT.depth     = (u8)localDepth[sd];
-            TT2[bbTemp]  = TT;
-          }
         } // end save to hash table
         // save killer and counter move heuristic for quiet moves
         if (
@@ -1778,12 +1745,6 @@ __kernel void alphabeta_gpu(
     Move ttmove = MOVENONE;
     bbWork = localHashHistory[sd];    
     bbTemp = bbWork&(ttindex-1);
-    if (slots>=2)
-    {
-      TT = TT2[bbTemp];
-      if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
-        ttmove = TT.bestmove;
-    }
     if (slots>=1)
     {
       TT = TT1[bbTemp];
