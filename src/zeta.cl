@@ -870,7 +870,11 @@ __kernel void alphabeta_gpu(
   __local s32 evalscore;
   __local s32 movescore;
   __local s32 movecount;
+
+  __local bestscore;
+
   __local Move lmove;
+  __local Move bestmove;
 
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
@@ -937,6 +941,8 @@ __kernel void alphabeta_gpu(
   // inits
   lexit           = false;
   ttage           = (u8)(ply_init%16);
+  bestmove        = MOVENONE;
+  bestscore       = -INF;
 
   // init ab search var stack
   localAlphaBetaScores[0*2+ALPHA] =-INF;
@@ -1607,11 +1613,12 @@ __kernel void alphabeta_gpu(
         {
           localAlphaBetaScores[sd*2+ALPHA]=score;
           flag = EXACTSCORE;
+
           // collect bestmove and score
-          if (sd==1&&gid==0&&move!=MOVENONE&&move!=NULLMOVE)
+          if (sd==1&&move!=MOVENONE&&move!=NULLMOVE)
           {
-            PV[0] = (Move)score;
-            PV[1] = (Move)move;
+            bestscore = score;
+            bestmove = move;
           }
         }
         if (score>=localAlphaBetaScores[sd*2+BETA])
@@ -1683,7 +1690,7 @@ __kernel void alphabeta_gpu(
     {
       lexit = (sd<1)?true:lexit;  // this is the end
       lexit = (COUNTERS[1]>max_nodes)?true:lexit; // nodecount based termination
-      lexit = (gid>0&&atom_cmpxchg(finito,0,0)>0)?true:lexit; // termination flag for helper threads
+      lexit = (atom_cmpxchg(finito,0,0)>0)?true:lexit; // termination flag for helper threads
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (lexit)
@@ -1723,7 +1730,7 @@ __kernel void alphabeta_gpu(
           &&!(localNodeStates[sd]&EXT)
           &&localDepth[sd]>0
           &&gid>0
-//          &&sd<=ceil(log2((float)gid+1))+1
+//          &&sd<=log2((float)gid+1)
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
@@ -1999,7 +2006,7 @@ __kernel void alphabeta_gpu(
   barrier(CLK_GLOBAL_MEM_FENCE);
 
   // collect pv for gui output
-  if (lid==0&&gid==0)
+  if (lid==0&&n==0)
   {
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
@@ -2010,26 +2017,26 @@ __kernel void alphabeta_gpu(
     bbMask          = BOARD[QBBPMVD]; // bb castle rights
     bbTemp          = bbWork&(ttindex-1);
     stm             = (bool)stm_init;
-    n               = 0;
+    n               = 1;
 
-    tmpmove         = (Move)PV[1];
-    score           = (Score)PV[0];
+    do {
 
-    while(n++<MAXPLY)
-    {
-      PV[n] = (Move)tmpmove;
+      PV[n] = (u64)bestmove;
 
-      domove(board, tmpmove);
+      if (n==1)
+        PV[0] = (u64)bestscore;
+
+      domove(board, bestmove);
       stm = !stm;
       // set piece moved flags for castle right
-      bbMask  |= SETMASKBB(GETSQFROM(tmpmove));
-      bbMask  |= SETMASKBB(GETSQTO(tmpmove));
-      bbMask  |= SETMASKBB(GETSQCPT(tmpmove));
+      bbMask  |= SETMASKBB(GETSQFROM(bestmove));
+      bbMask  |= SETMASKBB(GETSQTO(bestmove));
+      bbMask  |= SETMASKBB(GETSQCPT(bestmove));
       // set en passant target square in piece moved flags
-      sqep   = ( GETPTYPE(GETPFROM(tmpmove))==PAWN
-                 &&GETRRANK(GETSQTO(tmpmove),GETCOLOR(GETPFROM(tmpmove)))
-                  -GETRRANK(GETSQFROM(tmpmove),GETCOLOR(GETPFROM(tmpmove)))==2
-               )?GETSQTO(tmpmove):0x0;
+      sqep   = ( GETPTYPE(GETPFROM(bestmove))==PAWN
+                 &&GETRRANK(GETSQTO(bestmove),GETCOLOR(GETPFROM(bestmove)))
+                  -GETRRANK(GETSQFROM(bestmove),GETCOLOR(GETPFROM(bestmove)))==2
+               )?GETSQTO(bestmove):0x0;
       bbMask |= 0x000000FFFF000000;
       if (sqep)
         bbMask &= CLRMASKBB(sqep);
@@ -2037,8 +2044,8 @@ __kernel void alphabeta_gpu(
       bbWork = computehash(board, stm, bbMask);
       bbTemp = bbWork&(ttindex-1);
 
-      tmpmove = MOVENONE;
-      score = -INF;
+      bestmove = MOVENONE;
+      bestscore = -INF;
 
       // load ttmove from hash table
       if (slots>=1)
@@ -2046,14 +2053,16 @@ __kernel void alphabeta_gpu(
         TT = TT1[bbTemp];
         if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
         {
-          score = (Score)TT.score;
-          tmpmove = TT.bestmove;
+          bestscore = (Score)TT.score;
+          bestmove = (Move)TT.bestmove;
         }
       }
 
-      if (tmpmove==MOVENONE||ISINF(score))
+      if (bestmove==MOVENONE||ISINF(bestscore))
         break;
-    }
+
+    } while(n++<MAXPLY);
+
   } // end collect pv
 } // end kernel alphabeta_gpu
 
