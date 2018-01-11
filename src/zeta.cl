@@ -863,6 +863,8 @@ __kernel void alphabeta_gpu(
   __local bool randomize;   // randomize move order flag
   __local bool lexit;       // exit the main loop flag
 
+  __local u8 ttage;
+
   __local Square sqchecker;
 
   __local s32 evalscore;
@@ -934,6 +936,7 @@ __kernel void alphabeta_gpu(
 
   // inits
   lexit           = false;
+  ttage           = (u8)(ply_init%16);
 
   // init ab search var stack
   localAlphaBetaScores[0*2+ALPHA] =-INF;
@@ -1520,7 +1523,7 @@ __kernel void alphabeta_gpu(
 
         if (slots>=1)
           TT = TT1[bbTemp];
-        if (slots>=1&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
+        if (slots>=1&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&(TT.flag&0x3)>FAILLOW)
           score = (Score)TT.score;
 
         if (
@@ -1543,7 +1546,7 @@ __kernel void alphabeta_gpu(
         score  = -INF;
         if (slots>=2)
           TT = TT2[bbTemp];
-        if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&TT.flag>FAILLOW)
+        if (slots>=2&&(TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&(TT.flag&0x3)>FAILLOW)
           score = (Score)TT.score;
 
         if (
@@ -1661,13 +1664,13 @@ __kernel void alphabeta_gpu(
             TT.hash      = bbMask;
             TT.bestmove  = move;
             TT.score     = (TTScore)score;
-            TT.flag      = flag;
+            TT.flag      = flag | (ttage&0xF)<<4;
             TT.depth     = (u8)localDepth[sd];
             TT1[bbTemp]  = TT;
           }
           if (slots>=2)
             TT = TT2[bbTemp]; 
-          // slot 2, depth and score replace
+          // slot 2, depth and score and age replace
           if (
                (slots>=2&&(u8)localDepth[sd]>TT.depth)
                ||
@@ -1675,12 +1678,17 @@ __kernel void alphabeta_gpu(
                 &&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth)
                 &&score>(Score)TT.score
                )
+               ||
+               (slots>=2
+                &&ttage!=(TT.flag>>4)
+                &&ttage!=(TT.flag>>4)+2
+               )
              ) 
          {
             TT.hash      = bbMask;
             TT.bestmove  = move;
             TT.score     = (TTScore)score;
-            TT.flag      = flag;
+            TT.flag      = flag | (ttage&0xF)<<4;
             TT.depth     = (u8)localDepth[sd];
             TT2[bbTemp]  = TT;
           }
