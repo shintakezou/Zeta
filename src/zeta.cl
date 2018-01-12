@@ -71,7 +71,7 @@ typedef struct
 // tunebale search params
 #define NULLR           2 // nullmove pruning reduction
 #define LMRR            1 // late move reduction 
-#define RANDBRO         1 // how many brothers searched before randomized order
+#define RANDBRO         2 // how many brothers searched before randomized order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
