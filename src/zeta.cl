@@ -940,7 +940,7 @@ __kernel void alphabeta_gpu(
 
   // inits
   lexit           = false;
-  ttage           = (u8)(ply_init%16);
+  ttage           = (u8)ply_init&0x3F;
   bestmove        = MOVENONE;
   bestscore       = -INF;
 
@@ -1654,15 +1654,15 @@ __kernel void alphabeta_gpu(
                )
                ||
                (slots>=1
-                &&ttage!=(TT.flag>>4)
-                &&ttage!=(TT.flag>>4)+2
+                &&ttage!=(TT.flag>>2)
+                &&ttage!=(TT.flag>>2)+2
                )
              ) 
           {
               TT.hash      = bbMask;
               TT.bestmove  = move;
               TT.score     = (TTScore)score;
-              TT.flag      = flag | (ttage&0xF)<<4;
+              TT.flag      = flag | (ttage&0x3F)<<2;
               TT.depth     = (u8)localDepth[sd];
               TT1[bbTemp]  = TT;
           }
