@@ -1,3 +1,13 @@
+Zeta (099h) alpha; urgency=low
+
+  * added tt aging
+  * mod in termination
+  * mod in lazy smp
+  * rm 2nd memory slot
+  * one cl file for all gpu generations with inlined optimizations
+
+ -- Srdja Matovic <s.matovic@app26.de> Jan 2018
+
 Zeta (099g) alpha; urgency=low
 
   * mod in search termination, gives now linear nps scaling on AMD GCN devices
