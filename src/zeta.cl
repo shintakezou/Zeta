@@ -871,7 +871,7 @@ __kernel void alphabeta_gpu(
   __local s32 movescore;
   __local s32 movecount;
 
-  __local bestscore;
+  __local Score bestscore;
 
   __local Move lmove;
   __local Move bestmove;
