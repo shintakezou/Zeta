@@ -1498,7 +1498,7 @@ __kernel void alphabeta_gpu(
       // ####       tree flow x1       ###
       // #################################
       // check bounds
-      if (sd>=MAXPLY)
+      if (sd>=MAXPLY-1)
         movecount = 0;
       // terminal or leaf node
       if (movecount==0)
@@ -2021,10 +2021,10 @@ __kernel void alphabeta_gpu(
 
     do {
 
-      PV[n] = (u64)bestmove;
+      PV[n] = bestmove;
 
       if (n==1)
-        PV[0] = (u64)bestscore;
+        PV[0] = (Move)bestscore;
 
       domove(board, bestmove);
       stm = !stm;
@@ -2061,7 +2061,8 @@ __kernel void alphabeta_gpu(
       if (bestmove==MOVENONE||ISINF(bestscore))
         break;
 
-    } while(n++<MAXPLY);
+      n++;
+    } while(n<MAXPLY);
 
   } // end collect pv
 } // end kernel alphabeta_gpu
