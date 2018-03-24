@@ -131,7 +131,7 @@ void printbitboard(Bitboard board);
 bool read_and_init_config();
 // cl functions
 extern bool cl_init_device(char *kernelname);
-extern bool cl_init_objects();
+extern bool cl_write_objects();
 extern bool cl_run_perft(bool stm, s32 depth);
 extern bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes);
 extern bool cl_run_perft(bool stm, s32 depth);
@@ -1485,6 +1485,9 @@ bool read_and_init_config(char configfile[])
     fprintf(stdout, "%s file missing) ", configfile);
     fprintf(stdout, "try --guessconfig option to create a config.txt file ");
     fprintf(stdout, "or --help option for further options\n");
+
+    if (LogFile==NULL)
+      LogFile = fopen("zeta.log", "a");
     if (LogFile)
     {
       fprintdate(LogFile);
@@ -1568,7 +1571,7 @@ bool read_and_init_config(char configfile[])
     }
     return false;
   }
-  PVZEROED = (Move*)calloc(1024, sizeof(Move));
+  PVZEROED = (Move*)calloc(MAXPLY, sizeof(Move));
   if (PVZEROED==NULL)
   {
     fprintf(stdout, "memory alloc, PVZEROED, failed\n");
@@ -1633,8 +1636,10 @@ bool read_and_init_config(char configfile[])
     free(TT);
   TT = (TTE*)calloc(mem,sizeof(TTE));
   if (TT==NULL)
+  {
     fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
-
+    return false;
+  }
   return true;
 }
 static void selftest(void)
@@ -1881,7 +1886,7 @@ Score perft(Bitboard *board, bool stm, s32 depth)
 
   start = get_time(); 
 
-  state = cl_init_objects();
+  state = cl_write_objects();
   // something went wrong...
   if (!state)
   {
@@ -1960,7 +1965,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       quitengine(EXIT_FAILURE);
     }
   */
-    state = cl_init_objects();
+    state = cl_write_objects();
     // something went wrong...
     if (!state)
     {
@@ -2039,8 +2044,10 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
         if (LogFile)
           fflush(LogFile);
       }
+      else
+        break;
     }
-  } while (++idf<=depth&&elapsed*1000*ESTEBF<MaxTime&&ABNODECOUNT*ESTEBF<=MaxNodes&&ABNODECOUNT>1&&idf<=MAXPLY);
+  } while (++idf<=depth&&elapsed*1000*ESTEBF<MaxTime&&ABNODECOUNT*ESTEBF<=MaxNodes&&ABNODECOUNT>1&&idf<MAXPLY);
 
 
   if ((!xboard_mode)||xboard_debug)
@@ -2084,7 +2091,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   }
   start = get_time();
   // inits
-  if (!cl_init_objects())
+  if (!cl_write_objects())
   {
     return -1;
   }
@@ -2253,7 +2260,19 @@ int main(int argc, char* argv[])
         break;
       case 2:
         // init engine and game memory, read config ini file and init OpenCL device
-        if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device("alphabeta_gpu"))
+        if (!engineinits())
+        {
+          quitengine(EXIT_FAILURE);
+        }
+        if (!gameinits())
+        {
+          quitengine(EXIT_FAILURE);
+        }
+        if (!read_and_init_config(configfile))
+        {
+          quitengine(EXIT_FAILURE);
+        }
+        if (!cl_init_device("alphabeta_gpu"))
         {
           quitengine(EXIT_FAILURE);
         }
@@ -2328,7 +2347,19 @@ int main(int argc, char* argv[])
     fprintf(LogFile,"feature done=0\n");  
   }
   // init engine and game memory, read config ini file and init OpenCL device
-  if (!engineinits()||!gameinits()||!read_and_init_config(configfile)||!cl_init_device("alphabeta_gpu"))
+  if (!engineinits())
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  if (!gameinits())
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  if (!read_and_init_config(configfile))
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  if (!cl_init_device("alphabeta_gpu"))
   {
     quitengine(EXIT_FAILURE);
   }

@@ -67,6 +67,7 @@ bool cl_init_device(char *kernelname)
     }
     // get our OpenCL platform
     platform = platforms[opencl_platform_id];
+    free(platforms);
   }
   if(platform==NULL)
   {
@@ -158,6 +159,7 @@ bool cl_init_device(char *kernelname)
       { 
         print_debug((char *)"Error: Building Log (clGetProgramBuildInfo)\n");
       }
+      free(build_log);
       return false;
     }
   }
@@ -209,6 +211,7 @@ bool cl_init_device(char *kernelname)
       { 
         print_debug((char *)"Error: Building Log (clGetProgramBuildInfo)\n");
       }
+      free(build_log);
       return false;
     }
   }
@@ -273,7 +276,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_PV_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(Move) * 1024,
+                                    sizeof(Move) * MAXPLY,
                                     PVZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -452,7 +455,7 @@ bool cl_init_device(char *kernelname)
   return true;
 }
 // write OpenCL memory buffers, called every search run
-bool cl_init_objects() {
+bool cl_write_objects() {
 
   // write buffers
   status = clEnqueueWriteBuffer(
@@ -472,6 +475,15 @@ bool cl_init_objects() {
     return false;
   }
 
+  // flush command queue
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory writes. (clFlush)\n");
+    return false;
+  }
+
+
   status = clEnqueueWriteBuffer(
                                 commandQueue,
                                 GLOBAL_COUNTERS_Buffer,
@@ -488,6 +500,15 @@ bool cl_init_objects() {
     print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_COUNTERS_Buffer)\n");
     return false;
   }
+
+  // flush command queue
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory writes. (clFlush)\n");
+    return false;
+  }
+
 
   status = clEnqueueWriteBuffer(
                                 commandQueue,
@@ -506,12 +527,20 @@ bool cl_init_objects() {
     return false;
   }
 
+  // flush command queue
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory writes. (clFlush)\n");
+    return false;
+  }
+
   status = clEnqueueWriteBuffer(
                                 commandQueue,
                                 GLOBAL_PV_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(Move) * 1024,
+                                sizeof(Move) * MAXPLY,
                                 PVZEROED, 
                                 0,
                                 NULL,
@@ -520,6 +549,14 @@ bool cl_init_objects() {
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_PV_Buffer)\n");
+    return false;
+  }
+
+  // flush command queue
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory writes. (clFlush)\n");
     return false;
   }
 
@@ -1086,6 +1123,7 @@ bool cl_read_memory()
     return false;
   }
 
+/*
   // wait for memory reads to finish execution
   status = clFinish(commandQueue);
   if(status!=CL_SUCCESS) 
@@ -1093,6 +1131,7 @@ bool cl_read_memory()
     print_debug((char *)"Error: Waiting for memory reads run to finish. (clFinish)\n");
     return false;
   }
+*/
 
 /*
   // wait for the read buffer to finish execution
@@ -1115,7 +1154,7 @@ bool cl_read_memory()
                                 GLOBAL_PV_Buffer,
                                 CL_TRUE,
                                 0,
-                                1024 * sizeof(Move),
+                                MAXPLY * sizeof(Move),
                                 PV,
                                 0,
                                 NULL,
@@ -1314,6 +1353,8 @@ bool cl_release_device() {
     print_debug((char *)"Error: In clReleaseContext\n");
     return false;
   }
+
+  free(devices);
 
 	return true;
 }
