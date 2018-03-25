@@ -3,10 +3,10 @@
   Description:  Experimental chess engine written in OpenCL.
   Author:       Srdja Matovic <s.matovic@app26.de>
   Created at:   2011-01-15
-  Updated at:   2017
+  Updated at:   2018
   License:      GPL >= v2
 
-  Copyright (C) 2011-2017 Srdja Matovic
+  Copyright (C) 2011-2018 Srdja Matovic
 
   Zeta is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,25 +22,77 @@
 #ifndef ZETA_H_INCLUDED
 #define ZETA_H_INCLUDED
 
-#include "types.h"
+#include "types.h"        // types and defaults and macros 
 
 void print_debug(char *debug);
+void quitengine(s32 flag);
+bool engineinits(void);
+bool gameinits(void);
+void release_gameinits();
+void release_configinits();
+void release_engineinits();
+bool setboard(Bitboard *board, char *fenstring);
+void printboard(Bitboard *board);
+void printmovecan(Move move);
+Move can2move(char *usermove, Bitboard *board, bool stm);
+void selftest(void);
+void print_help(void);
+bool read_and_init_config();
 
-// from ini config file
+// io
+extern char *Line;
+extern char *Command;
+extern char *Fen;
+// counters
+extern u64 ABNODECOUNT;
+extern u64 TTHITS;
+extern u64 TTSCOREHITS;
+extern u64 MOVECOUNT;
+// config file
 extern u64 threadsX;
 extern u64 threadsY;
-extern u64 threadsZ;
+extern const u64 threadsZ;
 extern u64 totalWorkUnits;
-extern s32 opencl_device_id;
-extern s32 opencl_platform_id;
-extern s32 opencl_gpugen;
+extern s32 nodes_per_second;
+extern s32 nps_current;
 extern u64 max_memory;
 extern u64 memory_slots;
+extern s32 opencl_device_id;
+extern s32 opencl_platform_id;
+extern s32 opencl_user_device;
+extern s32 opencl_user_platform;
+extern s32 opencl_gpugen;
+// further config
+extern u64 max_nps_per_move;
+extern s32 search_depth;
+// timers
+extern double start;
+extern double end;
+extern double elapsed;
+extern bool TIMEOUT;
+extern s32 timemode;
+extern s32 MovesLeft;
+extern s32 MaxMoves;
+extern double TimeInc;
+extern double TimeBase;
+extern double TimeLeft;
+extern double MaxTime;
+extern u64 MaxNodes;
+// game state
+extern bool STM;
+extern s32 SD;
+extern s32 GAMEPLY;
+extern s32 PLY;
+// game histories
+extern Move *MoveHistory;
+extern Hash *HashHistory;
+extern Hash *CRHistory;
+extern u64 *HMCHistory;
 // globals
 extern FILE *LogFile;
+extern Bitboard BOARD[7];
 extern s32 PLY;
 extern s32 SD;
-extern u64 MaxNodes;
 extern u64 ABNODECOUNT;
 extern Bitboard *GLOBAL_BOARD;
 extern u64 *COUNTERS;
@@ -50,12 +102,10 @@ extern Move *PV;
 extern Move *PVZEROED;
 extern TTMove *KILLERZEROED;
 extern TTMove *COUNTERZEROED;
-extern Move *GLOBAL_HASHHISTORY;
+extern Hash *GLOBAL_HASHHISTORY;
 extern Bitboard bbInBetween[64*64];
 extern Bitboard bbLine[64*64];
-extern s32 opencl_user_device;
-extern s32 opencl_user_platform;
-extern struct TTE *TT;
+extern TTE *TT;
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
 cl_mem   GLOBAL_globalbbMoves_Buffer;

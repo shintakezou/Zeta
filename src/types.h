@@ -24,7 +24,7 @@
 
 #include <inttypes.h>   // for nice u64 printf 
  
-#include "CL/cl.h"    // for OpenCL data types etc.
+#include "CL/cl.h"      // for OpenCL data types etc.
 
 // OpenCL data types to own
 typedef cl_ulong u64;

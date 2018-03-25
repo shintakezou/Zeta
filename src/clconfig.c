@@ -24,9 +24,9 @@
 #include <math.h>       // for ceil
 
 #include "timer.h"
+#include "bench.h"      // run benchmark
 #include "zeta.h"       // for global vars
 
-extern u64 benchmarkWrapper(s32 benchsec);
 extern void read_config();
 
 // TODO: check for work group dim == 3 and workgroup size[3] >= 64

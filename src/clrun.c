@@ -455,8 +455,8 @@ bool cl_init_device(char *kernelname)
   return true;
 }
 // write OpenCL memory buffers, called every search run
-bool cl_write_objects() {
-
+bool cl_write_objects() 
+{
   // write buffers
   status = clEnqueueWriteBuffer(
                                 commandQueue,
@@ -1211,8 +1211,8 @@ bool cl_read_memory()
 	return true;
 }
 // release OpenCL device
-bool cl_release_device() {
-
+bool cl_release_device() 
+{
   // release memory buffers
   status = clReleaseMemObject(GLOBAL_BOARD_Buffer);
   if(status!=CL_SUCCESS)

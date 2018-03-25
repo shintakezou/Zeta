@@ -2,7 +2,7 @@
   Name:         Zeta
   Description:  Experimental chess engine written in OpenCL.
   Author:       Srdja Matovic <s.matovic@app26.de>
-  Created at:   2011-01-15
+  Created at:   2018-03-25
   Updated at:   2018
   License:      GPL >= v2
 
@@ -19,17 +19,15 @@
   GNU General Public License for more details.
 */
 
-#ifndef BITBOARD_H_INCLUDED
-#define BITBOARD_H_INCLUDED
+#ifndef BIT_H_INCLUDED
+#define BIT_H_INCLUDED
 
-#include "types.h"
+#include "types.h"        // types and defaults and macros 
 
-bool squareunderattack(Bitboard *board, bool stm, Square sq);
-Square getkingpos(Bitboard *board, bool side);
-bool isvalid(Bitboard *board);
-void domove(Bitboard *board, Move move);
-void undomove(Bitboard *board, Move move, Cr cr, Hash hash, u64 hmc);
-Hash computehash(Bitboard *board, bool stm);
+s32 popcount(u64 x);
+s32 first1(u64 x);     /* precondition x!=0 */
+s32 popfirst1(u64 *a);  /* precondition x!=0 */
+u64 sqinbetween(Square sq1, Square sq2);
 
-#endif /* BITBOARD_H_INCLUDED */
+#endif /* BIT_H_INCLUDED */
 
