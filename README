@@ -3,7 +3,7 @@
   Description:  Experimental chess engine written in OpenCL
   Author:       Srdja Matovic <s.matovic@app26.de>
   Created at:   2011-06-23
-  Updated at:   2018-01-13
+  Updated at:   2018
   License:      GPL >= v2
 
   Copyright (C) 2011-2018 Srdja Matovic
@@ -21,34 +21,42 @@
 
 Zeta, experimental chess engine written in OpenCL.
 
-Tested Platforms:
-64 bit x86-64 with little endian OpenCL devices on
-Windows 7 64 bit and GNU/Linux 64 bit OS
+################################################################################
+### WARNING
+################################################################################
+It is recommended to run the engine on an discrete GPU,
+without display connected,
+otherwise system and display can freeze or crash during computation.
 
-Usage:
+Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.
+So make sure to use an discrete GPU or set proper time controls.
+
+Windows OS have an internal gpu timeout, double click the .reg file 
+"SetWindowsGPUTimeoutTo20s.reg"
+and reboot the OS to set the timeout to 20 seconds.
+
+################################################################################
+### Tested Platforms
+################################################################################
+Windows 7 64 bit (mingw compiler) and GNU/Linux 64 bit (gcc) OS on x86-64 host
+with AMD CPU/GPU or Intel CPU or Nvidia GPU as OpenCL device.
+
+################################################################################
+### Usage
+################################################################################
 First make sure you have an working OpenCL Runtime Environment,
 start the zeta executable in command line with -dl option to list
-all available OpenCL devices on host
+all available OpenCL devices on host:
 
-Second check the OpenCL device and create a config.txt file for the engine,
+zeta -dl
+
+Second check the OpenCL device and create a config file for the engine:
+
 zeta -p 0 -d 0 --guessconfigx
+
 Where p is the selected platform id and d is the selected device id.
 
 Third rename the created config file to config.txt and start the engine.
-
-
-All Options:
- -l, --log          Write output/debug to file zeta.log
- -v, --version      Print Zeta version info.
- -h, --help         Print Zeta program usage help.
- -s, --selftest     Run an internal test, usefull after compile.
- -pl,               List all OpenCL Platforms on Host
- -dl,               List all OpenCL Devices on Host
- -p 0,              Set Platform ID to 0 for guessconfig 
- -d 0,              Set Device ID to 0 for guessconfig 
- --guessconfig      Guess minimal config for OpenCL devices
- --guessconfigx     Guess optimal config for OpenCL devices
-
 
 To play against the engine use an CECP v2 protocol capable chess GUI
 like Arena, Cutechess, Winboard or Xboard.
@@ -62,7 +70,6 @@ usermove d7d5  // let engine apply usermove in coordinate algebraic
                // notation and optionally start thinking
 
 The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes
-
 
 Not supported Xboard commands:
 analyze        // enter analyze mode
@@ -79,18 +86,20 @@ help           // print usage info
 log            // turn log on
 benchsmp       // init with new and sd and st commands
                // runs an benchmark for parallel speedup
+benchkaufmann  // init with new and sd and st commands
+               // runs an smp benchmark on Kaufmann positions
 
-
-WARNING:
-It is recommended to run the engine on an discrete GPU,
-without display connected,
-otherwise system and display can freeze or crash during computation.
-
-Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.
-So make sure to use an discrete GPU or set proper time controls.
-
-Windows OS have an internal gpu timeout, double click the .reg file 
-"SetWindowsGPUTimeoutTo20s.reg"
-and reboot the OS to set the timeout to 20 seconds.
-
+################################################################################
+## Options
+################################################################################
+ -l, --log          Write output/debug to file zeta.log
+ -v, --version      Print Zeta version info.
+ -h, --help         Print Zeta program usage help.
+ -s, --selftest     Run an internal test, usefull after compile.
+ -pl,               List all OpenCL Platforms on Host
+ -dl,               List all OpenCL Devices on Host
+ -p 0,              Set Platform ID to 0 for guessconfig 
+ -d 0,              Set Device ID to 0 for guessconfig 
+ --guessconfig      Guess minimal config for OpenCL devices
+ --guessconfigx     Guess optimal config for OpenCL devices
 

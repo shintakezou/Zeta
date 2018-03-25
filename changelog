@@ -1,3 +1,10 @@
+Zeta (099i) alpha; urgency=low
+
+  * bugfixes
+  * cleanups
+
+ -- Srdja Matovic <s.matovic@app26.de> Mar 2018
+
 Zeta (099h) alpha; urgency=low
 
   * added tt aging
