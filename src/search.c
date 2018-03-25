@@ -25,6 +25,7 @@
 
 #include "bitboard.h"     // bitboard related functions
 #include "clrun.h"        // OpenCL run functions
+#include "io.h"           // various IO and format functions
 #include "timer.h"        // timer functions
 #include "types.h"        // types and defaults and macros 
 #include "xboard.h"       // xboard protocol command loop

@@ -24,20 +24,13 @@
 
 #include "types.h"        // types and defaults and macros 
 
-void print_debug(char *debug);
 void quitengine(s32 flag);
 bool engineinits(void);
 bool gameinits(void);
 void release_gameinits();
 void release_configinits();
 void release_engineinits();
-bool setboard(Bitboard *board, char *fenstring);
-void printboard(Bitboard *board);
-void printmovecan(Move move);
-Move can2move(char *usermove, Bitboard *board, bool stm);
-void selftest(void);
 void print_help(void);
-bool read_and_init_config();
 
 // io
 extern char *Line;

@@ -26,6 +26,7 @@
 #include "clrun.h"        // OpenCL run functions
 #include "io.h"           // various IO and format functions
 #include "search.h"       // rootsearch and perft
+#include "test.h"         // selftest
 #include "timer.h"        // timer functions
 #include "types.h"        // types and defaults and macros 
 #include "zeta.h"         // for global vars and functions
