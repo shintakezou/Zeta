@@ -17,9 +17,7 @@ zeta:
 	$(CC) $(CFLAGS) -o zeta bitboard.c clconfig.c clquery.c clrun.c timer.c zeta.c -lm -I. -L. -lOpenCL 
 
 clean:
+	rm -f zetacl.h
 	rm -f zetaclperft.h
-	rm -f zetacl1stgen.h
-	rm -f zetacl2ndgen.h
-	rm -f zetacl3rdgen.h
 	rm -f ${TARGETS}
 
