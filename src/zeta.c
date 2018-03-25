@@ -1482,7 +1482,12 @@ bool read_and_init_config(char configfile[])
   if (fcfg == NULL)
   {
     fprintf(stdout,"Error (");
-    fprintf(stdout, "%s file missing) ", configfile);
+    fprintf(stdout, "%s file missing): ", configfile);
+    fprintf(stdout, "try --guessconfig option to create a config.txt file ");
+    fprintf(stdout, "or --help option for further options\n");
+
+    fprintf(stdout,"tellusererror (");
+    fprintf(stdout, "%s file missing): ", configfile);
     fprintf(stdout, "try --guessconfig option to create a config.txt file ");
     fprintf(stdout, "or --help option for further options\n");
 
@@ -1787,36 +1792,45 @@ static void print_version(void)
 // engine options and usage
 static void print_help(void)
 {
+  fprintf(stdout,"\n");
   fprintf(stdout,"Zeta, experimental chess engine written in OpenCL.\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Tested Platforms:\n");
-  fprintf(stdout,"64 bit x86-64 with little endian OpenCL devices on\n");
-  fprintf(stdout,"Windows 7 64 bit and GNU/Linux 64 bit OS\n");
+  fprintf(stdout,"################################################################################\n");
+  fprintf(stdout,"### WARNING\n");
+  fprintf(stdout,"################################################################################\n");
+  fprintf(stdout,"It is recommended to run the engine on an discrete GPU,\n");
+  fprintf(stdout,"without display connected,\n");
+  fprintf(stdout,"otherwise system and display can freeze or crash during computation.\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Usage:\n");
+  fprintf(stdout,"Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.\n");
+  fprintf(stdout,"So make sure to use an discrete GPU or set proper time controls.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Windows OS have an internal gpu timeout, double click the .reg file \n");
+  fprintf(stdout,"\"SetWindowsGPUTimeoutTo20s.reg\"\n");
+  fprintf(stdout,"and reboot the OS to set the timeout to 20 seconds.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"################################################################################\n");
+  fprintf(stdout,"### Tested Platforms\n");
+  fprintf(stdout,"################################################################################\n");
+  fprintf(stdout,"Windows 7 64 bit (mingw compiler) and GNU/Linux 64 bit (gcc) OS on x86-64 host\n");
+  fprintf(stdout,"with AMD CPU/GPU or Intel CPU or Nvidia GPU as OpenCL device.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"################################################################################\n");
+  fprintf(stdout,"### Usage\n");
+  fprintf(stdout,"################################################################################\n");
   fprintf(stdout,"First make sure you have an working OpenCL Runtime Environment,\n");
   fprintf(stdout,"start the zeta executable in command line with -dl option to list\n");
-  fprintf(stdout,"all available OpenCL devices on host\n");
+  fprintf(stdout,"all available OpenCL devices on host:\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Second check the OpenCL device and create a config.txt file for the engine,\n");
+  fprintf(stdout,"zeta -dl\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Second check the OpenCL device and create a config file for the engine:\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"zeta -p 0 -d 0 --guessconfigx\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,"Where p is the selected platform id and d is the selected device id.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Third rename the created config file to config.txt and start the engine.\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"All Options:\n");
-  fprintf(stdout," -l, --log          Write output/debug to file zeta.log\n");
-  fprintf(stdout," -v, --version      Print Zeta version info.\n");
-  fprintf(stdout," -h, --help         Print Zeta program usage help.\n");
-  fprintf(stdout," -s, --selftest     Run an internal test, usefull after compile.\n");
-  fprintf(stdout," -pl,               List all OpenCL Platforms on Host\n");
-  fprintf(stdout," -dl,               List all OpenCL Devices on Host\n");
-  fprintf(stdout," -p 0,              Set Platform ID to 0 for guessconfig \n");
-  fprintf(stdout," -d 0,              Set Device ID to 0 for guessconfig \n");
-  fprintf(stdout," --guessconfig      Guess minimal config for OpenCL devices\n");
-  fprintf(stdout," --guessconfigx     Guess optimal config for OpenCL devices\n");
-  fprintf(stdout,"\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"To play against the engine use an CECP v2 protocol capable chess GUI\n");
   fprintf(stdout,"like Arena, Cutechess, Winboard or Xboard.\n");
@@ -1850,18 +1864,19 @@ static void print_help(void)
   fprintf(stdout,"benchkaufmann  // init with sd and st commands\n");
   fprintf(stdout,"               // runs an smp benchmark on Kaufmann positions\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"WARNING:\n");
-  fprintf(stdout,"It is recommended to run the engine on an discrete GPU,\n");
-  fprintf(stdout,"without display connected,\n");
-  fprintf(stdout,"otherwise system and display can freeze or crash during computation.\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.\n");
-  fprintf(stdout,"So make sure to use an discrete GPU or set proper time controls.\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"Windows OS have an internal gpu timeout, double click the .reg file \n");
-  fprintf(stdout,"\"SetWindowsGPUTimeoutTo20s.reg\"\n");
-  fprintf(stdout,"and reboot the OS to set the timeout to 20 seconds.\n");
+  fprintf(stdout,"################################################################################\n");
+  fprintf(stdout,"### Options\n");
+  fprintf(stdout,"################################################################################\n");
+  fprintf(stdout," -l, --log          Write output/debug to file zeta.log\n");
+  fprintf(stdout," -v, --version      Print Zeta version info.\n");
+  fprintf(stdout," -h, --help         Print Zeta program usage help.\n");
+  fprintf(stdout," -s, --selftest     Run an internal test, usefull after compile.\n");
+  fprintf(stdout," -pl,               List all OpenCL Platforms on Host\n");
+  fprintf(stdout," -dl,               List all OpenCL Devices on Host\n");
+  fprintf(stdout," -p 0,              Set Platform ID to 0 for guessconfig \n");
+  fprintf(stdout," -d 0,              Set Device ID to 0 for guessconfig \n");
+  fprintf(stdout," --guessconfig      Guess minimal config for OpenCL devices\n");
+  fprintf(stdout," --guessconfigx     Guess optimal config for OpenCL devices\n");
   fprintf(stdout,"\n");
 }
 // #############################
@@ -2503,6 +2518,7 @@ int main(int argc, char* argv[])
       if (!setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
       {
         fprintf(stdout,"Error (in setting start postition): new\n");        
+        fprintf(stdout,"tellusererror (Error in setting start postition): new\n");        
         if (LogFile)
         {
           fprintdate(LogFile);
@@ -2524,6 +2540,7 @@ int main(int argc, char* argv[])
       if(*Fen != '\n' && *Fen != '\0'  && !setboard (BOARD, Fen))
       {
         fprintf(stdout,"Error (in setting chess psotition via fen string): setboard\n");        
+        fprintf(stdout,"tellusererror (Error in setting chess psotition via fen string): setboard\n");        
         if (LogFile)
         {
           fprintdate(LogFile);
