@@ -1829,7 +1829,7 @@ __kernel void alphabeta_gpu(
     bbTmp64[lid] = (u64)move;
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect bestscore and bestmove x1
-    if (lid==0)
+    if (lid==0&&lmove==MOVENONE)
     {
       movescore = -INFMOVESCORE;
       for (int i=0;i<64;i++)
