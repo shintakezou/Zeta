@@ -29,11 +29,14 @@ without display connected,
 otherwise system and display can freeze or crash during computation.
 
 Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.
-So make sure to use an discrete GPU or set proper time controls.
+So make sure to use an discrete GPU or set proper time controls or disable
+the Watch Dog timeout in your driver settings.
 
 Windows OS have an internal gpu timeout, double click the .reg file 
 "SetWindowsGPUTimeoutTo20s.reg"
 and reboot the OS to set the timeout to 20 seconds.
+
+AMD GPUs may have an driver specific timeout of about 360 to 3600 seconds
 
 ################################################################################
 ### Tested Platforms

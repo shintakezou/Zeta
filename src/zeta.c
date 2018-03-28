@@ -238,11 +238,14 @@ void print_help(void)
   fprintf(stdout,"otherwise system and display can freeze or crash during computation.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.\n");
-  fprintf(stdout,"So make sure to use an discrete GPU or set proper time controls.\n");
+  fprintf(stdout,"So make sure to use an discrete GPU or set proper time controls or disable\n");
+  fprintf(stdout,"the Watch Dog timeout in your driver settings.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Windows OS have an internal gpu timeout, double click the .reg file \n");
   fprintf(stdout,"\"SetWindowsGPUTimeoutTo20s.reg\"\n");
   fprintf(stdout,"and reboot the OS to set the timeout to 20 seconds.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"AMD GPUs may have an driver specific timeout of about 360 to 3600 seconds.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"################################################################################\n");
   fprintf(stdout,"### Tested Platforms\n");
