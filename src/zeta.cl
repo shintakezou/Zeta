@@ -71,7 +71,7 @@ typedef struct
 // tunebale search params
 #define NULLR           2 // nullmove pruning reduction
 #define LMRR            1 // late move reduction 
-#define RANDBRO         2 // how many brothers searched before randomized order
+#define RANDBRO         1 // how many brothers searched before randomized order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
@@ -1521,6 +1521,7 @@ __kernel void alphabeta_gpu(
           &&!qs
           &&!evasion
           &&sd>1 // not on root
+          &&!(localSearchMode[sd]&NULLMOVESEARCH)
        )
       {
         bbWork = localHashHistory[sd];    
@@ -1804,6 +1805,7 @@ __kernel void alphabeta_gpu(
       {
         tmpscore = (prn%INF)+INF;
 //        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF; // captures first
+//          tmpscore+= prn%((u32)pown((float)gid+1,3)%(INFMOVESCORE-tmpscore));
       }
       // check tt move
       if (ttmove==tmpmove)
@@ -1984,7 +1986,7 @@ __kernel void alphabeta_gpu(
 //         &&!(localSearchMode[sd]&NULLMOVESEARCH)
 //         &&!(localSearchMode[sd-1]&LMRSEARCH)
 //         &&localDepth[sd]>0
-         &&localTodoIndex[sd-1]>RANDBRO // previous moves searched
+         &&localTodoIndex[sd-1]>2 // previous moves searched
          &&count1s(board[QBBP1]|board[QBBP2]|board[QBBP3])>=4
         )
       {
