@@ -69,7 +69,6 @@ typedef struct
 } TTE;
 
 // tunebale search params
-#define NULLR           2 // nullmove pruning reduction
 #define LMRR            1 // late move reduction 
 #define RANDBRO         1 // how many brothers searched before randomized order
 // TT node type flags
@@ -1708,11 +1707,12 @@ __kernel void alphabeta_gpu(
           &&sd>1
           &&localMoveHistory[sd]==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
-          &&!(localSearchMode[sd]&LMRSEARCH)
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
+          &&!(localSearchMode[sd]&LMRSEARCH)
 //          &&!(localNodeStates[sd]&LMR)
+          &&localDepth[sd]>=4
           )
       {
         lmove = NULLMOVE;
@@ -1970,9 +1970,10 @@ __kernel void alphabeta_gpu(
       {
         localTodoIndex[sd-1]--;
         localSearchMode[sd]              |= NULLMOVESEARCH;
-        localDepth[sd]                   -= NULLR; // dept reduction
+        localDepth[sd]                   -= (localDepth[sd]>=6)?4:(localDepth[sd]>=3)?2:0; // dept reduction
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
-        localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
+        localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
+//        localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
       }
       // set values for late move reduction search
       if (!bresearch
