@@ -87,21 +87,18 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     // something went wrong...
     if (!state)
     {
-printf("write failed\n");
       quitengine(EXIT_FAILURE);
     }
     state = cl_run_alphabeta(stm, idf, MaxNodes/totalWorkUnits);
     // something went wrong...
     if (!state)
     {
-printf("run failed\n");
       quitengine(EXIT_FAILURE);
     }
     state = cl_read_memory();
     // something went wrong...
     if (!state)
     {
-printf("read failed\n");
       quitengine(EXIT_FAILURE);
     }
   /*
