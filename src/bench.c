@@ -21,6 +21,7 @@
 
 #include <stdio.h>        // for print and scan
 #include <string.h>       // for string compare 
+#include <unistd.h>       // for sleep
 
 #include "bitboard.h"     // bitboard related functions
 #include "clrun.h"        // OpenCL run functions
@@ -42,30 +43,29 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   MOVECOUNT   = 0;
 
   // init board
-  memcpy(GLOBAL_BOARD, board, 8*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // reset counters
-  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
-  // prepare hash history
+  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*threadsZ*sizeof(u64));
+  // init prng
+  srand((unsigned int)start);
   for(u64 i=0;i<totalWorkUnits;i++)
   {
+    // prepare hash history
     memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY * sizeof(Hash));
+    // set random numbers
+    for(u64 j=0;j<64;j++)
+      RNUMBERS[i*64+j] = (u32)rand();
   }
   start = get_time();
   // inits
   if (!cl_write_objects())
-  {
     return -1;
-  }
   // run  benchmark
   if (!cl_run_alphabeta(stm, depth, MaxNodes))
-  {
     return -1;
-  }
   // copy results
   if (!cl_read_memory())
-  {
     return -1;
-  }
   // timers
   end = get_time();
   elapsed = end-start;
@@ -108,31 +108,38 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
 // get nodes per second for temp config and specified position
 s64 benchmarkWrapper(s32 benchsec)
 {
+  bool state;
   s32 sd = 1; 
   s32 bench = 0;
+
   // inits
-  if (!gameinits())
+  state = read_and_init_config("config.tmp");
+  if (!state)
   {
     return -1;
   }
-  if (!read_and_init_config("config.tmp"))
+  state = gameinits();
+  if (!state)
   {
     release_gameinits();
     return -1;
   }
-  if (!cl_init_device("alphabeta_gpu"))
+
+  setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+  state = cl_init_device("alphabeta_gpu");
+  if (!state)
   {
+    cl_release_device();
     release_gameinits();
-    release_configinits();
     return -1;
   }
   printboard(BOARD);
   MaxNodes = 8192; // search n nodes initial
   // run bench
   elapsed = 0;
-  while (elapsed <= benchsec) 
+  while (elapsed<=benchsec&&sd<MAXPLY) 
   {
-    setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     bench = benchmark(BOARD, STM, sd);                
     if (bench != 0 )
       break;
@@ -144,7 +151,7 @@ s64 benchmarkWrapper(s32 benchsec)
   // release inits
   cl_release_device();
   release_gameinits();
-  release_configinits();
+
   if (elapsed <= 0 || ABNODECOUNT <= 0)
     return -1;
 

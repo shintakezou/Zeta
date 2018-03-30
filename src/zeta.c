@@ -50,6 +50,7 @@ u64 TTHITS              = 0;
 u64 TTSCOREHITS         = 0;
 u64 MOVECOUNT           = 0;
 // config file
+char configfile[256] = "config.txt";
 u64 threadsX            =  1;
 u64 threadsY            =  1;
 const u64 threadsZ      = 64; // fix value, run z threads per work-group
@@ -114,6 +115,31 @@ Move *PVZEROED = NULL;
 TTMove *KILLERZEROED = NULL;
 TTMove *COUNTERZEROED = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
+// OpenCL memory buffer objects
+cl_mem   GLOBAL_BOARD_Buffer;
+cl_mem   GLOBAL_globalbbMoves_Buffer;
+cl_mem	 GLOBAL_COUNTERS_Buffer;
+cl_mem   GLOBAL_RNUMBERS_Buffer;
+cl_mem	 GLOBAL_PV_Buffer;
+cl_mem	 GLOBAL_HASHHISTORY_Buffer;
+cl_mem	 GLOBAL_bbInBetween_Buffer;
+cl_mem	 GLOBAL_bbLine_Buffer;
+cl_mem   GLOBAL_TT1_Buffer;
+//cl_mem   GLOBAL_TT2_Buffer;
+cl_mem   GLOBAL_Killer_Buffer;
+cl_mem   GLOBAL_Counter_Buffer;
+cl_mem   GLOBAL_finito_Buffer;
+// OpenCL runtime objects
+cl_context          context;
+cl_device_id        *devices;
+cl_command_queue    commandQueue;
+cl_program          program;
+cl_kernel           kernel;
+// for OpenCL config
+cl_uint numPlatforms;
+cl_platform_id platform;
+cl_uint deviceListSize;
+cl_context_properties cps[3];
 
 // #############################
 // ###        inits          ###
@@ -175,6 +201,130 @@ bool gameinits(void)
             MAXGAMEPLY);
     return false;
   }
+
+  // allocate memory by config.txt
+  GLOBAL_BOARD = (Bitboard*)malloc(7*sizeof(Bitboard));
+  if (GLOBAL_BOARD==NULL)
+  {
+    fprintf(stdout, "memory alloc, GLOBAL_BOARD, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, GLOBAL_BOARD, failed\n");
+    }
+    return false;
+  }
+  RNUMBERS = (u32*)calloc(totalWorkUnits*threadsZ, sizeof(u32));
+  if (RNUMBERS==NULL)
+  {
+    fprintf(stdout, "memory alloc, RNUMBERS, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, RNUMBERS, failed\n");
+    }
+    return false;
+  }
+  COUNTERS = (u64*)calloc(totalWorkUnits*threadsZ, sizeof(u64));
+  if (COUNTERS==NULL)
+  {
+    fprintf(stdout, "memory alloc, COUNTERS, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, COUNTERS, failed\n");
+    }
+    return false;
+  }
+  COUNTERSZEROED = (u64*)calloc(totalWorkUnits*threadsZ, sizeof(u64));
+  if (COUNTERSZEROED==NULL)
+  {
+    fprintf(stdout, "memory alloc, COUNTERSZEROED, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, COUNTERSZEROED, failed\n");
+    }
+    return false;
+  }
+  PV = (Move*)calloc(MAXPLY, sizeof(Move));
+  if (PV==NULL)
+  {
+    fprintf(stdout, "memory alloc, PV, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, PV, failed\n");
+    }
+    return false;
+  }
+  PVZEROED = (Move*)calloc(MAXPLY, sizeof(Move));
+  if (PVZEROED==NULL)
+  {
+    fprintf(stdout, "memory alloc, PVZEROED, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, PVZEROED, failed\n");
+    }
+    return false;
+  }
+  KILLERZEROED = (Move*)calloc(totalWorkUnits*MAXPLY, sizeof(Move));
+  if (KILLERZEROED==NULL)
+  {
+    fprintf(stdout, "memory alloc, KILLERZEROED, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, KILLERZEROED, failed\n");
+    }
+    return false;
+  }
+  COUNTERZEROED = (Move*)calloc(totalWorkUnits*64*64, sizeof(Move));
+  if (COUNTERZEROED==NULL)
+  {
+    fprintf(stdout, "memory alloc, COUNTERZEROED, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, COUNTERZEROED, failed\n");
+    }
+    return false;
+  }
+  GLOBAL_HASHHISTORY = (Hash*)calloc(totalWorkUnits*MAXGAMEPLY , sizeof(Hash));
+  if (GLOBAL_HASHHISTORY==NULL)
+  {
+    fprintf(stdout, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
+    if (LogFile)
+    {
+      fprintdate(LogFile);
+      fprintf(LogFile, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
+    }
+    return false;
+  }
+  // initialize transposition table
+  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
+  u64 ttbits = 0;
+  if (max_memory>0&&memory_slots>0)
+  {
+    while ( mem >>= 1)   // get msb
+      ttbits++;
+    mem = 1ULL<<ttbits;   // get number of tt entries
+    ttbits=mem;
+  }
+  else
+  {
+    max_memory = 1;
+    memory_slots = 0;
+    mem = 1;
+  }
+
+  TT = (TTE*)calloc(mem,sizeof(TTE));
+  if (TT==NULL)
+  {
+    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
+    return false;
+  }
   return true;
 }
 void release_gameinits()
@@ -184,19 +334,33 @@ void release_gameinits()
   free(HashHistory);
   free(CRHistory);
   free(HMCHistory);
-}
-void release_configinits()
-{
-  // opencl related
+
   free(GLOBAL_BOARD);
-  free(COUNTERS);
   free(RNUMBERS);
+  free(COUNTERS);
   free(COUNTERSZEROED);
   free(PV);
   free(PVZEROED);
   free(KILLERZEROED);
   free(COUNTERZEROED);
   free(GLOBAL_HASHHISTORY);
+  free(TT);
+}
+void release_configinits()
+{
+/*
+  // opencl related
+  free(GLOBAL_BOARD);
+  free(RNUMBERS);
+  free(COUNTERS);
+  free(COUNTERSZEROED);
+  free(PV);
+  free(PVZEROED);
+  free(KILLERZEROED);
+  free(COUNTERZEROED);
+  free(GLOBAL_HASHHISTORY);
+  free(TT);
+*/
 }
 void release_engineinits()
 {
@@ -320,8 +484,6 @@ void print_help(void)
 // Zeta, experimental chess engine written in OpenCL.
 int main(int argc, char* argv[])
 {
-  // config file
-  char configfile[256] = "config.txt";
   // for get opt
   s32 c;
   static struct option long_options[] = 
@@ -375,25 +537,24 @@ int main(int argc, char* argv[])
                long_options, &option_index)) != -1) {
     switch (option_index) 
     {
-      case 0:
+      case 0: // help
         print_help();
         exit(EXIT_SUCCESS);
         break;
-      case 1:
+      case 1: // version
         print_version();
         exit(EXIT_SUCCESS);
         break;
-      case 2:
-        // init engine and game memory, read config ini file and init OpenCL device
+      case 2: // selftest
         if (!engineinits())
         {
           quitengine(EXIT_FAILURE);
         }
-        if (!gameinits())
+        if (!read_and_init_config(configfile))
         {
           quitengine(EXIT_FAILURE);
         }
-        if (!read_and_init_config(configfile))
+        if (!gameinits())
         {
           quitengine(EXIT_FAILURE);
         }
@@ -404,24 +565,20 @@ int main(int argc, char* argv[])
         selftest();
         quitengine(EXIT_SUCCESS);
         break;
-      case 3:
+      case 3: // log
         break;
-      case 4:
-        // init engine and game memory
+      case 4: // guessconfig
+        // init engine
         if (!engineinits())
-        {
             exit(EXIT_FAILURE);
-        }
         cl_guess_config(false);
         release_engineinits();
         exit(EXIT_SUCCESS);
         break;
-      case 5:
-        // init engine and game memory
+      case 5: // guessconfigx
+        // init engine
         if (!engineinits())
-        {
           exit(EXIT_FAILURE);
-        }
         cl_guess_config(true);
         release_engineinits();
         exit(EXIT_SUCCESS);
@@ -436,11 +593,11 @@ int main(int argc, char* argv[])
         if (optarg)
           opencl_user_device = atoi(optarg);
        break;
-      case 8:
+      case 8: // list OpenCL platforms
         cl_platform_list();
         exit(EXIT_SUCCESS);
        break;
-      case 9:
+      case 9: // list OpenCL devices
         cl_device_list();
         exit(EXIT_SUCCESS);
        break;
@@ -476,15 +633,23 @@ int main(int argc, char* argv[])
   {
     quitengine(EXIT_FAILURE);
   }
-  if (!gameinits())
-  {
-    quitengine(EXIT_FAILURE);
-  }
   if (!read_and_init_config(configfile))
   {
     quitengine(EXIT_FAILURE);
   }
+  if (!gameinits())
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  if (!setboard(BOARD, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
+  {
+    quitengine(EXIT_FAILURE);
+  }
   if (!cl_init_device("alphabeta_gpu"))
+  {
+    quitengine(EXIT_FAILURE);
+  }
+  if (!cl_run_alphabeta(STM, 0, 1))
   {
     quitengine(EXIT_FAILURE);
   }

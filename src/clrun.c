@@ -25,7 +25,6 @@
 #include "zeta.h"       // for global vars
 
 static cl_int status = 0;
-cl_uint deviceListSize;
 
 cl_uint maxDims = 3;
 size_t globalThreads[3]; 
@@ -44,10 +43,7 @@ void print_debug(char *debug);
 // initialize OpenCL device, called once per game
 bool cl_init_device(char *kernelname)
 {
-  context = NULL;
-  kernel  = NULL;
-  program = NULL;
-  commandQueue = NULL;
+  cl_uint deviceListSize;
 
   status = clGetPlatformIDs(256, NULL, &numPlatforms);
   if(status!=CL_SUCCESS)
@@ -118,7 +114,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
   // build OpenCL program object
-  if (program==NULL&&strstr(kernelname, "perft_gpu"))
+  if (strstr(kernelname, "perft_gpu"))
   {
     const char *content = zetaperft_cl;
     const size_t len = zetaperft_cl_len;
@@ -164,7 +160,7 @@ bool cl_init_device(char *kernelname)
     }
   }
   // build OpenCL program object
-  if (program==NULL&&strstr(kernelname, "alphabeta_gpu"))
+  if (strstr(kernelname, "alphabeta_gpu"))
   {
 
 // gpugen deprecated, now inlined preprocessor directives in zeta.cl
@@ -239,7 +235,7 @@ bool cl_init_device(char *kernelname)
   // create memory buffers
   GLOBAL_BOARD_Buffer = clCreateBuffer(
                           			      context, 
-                                      CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                      CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                       sizeof(Bitboard) * 7,
                                       GLOBAL_BOARD, 
                                       &status);
@@ -252,7 +248,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_COUNTERS_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(u64) * totalWorkUnits * 64,
+                                    sizeof(u64) * totalWorkUnits * threadsZ,
                                     COUNTERSZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -264,7 +260,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_RNUMBERS_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(u32) * totalWorkUnits * 64,
+                                    sizeof(u32) * totalWorkUnits * threadsZ,
                                     RNUMBERS, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -455,7 +451,7 @@ bool cl_init_device(char *kernelname)
   return true;
 }
 // write OpenCL memory buffers, called every search run
-bool cl_write_objects() 
+bool cl_write_objects(void) 
 {
   // write buffers
   status = clEnqueueWriteBuffer(
@@ -489,7 +485,7 @@ bool cl_write_objects()
                                 GLOBAL_COUNTERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(u64) * totalWorkUnits * 64,
+                                sizeof(u64) * totalWorkUnits * threadsZ,
                                 COUNTERSZEROED, 
                                 0,
                                 NULL,
@@ -515,7 +511,7 @@ bool cl_write_objects()
                                 GLOBAL_RNUMBERS_Buffer,
                                 CL_TRUE,
                                 0,
-                                sizeof(u32) * totalWorkUnits * 64,
+                                sizeof(u32) * totalWorkUnits * threadsZ,
                                 RNUMBERS, 
                                 0,
                                 NULL,
@@ -610,7 +606,6 @@ bool cl_write_objects()
     print_debug((char *)"Error: Waiting for memory writes run to finish. (clFinish)\n");
     return false;
   }
-
 
 	return true;
 }
@@ -736,33 +731,6 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT2_Buffer)\n");
-    return false;
-  }
-  i++;
-*/
-
-/*
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_TT3_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT3_Buffer)\n");
-    return false;
-  }
-  i++;
-*/
-/*
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_mem), 
-                          (void *)&GLOBAL_TT4_Buffer);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT4_Buffer)\n");
     return false;
   }
   i++;
@@ -1092,8 +1060,8 @@ bool cl_run_perft(bool stm, s32 depth)
   return true;
 }
 
-// copy and release memory from device
-bool cl_read_memory()
+// copy memory from device to host
+bool cl_read_memory(void)
 {
 //  cl_event events[2];
 
@@ -1211,7 +1179,7 @@ bool cl_read_memory()
 	return true;
 }
 // release OpenCL device
-bool cl_release_device() 
+bool cl_release_device(void) 
 {
   // release memory buffers
   status = clReleaseMemObject(GLOBAL_BOARD_Buffer);
@@ -1286,22 +1254,7 @@ bool cl_release_device()
 		return false; 
 	}
 
-	status = clReleaseMemObject(GLOBAL_TT3_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT3_Buffer)\n");
-		return false; 
-	}
 */
-/*
-	status = clReleaseMemObject(GLOBAL_TT4_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT4_Buffer)\n");
-		return false; 
-	}
-*/
-
 	status = clReleaseMemObject(GLOBAL_Killer_Buffer);
   if(status!=CL_SUCCESS)
 	{
@@ -1339,7 +1292,6 @@ bool cl_release_device()
   }
 
   status = clReleaseProgram(program);
-  program = NULL;
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: In clReleaseProgram\n");
@@ -1347,7 +1299,6 @@ bool cl_release_device()
   }
 
   status = clReleaseContext(context);
-  context = NULL;
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: In clReleaseContext\n");

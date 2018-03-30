@@ -23,11 +23,11 @@
 #define CLRUN_H_INCLUDED
 
 bool cl_init_device(char *kernelname);
-bool cl_write_objects();
+bool cl_write_objects(void);
 bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes);
 bool cl_run_perft(bool stm, s32 depth);
-bool cl_read_memory();
-bool cl_release_device();
+bool cl_read_memory(void);
+bool cl_release_device(void);
 
 #endif /* CLRUN_H_INCLUDED */
 

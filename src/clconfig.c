@@ -27,10 +27,6 @@
 #include "bench.h"      // run benchmark
 #include "zeta.h"       // for global vars
 
-extern void read_config();
-
-// TODO: check for work group dim == 3 and workgroup size[3] >= 64
-
 // guess minimal and optimal setup for given cl device
 bool cl_guess_config(bool extreme)
 {
@@ -43,7 +39,7 @@ bool cl_guess_config(bool extreme)
   char *deviceName;
   char *ExtensionsValue;
   size_t wgsize;
-  cl_device_id *devices;
+  cl_device_id *cldevice;
   u32 i,j,k;
   u32 deviceunits = 0;
   u64 devicememalloc = 0;
@@ -180,12 +176,12 @@ bool cl_guess_config(bool extreme)
         }
         continue;
       }
-      devices = (cl_device_id *)malloc(deviceListSize * sizeof(cl_device_id));
+      cldevice = (cl_device_id *)malloc(deviceListSize * sizeof(cl_device_id));
       // get devices
       status = clGetDeviceIDs(platform, 
                               CL_DEVICE_TYPE_ALL, 
                               deviceListSize, 
-                              devices, 
+                              cldevice, 
                               NULL);
       if(status!=CL_SUCCESS) 
       {  
@@ -218,7 +214,7 @@ bool cl_guess_config(bool extreme)
         failed = false;
         bestwarpmulti = warpmulti = 1;
         // get device name size
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_NAME,
                                   0,
                                   NULL,
@@ -237,7 +233,7 @@ bool cl_guess_config(bool extreme)
         }
         deviceName = (char *)malloc(1 * paramSize);
         // get device name
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_NAME,
                                   paramSize,
                                   deviceName,
@@ -278,7 +274,7 @@ bool cl_guess_config(bool extreme)
 
         // get endianess, only little endian tested
         cl_bool endianlittle = CL_FALSE;
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_ENDIAN_LITTLE,
                                   sizeof(cl_bool),
                                   &endianlittle,
@@ -319,7 +315,7 @@ bool cl_guess_config(bool extreme)
         }
 
         // get compute units
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_MAX_COMPUTE_UNITS,
                                   sizeof(cl_uint),
                                   &deviceunits,
@@ -347,7 +343,7 @@ bool cl_guess_config(bool extreme)
         }
 
         // get max memory allocation size, for hash table
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_MAX_MEM_ALLOC_SIZE ,
                                   sizeof(cl_ulong),
                                   &devicememalloc,
@@ -389,7 +385,7 @@ bool cl_guess_config(bool extreme)
         // get global memory size, for calculating slots
         slots = 1;
         u64 devicememglobal = 1;
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_GLOBAL_MEM_SIZE,
                                   sizeof(cl_ulong),
                                   &devicememglobal,
@@ -422,6 +418,9 @@ bool cl_guess_config(bool extreme)
           memalloc =  MAXDEVICEMB*1024*1024;
         if (memalloc>devicememalloc)
           memalloc =  devicememalloc;
+        // take max mem alloc size, buggy on AMD >= 1024MB
+//        if (memalloc<devicememalloc)
+//          memalloc =  devicememalloc;
         // memory slots
         slots = devicememglobal/memalloc;
         slots = (slots>MAXSLOTS)?MAXSLOTS:slots;
@@ -439,7 +438,7 @@ bool cl_guess_config(bool extreme)
         // check for needed device extensions
 // local and global 32 bit functions faster on newer device...
 // chose portability vs speed...
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_EXTENSIONS,
                                   0,
                                   NULL,
@@ -457,7 +456,7 @@ bool cl_guess_config(bool extreme)
           failed |= true;
         } 
         ExtensionsValue = (char *)malloc(1 * paramSize);
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_EXTENSIONS,
                                   paramSize,
                                   ExtensionsValue,
@@ -588,7 +587,7 @@ bool cl_guess_config(bool extreme)
         opencl_gpugen = (fgint32&&flint32&&flint64)?3:opencl_gpugen;
 
         // get work group size
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_MAX_WORK_GROUP_SIZE,
                                   sizeof(size_t),
                                   &wgsize,
@@ -627,7 +626,7 @@ bool cl_guess_config(bool extreme)
 
         // get work group item dims
         cl_uint dims = 0;
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
                                   sizeof(cl_uint),
                                   &dims,
@@ -666,7 +665,7 @@ bool cl_guess_config(bool extreme)
 
         // get work group item sizes
         size_t items[dims];
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                   dims * sizeof(size_t),
                                   &items,
@@ -705,7 +704,7 @@ bool cl_guess_config(bool extreme)
   
         // get device available info
         cl_bool available = CL_FALSE;
-        status = clGetDeviceInfo (devices[j],
+        status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_AVAILABLE,
                                   sizeof(cl_bool),
                                   &available,
@@ -759,7 +758,7 @@ bool cl_guess_config(bool extreme)
         // create context
         context = clCreateContext(cps, 
                                   1, 
-                                  &devices[j],
+                                  &cldevice[j],
                                   NULL, 
                                   NULL, 
                                   &status);
@@ -785,7 +784,7 @@ bool cl_guess_config(bool extreme)
         // create command queue
         commandQueue = clCreateCommandQueue(
                   	                       context, 
-                                           devices[j], 
+                                           cldevice[j], 
                                            0, 
                                            &status);
         if(status!=CL_SUCCESS) 
@@ -835,7 +834,7 @@ bool cl_guess_config(bool extreme)
           }
         }
         // build program for device
-        status = clBuildProgram(program, 1, &devices[j], NULL, NULL, NULL);
+        status = clBuildProgram(program, 1, &cldevice[j], NULL, NULL, NULL);
         if(status!=CL_SUCCESS) 
         { 
           char* build_log=0;
@@ -851,7 +850,7 @@ bool cl_guess_config(bool extreme)
 
           // shows the log
           // first call to know the proper size
-          clGetProgramBuildInfo(program, devices[j], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+          clGetProgramBuildInfo(program, cldevice[j], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
           build_log = (char *) malloc(log_size+1);
 
           if(status!=CL_SUCCESS) 
@@ -864,7 +863,7 @@ bool cl_guess_config(bool extreme)
             }
           }
           // second call to get the log
-          status = clGetProgramBuildInfo(program, devices[j], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
+          status = clGetProgramBuildInfo(program, cldevice[j], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
           //build_log[log_size] = '\0';
 
           if(status!=CL_SUCCESS) 
@@ -916,7 +915,7 @@ bool cl_guess_config(bool extreme)
         }
         // query kernel for warp resp wavefront size
         status = clGetKernelWorkGroupInfo ( kernel,
-                                            devices[j],
+                                            cldevice[j],
                                             CL_DEVICE_MAX_WORK_GROUP_SIZE,
                                             0,
                                             NULL,
@@ -935,7 +934,7 @@ bool cl_guess_config(bool extreme)
 
         paramValue = (size_t *)malloc(1 * paramSize);
         status = clGetKernelWorkGroupInfo ( kernel,
-                                            devices[j],
+                                            cldevice[j],
                                             CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
                                             paramSize,
                                             &paramValue,
@@ -961,7 +960,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsX: %i;\n", 1);
         fprintf(Cfg, "threadsY: %i;\n", 1);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
+        fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", 1, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n",j);
@@ -1064,7 +1063,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %" PRI64 ";\n", npstmp);
-            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
+            fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots,(s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
@@ -1111,7 +1110,7 @@ bool cl_guess_config(bool extreme)
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %" PRIi64 ";\n", npstmp);
-            fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
+            fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
             fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n",j);
@@ -1194,7 +1193,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(Cfg, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
+        fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
         fprintf(Cfg, "memory_slots: %i; // max %i \n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n",j);
@@ -1226,7 +1225,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(stdout, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(stdout, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
+        fprintf(stdout, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
         fprintf(stdout, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
         fprintf(stdout, "opencl_device_id: %i;\n",j);
@@ -1240,7 +1239,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile, "threadsX: %i;\n", (!extreme)?1:deviceunits);
           fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
           fprintf(LogFile, "nodes_per_second: %" PRIu64 ";\n", nps);
-          fprintf(LogFile, "max_memory: %i; // in MB\n", (s32)memalloc/1024/1024);
+          fprintf(LogFile, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
           fprintf(LogFile, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
           fprintf(LogFile, "opencl_device_id: %i;\n",j);

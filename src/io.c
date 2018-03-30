@@ -532,7 +532,7 @@ bool setboard(Bitboard *board, char *fenstring)
 bool read_and_init_config(char configfile[])
 {
   FILE 	*fcfg;
-  char line[256];
+  char line[1024];
 
   fcfg = fopen(configfile, "r");
   if (fcfg == NULL)
@@ -576,131 +576,6 @@ bool read_and_init_config(char configfile[])
 
   totalWorkUnits = threadsX*threadsY;
 
-  // allocate memory
-  GLOBAL_BOARD = (Bitboard*)malloc(8*sizeof(Bitboard));
-  if (GLOBAL_BOARD==NULL)
-  {
-    fprintf(stdout, "memory alloc, GLOBAL_BOARD, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, GLOBAL_BOARD, failed\n");
-    }
-    return false;
-  }
-  RNUMBERS = (u32*)calloc(totalWorkUnits*64, sizeof(u32));
-  if (RNUMBERS==NULL)
-  {
-    fprintf(stdout, "memory alloc, RNUMBERS, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, RNUMBERS, failed\n");
-    }
-    return false;
-  }
-  COUNTERS = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
-  if (COUNTERS==NULL)
-  {
-    fprintf(stdout, "memory alloc, COUNTERS, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, COUNTERS, failed\n");
-    }
-    return false;
-  }
-  COUNTERSZEROED = (u64*)calloc(totalWorkUnits*64, sizeof(u64));
-  if (COUNTERSZEROED==NULL)
-  {
-    fprintf(stdout, "memory alloc, COUNTERSZEROED, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, COUNTERSZEROED, failed\n");
-    }
-    return false;
-  }
-  PV = (Move*)calloc(1024, sizeof(Move));
-  if (PV==NULL)
-  {
-    fprintf(stdout, "memory alloc, PV, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, PV, failed\n");
-    }
-    return false;
-  }
-  PVZEROED = (Move*)calloc(MAXPLY, sizeof(Move));
-  if (PVZEROED==NULL)
-  {
-    fprintf(stdout, "memory alloc, PVZEROED, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, PVZEROED, failed\n");
-    }
-    return false;
-  }
-  KILLERZEROED = (Move*)calloc(totalWorkUnits*MAXPLY, sizeof(Move));
-  if (KILLERZEROED==NULL)
-  {
-    fprintf(stdout, "memory alloc, KILLERZEROED, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, KILLERZEROED, failed\n");
-    }
-    return false;
-  }
-  COUNTERZEROED = (Move*)calloc(totalWorkUnits*64*64, sizeof(Move));
-  if (COUNTERZEROED==NULL)
-  {
-    fprintf(stdout, "memory alloc, COUNTERZEROED, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, COUNTERZEROED, failed\n");
-    }
-    return false;
-  }
-  GLOBAL_HASHHISTORY = (Hash*)malloc((totalWorkUnits*MAXGAMEPLY) * sizeof (Hash));
-  if (GLOBAL_HASHHISTORY==NULL)
-  {
-    fprintf(stdout, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
-    if (LogFile)
-    {
-      fprintdate(LogFile);
-      fprintf(LogFile, "memory alloc, GLOBAL_HASHHISTORY, failed\n");
-    }
-    return false;
-  }
-  // initialize transposition table
-  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
-  u64 ttbits = 0;
-  if (max_memory>0&&memory_slots>0)
-  {
-    while ( mem >>= 1)   // get msb
-      ttbits++;
-    mem = 1ULL<<ttbits;   // get number of tt entries
-    ttbits=mem;
-  }
-  else
-  {
-    max_memory = 1;
-    memory_slots = 0;
-    mem = 1;
-  }
-
-  if (TT)
-    free(TT);
-  TT = (TTE*)calloc(mem,sizeof(TTE));
-  if (TT==NULL)
-  {
-    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
-    return false;
-  }
   return true;
 }
 

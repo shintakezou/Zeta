@@ -826,6 +826,8 @@ void xboard(void) {
       ABNODECOUNT = 0;
       MOVECOUNT = 0;
 
+//      state = cl_run_alphabeta(STM, 0, 1);
+
       threadsX = 1;
       threadsY = 1;
 
@@ -843,6 +845,8 @@ void xboard(void) {
             fprintf(LogFile,"### doing inits for benchsmp depth %d: ###\n", SD);  
           }
 
+          totalWorkUnits = threadsX*threadsY;
+
           release_gameinits();
           state = gameinits();
           // something went wrong...
@@ -856,9 +860,6 @@ void xboard(void) {
           {
             quitengine(EXIT_FAILURE);
           }
-
-          totalWorkUnits = threadsX*threadsY;
-
           state = cl_init_device("alphabeta_gpu");
           // something went wrong...
           if (!state)
@@ -927,6 +928,12 @@ void xboard(void) {
       }
       //reset 
       release_gameinits();
+      state = read_and_init_config(configfile);
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
       state = gameinits();
       // something went wrong...
       if (!state)
@@ -939,9 +946,6 @@ void xboard(void) {
       {
         quitengine(EXIT_FAILURE);
       }
-      threadsX = x;
-      threadsY = y;
-      totalWorkUnits = threadsX*threadsY;
       state = cl_init_device("alphabeta_gpu");
       // something went wrong...
       if (!state)
@@ -1143,6 +1147,12 @@ void xboard(void) {
       }
       //reset 
       release_gameinits();
+      state = read_and_init_config(configfile);
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
       state = gameinits();
       // something went wrong...
       if (!state)
@@ -1155,9 +1165,6 @@ void xboard(void) {
       {
         quitengine(EXIT_FAILURE);
       }
-      threadsX = x;
-      threadsY = y;
-      totalWorkUnits = threadsX*threadsY;
       state = cl_init_device("alphabeta_gpu");
       // something went wrong...
       if (!state)

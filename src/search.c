@@ -47,9 +47,9 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   start = get_time(); 
 
   // init board
-  memcpy(GLOBAL_BOARD, board, 8*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // reset counters
-  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
+  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*threadsZ*sizeof(u64));
   // init prng
   srand((unsigned int)start);
   for(u64 i=0;i<totalWorkUnits;i++)
@@ -87,18 +87,21 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     // something went wrong...
     if (!state)
     {
+printf("write failed\n");
       quitengine(EXIT_FAILURE);
     }
     state = cl_run_alphabeta(stm, idf, MaxNodes/totalWorkUnits);
     // something went wrong...
     if (!state)
     {
+printf("run failed\n");
       quitengine(EXIT_FAILURE);
     }
     state = cl_read_memory();
     // something went wrong...
     if (!state)
     {
+printf("read failed\n");
       quitengine(EXIT_FAILURE);
     }
   /*
@@ -114,7 +117,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     {
       ABNODECOUNT+=   COUNTERS[i*64+1];
       TTHITS+=        COUNTERS[i*64+3];
-      TTSCOREHITS+=        COUNTERS[i*64+4];
+      TTSCOREHITS+=   COUNTERS[i*64+4];
     }
 
     // timers
@@ -196,9 +199,9 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   MOVECOUNT   = 0;
 
   // init board
-  memcpy(GLOBAL_BOARD, board, 8*sizeof(Bitboard));
+  memcpy(GLOBAL_BOARD, board, 7*sizeof(Bitboard));
   // reset counters
-  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*64*sizeof(u64));
+  memcpy(COUNTERS, COUNTERSZEROED, totalWorkUnits*threadsZ*sizeof(u64));
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {

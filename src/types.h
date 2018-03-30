@@ -75,7 +75,7 @@ typedef u8 Rank;
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 64ULL   // min memory of OpenCl device in MB
-#define MAXDEVICEMB 1024ULL // max memory for OpenCL devices in MB
+#define MAXDEVICEMB 2048ULL // max memory for OpenCL devices in MB
 #define MAXSLOTS    1       // max memory slots for OpenCL devices
 #define ESTEBF      2       // estaminated effective branching factor, for tc
 // colors
