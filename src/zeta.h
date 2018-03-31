@@ -40,6 +40,7 @@ extern char *Fen;
 extern u64 ABNODECOUNT;
 extern u64 TTHITS;
 extern u64 TTSCOREHITS;
+extern u64 IIDHITS;
 extern u64 MOVECOUNT;
 // config file
 extern char configfile[256];

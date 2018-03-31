@@ -48,6 +48,7 @@ char *Fen;                    // for storing the fen chess baord string
 u64 ABNODECOUNT         = 0;
 u64 TTHITS              = 0;
 u64 TTSCOREHITS         = 0;
+u64 IIDHITS             = 0;
 u64 MOVECOUNT           = 0;
 // config file
 char configfile[256] = "config.txt";
