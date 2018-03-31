@@ -946,6 +946,9 @@ __kernel void alphabeta_gpu(
   ttage           = (u8)ply_init&0x3F;
   bestmove        = MOVENONE;
   bestscore       = -INF;
+  randomize       = false;
+  bresearch       = false;
+  bforward        = false;
 
   // init ab search var stack
   localAlphaBetaScores[0*2+ALPHA] =-INF;
@@ -1644,15 +1647,19 @@ __kernel void alphabeta_gpu(
               )
            )
         {
-          localNodeStates[sd] ^=IID;
-          localNodeStates[sd] |=IIDDONE;
           bforward = true;
-          // reset initial ab window
+          // reset values for new iteration
+          localMoveHistory[sd]              = MOVENONE;
+          localMoveCounter[sd]              = 0;
+          localTodoIndex[sd]                = 0;
           localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
           localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-          // reset index and counter
-          localTodoIndex[sd] = 0;
-          localMoveCounter[sd] = 0;
+          localDepth[sd]                    = localDepth[sd-1]-1; // decrease depth
+          localSearchMode[sd]               = localSearchMode[sd-1];
+          localNodeStates[sd]               = STATENONE;
+          // set iid done flag
+          localNodeStates[sd]              |=IIDDONE;
+
         }
 
         // ###################################
@@ -1743,6 +1750,7 @@ __kernel void alphabeta_gpu(
           &&sd>1
           &&localMoveHistory[sd]==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
+          &&!(localSearchMode[sd]&IIDSEARCH)
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
@@ -1855,6 +1863,8 @@ __kernel void alphabeta_gpu(
       if (localIIDMoves[sd]==tmpmove)
       {
         tmpscore = INFMOVESCORE-100; // score as highest move
+        // iid move hit counter
+        COUNTERS[gid*64+5]++;      
       }
       // get move with highest score
       move = (tmpscore>=score)?tmpmove:move;
