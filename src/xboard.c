@@ -1040,6 +1040,8 @@ void xboard(void) {
               fprintf(LogFile,"### doing inits for benchkaufmann depth %d: ###\n", SD);  
             }
 
+            totalWorkUnits = threadsX*threadsY;
+
             release_gameinits();
             state = gameinits();
             // something went wrong...
@@ -1053,15 +1055,13 @@ void xboard(void) {
             {
               quitengine(EXIT_FAILURE);
             }
-
-            totalWorkUnits = threadsX*threadsY;
-
             state = cl_init_device("alphabeta_gpu");
             // something went wrong...
             if (!state)
             {
               quitengine(EXIT_FAILURE);
             }
+
 
             fprintf(stdout,"### computing benchkaufmann depth %d: ###\n", SD);  
             fprintf(stdout,"### work-groups: %" PRIu64 " ###\n", threadsX*threadsY);  
