@@ -1672,7 +1672,7 @@ __kernel void alphabeta_gpu(
             &&move!=NULLMOVE
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
-            &&!(localNodeStates[sd]&LMR)
+            &&!(localNodeStates[sd]&LMR) // TODO: ?
             &&!bforward
             &&!bresearch
             &&slots>=1
@@ -1758,8 +1758,6 @@ __kernel void alphabeta_gpu(
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
           &&!(localNodeStates[sd]&IIDDONE)
-//          &&!(localSearchMode[sd]&LMRSEARCH)
-//          &&!(localNodeStates[sd]&LMR)
           &&localDepth[sd]>=4
           )
       {
@@ -1853,8 +1851,6 @@ __kernel void alphabeta_gpu(
       if (randomize)
       {
         tmpscore = (prn%INF)+INF;
-//        tmpscore = (GETPCPT(tmpmove)==PNONE)?tmpscore:tmpscore*INF; // captures first
-//        tmpscore+= prn%((u32)pown((float)gid+1,3)%(INFMOVESCORE-tmpscore));
       }
       // check tt move
       if (ttmove==tmpmove)
@@ -2035,9 +2031,6 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&IID) 
          &&!(localNodeStates[sd-1]&IIDDONE) 
          &&!(localNodeStates[sd-1]&QS)
-//         &&!(localNodeStates[sd-1]&KIC)
-//         &&!(localNodeStates[sd-1]&EXT)
-//         &&!(localSearchMode[sd]&IIDSEARCH)
        )
       {
         localIIDMoves[sd-1]                   = move;
@@ -2059,10 +2052,8 @@ __kernel void alphabeta_gpu(
         localTodoIndex[sd-1]--;
         localSearchMode[sd]              |= NULLMOVESEARCH;
         localDepth[sd]                   -= NULLR; // depth reduction
-//        localDepth[sd]                   -= (localDepth[sd]>=6)?4:(localDepth[sd]>=3)?2:0; // dept reduction
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
         localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
-//        localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
       }
 
       // set values for late move reduction search
@@ -2075,10 +2066,6 @@ __kernel void alphabeta_gpu(
          &&!(localNodeStates[sd-1]&QS)
          &&!(localNodeStates[sd-1]&KIC)
          &&!(localNodeStates[sd-1]&EXT)
-//         &&!(localSearchMode[sd]&IIDSEARCH)
-//         &&!(localSearchMode[sd]&NULLMOVESEARCH)
-//         &&!(localSearchMode[sd-1]&LMRSEARCH)
-//         &&localDepth[sd]>0
          &&localTodoIndex[sd-1]>2 // previous moves searched
          &&localDepth[sd-1]>=2
          &&count1s(board[QBBBLACK])>=2
