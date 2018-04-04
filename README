@@ -89,8 +89,10 @@ help           // print usage info
 log            // turn log on
 benchsmp       // init with new and sd and st commands
                // runs an benchmark for parallel speedup
-benchkaufmann  // init with new and sd and st commands
+benchkaufmann  // init with sd and st commands
                // runs an smp benchmark on Kaufmann positions
+benchhyatt24   // init with sd and st commands
+               // runs an smp benchmark on Hyatt24 positions
 
 ################################################################################
 ## Options
