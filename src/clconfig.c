@@ -1089,8 +1089,8 @@ bool cl_guess_config(bool extreme)
             // something went wrong
             if (npstmp<=0)
               break;
-            // 10% speedup margin
-            if (npstmp<=nps*1.10)
+            // 80% speedup margin
+            if (npstmp<=nps*1.80)
               break;
             // increase threadsZ
             if (npstmp>=nps)
@@ -1151,9 +1151,9 @@ bool cl_guess_config(bool extreme)
             // something went wrong
             if (npstmp<=0)
               break;
-            // check for 10% speedup margin
+            // check for 80% speedup margin
             // increase threadsY
-            if (npstmp/1.10>=nps)
+            if (npstmp/1.80>=nps)
             {
               bestwarpmulti = warpmulti;
               warpmulti*=2;
