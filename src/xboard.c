@@ -958,7 +958,7 @@ void xboard(void) {
   
       continue;
     }
-    // do an smp benchmark for current position to depth defined via sd 
+    // do an smp benchmark for Kaufmann positions, depth defined via sd 
     if (!xboard_mode && !strcmp(Command, "benchkaufmann"))
     {
       u64 x = threadsX;
@@ -1069,6 +1069,224 @@ void xboard(void) {
             {
               fprintdate(LogFile);
               fprintf(LogFile,"### computing benchkaufmann depth %d: ###\n", SD);  
+              fprintdate(LogFile);
+              fprintf(LogFile,"### work-groups: %" PRIu64 " ###\n", threadsX*threadsY);  
+            }
+
+            start = get_time();
+           
+            rootsearch(BOARD, STM, SD);
+
+            end = get_time();   
+            elapsed = end-start;
+            elapsed += 1;
+            elapsed/=1000;
+
+            // collect results
+            timearrall[iter]+= timearr[iter] = elapsed;
+            npsarr[iter] = (u64)(ABNODECOUNT/elapsed);
+            workerssarr[iter] = threadsX*threadsY;
+
+            iter++;
+
+            if (threadsX>=x)
+              break;
+            if (threadsX*2>x)
+              threadsX = x; 
+            else
+              threadsX*=2; 
+          }
+          if (threadsY>=y)
+            break;
+          if (threadsY*2>y)
+            threadsY = y; 
+          else
+            threadsY*=2; 
+        }
+        // print results
+        fprintf(stdout,"### workers\t#nps\t\t#nps speedup\t#time in s\t#ttd speedup \t#relative ttd speedup ###\n");
+        fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1, (double)1);
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"### workers\t#nps\t\t#nps speedup\t#time in s\t#ttd speedup\t#relative ttd speedup ###\n");
+          fprintdate(LogFile);
+          fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[0], npsarr[0], (double)1, timearr[0], (double)1, (double)1);
+        }
+        for (int i=1;i<iter;i++)
+        {
+          fprintf(stdout,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i], timearr[i-1]/timearr[i]);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile,"### %"PRIu64"\t\t%"PRIu64"\t\t%lf\t%lf\t%lf\t%lf \n",workerssarr[i], npsarr[i], (double)npsarr[i]/(double)npsarr[0], timearr[i], timearr[0]/timearr[i], timearr[i-1]/timearr[i]);
+          }
+        }
+      }
+      // print overall results
+      fprintf(stdout,"#\n");
+      fprintf(stdout,"# overall results\n");
+      fprintf(stdout,"### workers\t#ttd speedup\t#rel ttd speedup ###\n");
+      fprintf(stdout,"### %"PRIu64"\t\t%lf\t%lf \n",workerssarr[0], (double)1, (double)1);
+      if (LogFile)
+      {
+        fprintdate(LogFile);
+        fprintf(LogFile,"#\n");
+        fprintf(LogFile,"# overall results\n");
+        fprintf(LogFile,"### workers\t#ttd speedup\t#rel ttd speedup ###\n");
+        fprintf(LogFile,"### %"PRIu64"\t\t%lf\t%lf \n",workerssarr[0], (double)1, (double)1);
+      }
+      for (int i=1;i<iter;i++)
+      {
+        fprintf(stdout,"### %"PRIu64"\t\t%lf\t%lf \n",workerssarr[i], timearrall[0]/timearrall[i], timearrall[i-1]/timearrall[i]);
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile,"### %"PRIu64"\t\t%lf\t%lf \n",workerssarr[i], timearrall[0]/timearrall[i], timearrall[i-1]/timearrall[i]);
+        }
+      }
+      //reset 
+      release_gameinits();
+      state = read_and_init_config(configfile);
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+      state = gameinits();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+      state = cl_release_device();
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+      state = cl_init_device("alphabeta_gpu");
+      // something went wrong...
+      if (!state)
+      {
+        quitengine(EXIT_FAILURE);
+      }
+
+      fflush(stdout);
+      fflush(LogFile);
+  
+      continue;
+    }
+    // do an smp benchmark for Hyat24 positions, depth defined via sd 
+    if (!xboard_mode && !strcmp(Command, "benchhyatt24"))
+    {
+      u64 x = threadsX;
+      u64 y = threadsY;
+      int iter = 0;
+      int posi = 0;
+      double *timearr = (double *)calloc(threadsX*threadsY, sizeof (double));
+      double *timearrall = (double *)calloc(threadsX*threadsY, sizeof (double));
+      u64 *workerssarr = (u64 *)calloc(threadsX*threadsY, sizeof (u64));
+      u64 *npsarr = (u64 *)calloc(threadsX*threadsY, sizeof (u64));
+
+      char fenpositions[24][1024] =
+      {
+          "r2qkbnr/ppp2p1p/2n5/3P4/2BP1pb1/2N2p2/PPPQ2PP/R1B2RK1 b kq -  ",
+          "r2qkbnr/ppp2p1p/8/nB1P4/3P1pb1/2N2p2/PPPQ2PP/R1B2RK1 b kq - ",
+          "r2qkbnr/pp3p1p/2p5/nB1P4/3P1Qb1/2N2p2/PPP3PP/R1B2RK1 b kq - ",
+          "r2qkb1r/pp3p1p/2p2n2/nB1P4/3P1Qb1/2N2p2/PPP3PP/R1B1R1K1 b kq - ",
+          "r2q1b1r/pp1k1p1p/2P2n2/nB6/3P1Qb1/2N2p2/PPP3PP/R1B1R1K1 b - - ",
+          "r2q1b1r/p2k1p1p/2p2n2/nB6/3PNQb1/5p2/PPP3PP/R1B1R1K1 b - - ",
+          "r2q1b1r/p2k1p1p/2p5/nB6/3Pn1Q1/5p2/PPP3PP/R1B1R1K1 b - - ",
+          "r2q1b1r/p1k2p1p/2p5/nB6/3PR1Q1/5p2/PPP3PP/R1B3K1 b - - ",
+          "r2q1b1r/p1k2p1p/8/np6/3PR3/5Q2/PPP3PP/R1B3K1 b - - ",
+          "r4b1r/p1kq1p1p/8/np6/3P1R2/5Q2/PPP3PP/R1B3K1 b - - ",
+          "r6r/p1kqbR1p/8/np6/3P4/5Q2/PPP3PP/R1B3K1 b - - ",
+          "5r1r/p1kqbR1p/8/np6/3P1B2/5Q2/PPP3PP/R5K1 b - - ",
+          "5r1r/p2qbR1p/1k6/np2B3/3P4/5Q2/PPP3PP/R5K1 b - - ",
+          "5rr1/p2qbR1p/1k6/np2B3/3P4/2P2Q2/PP4PP/R5K1 b - - ",
+          "5rr1/p2qbR1p/1kn5/1p2B3/3P4/2P2Q2/PP4PP/4R1K1 b - - ",
+          "4qRr1/p3b2p/1kn5/1p2B3/3P4/2P2Q2/PP4PP/4R1K1 b - - ",
+          "5qr1/p3b2p/1kn5/1p1QB3/3P4/2P5/PP4PP/4R1K1 b - - ",
+          "5q2/p3b2p/1kn5/1p1QB1r1/P2P4/2P5/1P4PP/4R1K1 b - - ",
+          "5q2/p3b2p/1kn5/3QB1r1/p1PP4/8/1P4PP/4R1K1 b - - ",
+          "5q2/p3b2p/1k6/3QR1r1/p1PP4/8/1P4PP/6K1 b - - ",
+          "5q2/p3b2p/1k6/4Q3/p1PP4/8/1P4PP/6K1 b - - ",
+          "3q4/p3b2p/1k6/2P1Q3/p2P4/8/1P4PP/6K1 b - - ",
+          "3q4/p3b2p/8/1kP5/p2P4/8/1P2Q1PP/6K1 b - - ",
+          "3q4/p3b2p/8/2P5/pk1P4/3Q4/1P4PP/6K1 b - - "
+      };
+
+
+      // for each pos
+      for (posi=0;posi<24;posi++)
+      {
+        fprintf(stdout,"#\n");  
+        fprintf(stdout,"#\n");  
+        fprintf(stdout,"### setting up board %d: ###\n", posi+1);  
+        if (LogFile)
+        {
+          fprintf(LogFile,"#\n");  
+          fprintf(LogFile,"#\n");  
+          fprintdate(LogFile);
+          fprintf(LogFile,"### setting up board %d: ###\n", posi+1);  
+        }
+
+        setboard(BOARD,  fenpositions[posi]);
+
+        printboard(BOARD);
+
+        iter = 0;
+
+        threadsX = 1;
+        threadsY = 1;
+
+        ABNODECOUNT = 0;
+        MOVECOUNT = 0;
+
+        // for threadsY
+        while (true)
+        {
+          // for threadsX
+          while(true)
+          {
+
+            fprintf(stdout,"### doing inits for benchhyatt24 depth %d: ###\n", SD);  
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile,"### doing inits for benchhyatt24 depth %d: ###\n", SD);  
+            }
+
+            totalWorkUnits = threadsX*threadsY;
+
+            release_gameinits();
+            state = gameinits();
+            // something went wrong...
+            if (!state)
+            {
+              quitengine(EXIT_FAILURE);
+            }
+            state = cl_release_device();
+            // something went wrong...
+            if (!state)
+            {
+              quitengine(EXIT_FAILURE);
+            }
+            state = cl_init_device("alphabeta_gpu");
+            // something went wrong...
+            if (!state)
+            {
+              quitengine(EXIT_FAILURE);
+            }
+
+
+            fprintf(stdout,"### computing benchhyatt24 depth %d: ###\n", SD);  
+            fprintf(stdout,"### work-groups: %" PRIu64 " ###\n", threadsX*threadsY);  
+            if (LogFile)
+            {
+              fprintdate(LogFile);
+              fprintf(LogFile,"### computing benchhyatt24 depth %d: ###\n", SD);  
               fprintdate(LogFile);
               fprintf(LogFile,"### work-groups: %" PRIu64 " ###\n", threadsX*threadsY);  
             }
