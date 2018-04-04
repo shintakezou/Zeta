@@ -1281,11 +1281,11 @@ __kernel void alphabeta_gpu(
     rootkic = (bbCheckers)?true:false;
 
     // LMR, no check giving moves
-    if (lid==0&&rootkic&&(localNodeStates[sd]&LMR))
+    if (lid==0&&rootkic&&(localNodeStates[sd-1]&LMR))
     {
-      localDepth[sd]+=LMRR;
-      localNodeStates[sd]^=LMR;
-      localSearchMode[sd]^=LMRSEARCH;
+      localDepth[sd]        +=LMRR;
+      localNodeStates[sd-1] ^=LMR;
+      localSearchMode[sd]   ^=LMRSEARCH;
     }
 
     // depth extension
@@ -1611,10 +1611,12 @@ __kernel void alphabeta_gpu(
           score = -INF;  // ignore score
 
         // late move reductions hack, init research
-        if ((localNodeStates[sd+1]&LMR)&&score>localAlphaBetaScores[sd*2+ALPHA])
+        if ((localNodeStates[sd]&LMR)&&score>localAlphaBetaScores[sd*2+ALPHA])
         {
           score = -INF;  // ignore score
           bresearch = true;
+          // reset values
+          localNodeStates[sd]^=LMR;
         }
 
         // set negamaxed alpha score
@@ -1669,8 +1671,8 @@ __kernel void alphabeta_gpu(
             &&move!=MOVENONE
             &&move!=NULLMOVE
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
-            &&!(localNodeStates[sd+1]&LMR)
             &&!(localSearchMode[sd]&IIDSEARCH)
+            &&!(localNodeStates[sd]&LMR)
             &&!bforward
             &&!bresearch
             &&slots>=1
@@ -1721,7 +1723,10 @@ __kernel void alphabeta_gpu(
           // save counter move
           tmpmove = localMoveHistory[sd-1];
           Counters[gid*64*64+GETSQFROM(tmpmove)*64+GETSQTO(tmpmove)] = move;
-        }
+        } // end save killer and counter move
+        //clear lmr flag
+        if (localNodeStates[sd]&LMR)
+          localNodeStates[sd]^=LMR;
       } // end scoring x1
       barrier(CLK_LOCAL_MEM_FENCE);
     } // end while movedown loop
@@ -2080,9 +2085,9 @@ __kernel void alphabeta_gpu(
          &&count1s(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]))>=2
         )
       {
-        localDepth[sd]      -= LMRR; // depth reduction
-        localNodeStates[sd] |= LMR;
-        localSearchMode[sd] |= LMRSEARCH;
+        localDepth[sd]        -= LMRR; // depth reduction
+        localNodeStates[sd-1] |= LMR;
+        localSearchMode[sd]   |= LMRSEARCH;
       }
     } // end moveup x1
     barrier(CLK_LOCAL_MEM_FENCE);
