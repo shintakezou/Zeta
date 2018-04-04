@@ -1769,6 +1769,7 @@ __kernel void alphabeta_gpu(
           lmove==MOVENONE
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localSearchMode[sd]&LMRSEARCH)
+          &&!(localSearchMode[sd]&IIDSEARCH)
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
