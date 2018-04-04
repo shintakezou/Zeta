@@ -1672,7 +1672,7 @@ __kernel void alphabeta_gpu(
             &&move!=NULLMOVE
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
-            &&!(localNodeStates[sd]&LMR) // TODO: ?
+//            &&!(localNodeStates[sd]&LMR) // TODO: ?
             &&!bforward
             &&!bresearch
             &&slots>=1
