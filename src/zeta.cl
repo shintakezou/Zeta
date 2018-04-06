@@ -909,7 +909,7 @@ __kernel void alphabeta_gpu(
   Score score;
   Score tmpscore;
 
-  u32 prn = RNUMBERS[gid*64+lid]; // get init pseudo random number, seeded on host
+  u32 prn = RNUMBERS[gid*64+(s32)lid]; // get init pseudo random number, seeded on host
 /*
   // xorshift32 PRNG
 	x ^= x << 13;
@@ -1242,7 +1242,7 @@ __kernel void alphabeta_gpu(
     // verify captures
     n       = (color==stm)?(s32)stm:(s32)!stm;
     n       = (GETPTYPE(pfrom)==PAWN)?n:GETPTYPE(pfrom);
-    bbMask  = AttackTables[n*64+lid];
+    bbMask  = AttackTables[n*64+(s32)lid];
     bbMoves = (color==stm)?(bbMask&bbWork&bbOpp):(bbMask&bbWork);
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1283,9 +1283,9 @@ __kernel void alphabeta_gpu(
     // LMR, no check giving moves
     if (lid==0&&rootkic&&(localNodeStates[sd-1]&LMR))
     {
-      localDepth[sd]        +=LMRR;
-      localNodeStates[sd-1] ^=LMR;
-      localSearchMode[sd]   ^=LMRSEARCH;
+      localDepth[sd]        += LMRR;
+      localNodeStates[sd-1] ^= LMR;
+      localSearchMode[sd]    = localSearchMode[sd-1];
     }
 
     // depth extension
@@ -1672,7 +1672,7 @@ __kernel void alphabeta_gpu(
             &&move!=NULLMOVE
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
-//            &&!(localNodeStates[sd]&LMR) // TODO: ?
+            &&!(localNodeStates[sd]&LMR) // TODO: ?
             &&!bforward
             &&!bresearch
             &&slots>=1
@@ -1722,7 +1722,7 @@ __kernel void alphabeta_gpu(
           Killers[gid*MAXPLY+sd] = move;
           // save counter move
           tmpmove = localMoveHistory[sd-1];
-          Counters[gid*64*64+GETSQFROM(tmpmove)*64+GETSQTO(tmpmove)] = move;
+          Counters[gid*64*64+(s32)GETSQFROM(tmpmove)*64+(s32)GETSQTO(tmpmove)] = move;
         } // end save killer and counter move
         //clear lmr flag
         if (localNodeStates[sd]&LMR)
@@ -1752,12 +1752,12 @@ __kernel void alphabeta_gpu(
       if (!bresearch
           &&sd>1
           &&localMoveHistory[sd]==MOVENONE
-          &&!(localSearchMode[sd]&NULLMOVESEARCH)
-          &&!(localSearchMode[sd]&IIDSEARCH)
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
           &&!(localNodeStates[sd]&IIDDONE)
+          &&!(localSearchMode[sd]&NULLMOVESEARCH)
+          &&!(localSearchMode[sd]&IIDSEARCH)
           &&localDepth[sd]>=4
           )
       {
@@ -1770,15 +1770,14 @@ __kernel void alphabeta_gpu(
       // lazy smp, randomize move order
       if (
           lmove==MOVENONE
-          &&!(localSearchMode[sd]&NULLMOVESEARCH)
-          &&!(localSearchMode[sd]&LMRSEARCH)
-          &&!(localSearchMode[sd]&IIDSEARCH)
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
+          &&!(localSearchMode[sd]&NULLMOVESEARCH)
+          &&!(localSearchMode[sd]&LMRSEARCH)
+          &&!(localSearchMode[sd]&IIDSEARCH)
           &&localDepth[sd]>0
           &&gid>0
-//          &&sd<=log2((float)gid+1)
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
@@ -1795,7 +1794,7 @@ __kernel void alphabeta_gpu(
     move = localMoveHistory[sd-1];
     // get killer move and counter move
     Move killermove = Killers[gid*MAXPLY+sd];
-    Move countermove = Counters[gid*64*64+GETSQFROM(move)*64+GETSQTO(move)];
+    Move countermove = Counters[gid*64*64+(s32)GETSQFROM(move)*64+(s32)GETSQTO(move)];
     // load move from transposition table
     Move ttmove = MOVENONE;
     bbWork = localHashHistory[sd];    
@@ -1806,7 +1805,6 @@ __kernel void alphabeta_gpu(
       if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
         ttmove = TT.bestmove;
     }
-    n       = 0;
     move    = MOVENONE;
     score  = -INFMOVESCORE;
     pfrom   = GETPIECE(board, lid);
@@ -1875,7 +1873,7 @@ __kernel void alphabeta_gpu(
     // collect bestscore and bestmove x64
     atom_max(&movescore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (atom_cmpxchg(&movescore,score,score)==score&&!bresearch&&lmove==MOVENONE)
+    if (atom_cmpxchg(&movescore,score,score)==score&&!bresearch&&move!=MOVENONE)
       lmove = move;
 #else
     // store score and move in local temp
