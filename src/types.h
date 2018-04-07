@@ -86,7 +86,7 @@ typedef u8 Rank;
 #define INF                 32000
 #define MATESCORE           30000
 #define DRAWSCORE           0
-#define STALEMATESCORE      0
+#define STALEMATESCORE      0.123
 // piece type enumeration
 #define PNONE               0
 #define PAWN                1
