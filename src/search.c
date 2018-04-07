@@ -164,9 +164,6 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       else
         break;
     }
-    // draws and mate in n
-    if (bestscore==DRAWSCORE) // TODO: danger when not fp32, float
-      break;
     if (((s32)bestscore>=MATESCORE)&&idf>=(INF-(s32)bestscore))
       break;
     if (((s32)bestscore<=-MATESCORE)&&idf>=(INF+(s32)bestscore))
