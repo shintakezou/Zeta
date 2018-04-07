@@ -1499,8 +1499,14 @@ __kernel void alphabeta_gpu(
           break;
         }
       }
+      // fifty move rule
+      if (sd>1&&localHMCHistory[sd]>=100)
+      {
+        movecount = 0;
+        score = DRAWSCORE;
+      }
       // Kxk draw
-      if (count1s(board[QBBP1]|board[QBBP2]|board[QBBP3])<=2)
+      if (sd>1&&count1s(board[QBBP1]|board[QBBP2]|board[QBBP3])<=2)
       {
         movecount = 0;
         score = DRAWSCORE;
