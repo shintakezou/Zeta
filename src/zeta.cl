@@ -861,10 +861,11 @@ __kernel void alphabeta_gpu(
   __local u8 localHMCHistory[MAXPLY];
   __local Hash localHashHistory[MAXPLY];
 
+  __local bool bexit;       // exit the main loop flag
+  __local bool brandomize;  // randomize move order flag
   __local bool bresearch;   // late move reduction reseach flag
   __local bool bforward;    // late move reduction reseach flag
-  __local bool randomize;   // randomize move order flag
-  __local bool lexit;       // exit the main loop flag
+  __local bool bttmovehit;  // move form tt or killer or counter move hit flag
 
   __local u8 ttage;
 
@@ -942,11 +943,11 @@ __kernel void alphabeta_gpu(
   sd              = 1;
 
   // inits
-  lexit           = false;
+  bexit           = false;
   ttage           = (u8)ply_init&0x3F;
   bestmove        = MOVENONE;
   bestscore       = -INF;
-  randomize       = false;
+  brandomize      = false;
   bresearch       = false;
   bforward        = false;
 
@@ -986,12 +987,13 @@ __kernel void alphabeta_gpu(
   // ################################
   // ####       main loop        ####
   // ################################
-  while(!lexit)
+  while(!bexit)
   {
     // reset vars
-    randomize   = false;
+    brandomize  = false;
     bresearch   = false;
     bforward    = false;
+    bttmovehit  = false;
     movecount   = 0;
     lmove       = MOVENONE;
     evalscore   = DRAWSCORE;
@@ -1291,7 +1293,7 @@ __kernel void alphabeta_gpu(
     // depth extension
     if (lid==0
         &&localDepth[sd]>=0
-        &&!(localNodeStates[sd]&QS)
+        &&!(localNodeStates[sd-1]&QS)
         &&
         (
           rootkic
@@ -1732,12 +1734,12 @@ __kernel void alphabeta_gpu(
     } // end while movedown loop
     if (lid==0)
     {
-      lexit = (sd<1)?true:lexit;  // this is the end
-      lexit = (COUNTERS[1]>max_nodes)?true:lexit; // nodecount based termination
-      lexit = (atom_cmpxchg(finito,0,0)>0)?true:lexit; // termination flag for helper threads
+      bexit = (sd<1)?true:bexit;  // this is the end
+      bexit = (COUNTERS[1]>max_nodes)?true:bexit; // nodecount based termination
+      bexit = (atom_cmpxchg(finito,0,0)>0)?true:bexit; // termination flag for helper threads
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (lexit)
+    if (bexit)
       break;
     if (bforward)
       continue;
@@ -1781,7 +1783,7 @@ __kernel void alphabeta_gpu(
           &&localTodoIndex[sd]>=RANDBRO // previous searched moves
           )
       {
-        randomize = true;
+        brandomize = true;
       }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1839,14 +1841,16 @@ __kernel void alphabeta_gpu(
       if (countermove==tmpmove)
       {
         tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]; // score as second highest quiet move
+//        bttmovehit = true;
       }
       // check killer move heuristic
       if (killermove==tmpmove)
       {
         tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; // score as highest quiet move
+//        bttmovehit = true;
       }
       // lazy smp, randomize move order
-      if (randomize)
+      if (brandomize)
       {
         tmpscore = (prn%INF)+INF;
       }
@@ -1856,6 +1860,7 @@ __kernel void alphabeta_gpu(
         tmpscore = INFMOVESCORE-200; // score as 2nd highest move
         // TThits counter
         COUNTERS[gid*64+3]++;      
+        bttmovehit = true;
       }
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
@@ -1870,7 +1875,7 @@ __kernel void alphabeta_gpu(
     }
 
 #if defined cl_khr_local_int32_extended_atomics && !defined OLDSCHOOL
-    // collect bestscore and bestmove x64
+    // collect best movescore and bestmove x64
     atom_max(&movescore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
     if (atom_cmpxchg(&movescore,score,score)==score&&!bresearch&&move!=MOVENONE)
@@ -1880,7 +1885,7 @@ __kernel void alphabeta_gpu(
     scrTmp64[lid] = score;
     bbTmp64[lid] = (u64)move;
     barrier(CLK_LOCAL_MEM_FENCE);
-    // collect bestscore and bestmove x1
+    // collect best movescore and bestmove x1
     if (lid==0&&lmove==MOVENONE)
     {
       movescore = -INFMOVESCORE;
@@ -2018,10 +2023,10 @@ __kernel void alphabeta_gpu(
 
       // set values and alpha beta window for IID search
       if (!bresearch
-         &&!randomize
+         &&!brandomize
          &&sd>2  // not on root
-         &&ttmove==MOVENONE
-         &&localTodoIndex[sd-1]==1
+         &&!bttmovehit
+         &&localTodoIndex[sd-1]==1 // only on first move
          &&localMoveCounter[sd-1]>1
          &&localDepth[sd-1]>5
          &&move!=NULLMOVE
