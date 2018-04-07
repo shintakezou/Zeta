@@ -163,15 +163,14 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       }
       else
         break;
-
-      // draws and mate in n
-      if (bestscore==DRAWSCORE) // TODO: danger when not fp32, float
-        break;
-      if (xboard_score>=100000&&xboard_score-100000>=idf)
-        break;
-      if (xboard_score<=-100000&&xboard_score+100000>=idf)
-        break;
     }
+    // draws and mate in n
+    if (bestscore==DRAWSCORE) // TODO: danger when not fp32, float
+      break;
+    if (((s32)bestscore>=MATESCORE)&&idf>=(INF-(s32)bestscore))
+      break;
+    if (((s32)bestscore<=-MATESCORE)&&idf>=(INF+(s32)bestscore))
+      break;
   } while (++idf<=depth&&elapsed*1000*ESTEBF<MaxTime&&ABNODECOUNT*ESTEBF<=MaxNodes&&ABNODECOUNT>1&&idf<MAXPLY);
 
 
