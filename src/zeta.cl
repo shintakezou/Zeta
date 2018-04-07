@@ -67,6 +67,7 @@ typedef struct
   TTScore score;
   u8 flag;
   u8 depth;
+  s32 ply;
 } TTE;
 
 // tunebale search params
@@ -868,7 +869,7 @@ __kernel void alphabeta_gpu(
   __local bool bresearch;   // late move reduction reseach flag
   __local bool bforward;    // late move reduction reseach flag
 
-  __local u8 ttage;
+//  __local u8 ttage;
 
   __local Square sqchecker;
 
@@ -945,7 +946,7 @@ __kernel void alphabeta_gpu(
 
   // inits
   bexit           = false;
-  ttage           = (u8)ply_init&0x3F;
+//  ttage           = (u8)ply_init&0x3F;
   bestmove        = MOVENONE;
   bestscore       = -INF;
   brandomize      = false;
@@ -1681,6 +1682,7 @@ __kernel void alphabeta_gpu(
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
             &&!(localNodeStates[sd]&LMR) // TODO: ?
+            &&localDepth[sd]>=0
             &&!bforward
             &&!bresearch
             &&slots>=1
@@ -1691,7 +1693,7 @@ __kernel void alphabeta_gpu(
           // xor trick for avoiding race conditions
           bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
 
-          // slot 1, depth, score and age replace
+          // slot 1, depth, score and ply replace
           TT = TT1[bbTemp]; 
           if (
                ((u8)localDepth[sd]>TT.depth)
@@ -1701,16 +1703,15 @@ __kernel void alphabeta_gpu(
                 &&score>(Score)TT.score
                )
                ||
-               (ttage!=(TT.flag>>2)
-                &&ttage!=(TT.flag>>2)+2
-               )
+               ((ply_init+localDepth[sd])>(TT.ply+(s32)TT.depth))
              ) 
           {
               TT.hash      = bbMask;
-              TT.bestmove  = move;
+              TT.bestmove  = (TTMove)move;
               TT.score     = (TTScore)score;
-              TT.flag      = flag | (ttage&0x3F)<<2;
+              TT.flag      = flag;
               TT.depth     = (u8)localDepth[sd];
+              TT.ply       = ply_init;
               TT1[bbTemp]  = TT;
           }
         } // end save to hash table
@@ -2082,6 +2083,9 @@ __kernel void alphabeta_gpu(
         localNodeStates[sd-1] |= LMR;
         localSearchMode[sd]   |= LMRSEARCH;
       }
+      // add a bestmove anyway
+      if (sd==2&&localTodoIndex[sd-1]==1)
+        bestmove = move;
     } // end moveup x1
     barrier(CLK_LOCAL_MEM_FENCE);
     barrier(CLK_GLOBAL_MEM_FENCE);

@@ -210,6 +210,7 @@ typedef struct
   TTScore score;
   u8 flag;
   u8 depth;
+  s32 ply;
 } TTE;
 // TT node type flags
 #define EXACTSCORE      2
