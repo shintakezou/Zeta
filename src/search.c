@@ -34,10 +34,9 @@
 Move rootsearch(Bitboard *board, bool stm, s32 depth)
 {
   bool state;
-  Score score;
   s32 xboard_score;
   Move bestmove = MOVENONE;
-  Score bestscore = 0;
+  Score bestscore = DRAWSCORE;
   s32 idf = 1;
 
   ABNODECOUNT = 0;
@@ -118,7 +117,6 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       TTSCOREHITS+=   COUNTERS[i*64+4];
       IIDHITS+=       COUNTERS[i*64+5];
     }
-
     // timers
     end = get_time();
     elapsed = end-start;
@@ -127,12 +125,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     // only if gpu search was not interrupted by maxnodes
     if (COUNTERS[1]<MaxNodes/totalWorkUnits)
     {
-      score = (Score)PV[0];
       if (JUSTMOVE((Move)PV[1])!=MOVENONE)
         bestmove = (Move)PV[1];
-      bestscore = ISINF(score)?DRAWSCORE:score;
+      bestscore = ISINF(RSCORE)?DRAWSCORE:RSCORE;
       // xboard mate scores
-      xboard_score = bestscore;
+      xboard_score = (s32)bestscore;
       xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
       xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
       // print xboard output
@@ -165,6 +162,14 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
           fflush(LogFile);
       }
       else
+        break;
+
+      // draws and mate in n
+      if (bestscore==DRAWSCORE) // TODO: danger when not fp32, float
+        break;
+      if (ISMATE(bestscore)&&bestscore>0&&INF-(s32)bestscore>=idf)
+        break;
+      if (ISMATE(bestscore)&&bestscore<0&&INF+(s32)bestscore>=idf)
         break;
     }
   } while (++idf<=depth&&elapsed*1000*ESTEBF<MaxTime&&ABNODECOUNT*ESTEBF<=MaxNodes&&ABNODECOUNT>1&&idf<MAXPLY);

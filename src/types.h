@@ -34,6 +34,7 @@ typedef cl_int s32;
 typedef cl_short s16;
 typedef cl_uchar u8;
 typedef cl_bool bool;
+typedef cl_float fp32;
 // boolean val
 #define true  1
 #define false 0
@@ -44,8 +45,8 @@ typedef u64 Hash;
 
 typedef u32     Move;
 typedef u32     TTMove;
-typedef s32     Score;
-typedef s16     TTScore;
+typedef fp32    Score;
+typedef fp32    TTScore;
 typedef u8      Square;
 typedef u8      Piece;
 

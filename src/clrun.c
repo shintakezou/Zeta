@@ -435,6 +435,19 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
+  Score rscore = -INF;
+  GLOBAL_RScore_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                    sizeof(Score) * 1,
+                                    &rscore, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_RScore_Buffer)\n");
+    return false;
+  }
+
   u32 finito = 0x0;
   GLOBAL_finito_Buffer = clCreateBuffer(
                         		        context, 
@@ -570,6 +583,24 @@ bool cl_write_objects(void)
   if(status!=CL_SUCCESS)
   {
     print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_HASHHISTORY_Buffer)\n");
+    return false;
+  }
+
+  Score rscore = -INF;
+  status = clEnqueueWriteBuffer(
+                                commandQueue,
+                                GLOBAL_RScore_Buffer,
+                                CL_TRUE,
+                                0,
+                                sizeof(Score) * 1,
+                                &rscore, 
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueWriteBuffer failed. (GLOBAL_RScore_Buffer)\n");
     return false;
   }
 
@@ -830,6 +861,18 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (slots)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_RScore_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_RScore_Buffer)\n");
     return false;
   }
   i++;
@@ -1142,6 +1185,32 @@ bool cl_read_memory(void)
     return false;
   }
 
+  // copy score buffer
+  status = clEnqueueReadBuffer(
+                                commandQueue,
+                                GLOBAL_RScore_Buffer,
+                                CL_TRUE,
+                                0,
+                                1 * sizeof(Score),
+                                &RSCORE,
+                                0,
+                                NULL,
+                                NULL);
+
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: clEnqueueReadBuffer failed. (GLOBAL_RSCORE_Buffer)\n");
+    return false;
+  }
+
+  // flush command queue
+  status = clFlush(commandQueue);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: flushing the memory reads. (clFlush)\n");
+    return false;
+  }
+
   // wait for memory reads to finish execution
   status = clFinish(commandQueue);
   if(status!=CL_SUCCESS) 
@@ -1266,6 +1335,13 @@ bool cl_release_device(void)
   if(status!=CL_SUCCESS)
 	{
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counter_Buffer)\n");
+		return false; 
+	}
+
+	status = clReleaseMemObject(GLOBAL_RScore_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RScore_Buffer)\n");
 		return false; 
 	}
 

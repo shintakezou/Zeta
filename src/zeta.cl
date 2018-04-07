@@ -46,9 +46,10 @@ typedef int     s32;
 typedef short   s16;
 typedef uchar    u8;
 typedef char     s8;
+typedef float  fp32;
 
-typedef s32     Score;
-typedef s16     TTScore;
+typedef fp32    Score;
+typedef fp32    TTScore;
 typedef u8      Square;
 typedef u8      Piece;
 
@@ -121,8 +122,8 @@ typedef struct
 #define INF                 32000
 #define MATESCORE           30000
 #define DRAWSCORE           0
-#define STALEMATESCORE      0
-#define INFMOVESCORE        0x7FFFFFFF
+#define STALEMATESCORE      0.123
+#define INFMOVESCORE        0x7FFF
 // piece type enumeration
 #define PNONE               0
 #define PAWN                1
@@ -836,6 +837,7 @@ __kernel void alphabeta_gpu(
                                const u64 max_nodes,
                                const u64 ttindex,
                                const u64 slots,
+                            __global Score *rscore,
                             __global u32 *finito
 )
 {
@@ -844,7 +846,7 @@ __kernel void alphabeta_gpu(
 
   // temporary place holders
   __local Bitboard bbTmp64[64];
-  __local Score scrTmp64[64];
+  __local s32 scrTmp64[64];
 
   __local TTE TT;
 
@@ -1458,16 +1460,14 @@ __kernel void alphabeta_gpu(
     {
       score-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
       score+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
-      // stm bonus, to prevent mix up with drawscore
-      score+= (stm)?-1:1;
     }
 
 #if defined cl_khr_local_int32_base_atomics && !defined OLDSCHOOL
     // collect score x64
-    atom_add(&evalscore, score);
+    atom_add(&evalscore, (s32)score);
 #else
     // store scores in local temp
-    scrTmp64[lid] = score;
+    scrTmp64[lid] = (s32)score;
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect score x1
     if (lid==0)
@@ -1481,10 +1481,12 @@ __kernel void alphabeta_gpu(
     // #################################
     if (lid==0)
     {
+      // flaot stm bonus, to prevent mix up with drawscore
+      score = (stm)?(float)evalscore-0.5:(float)evalscore+0.5;
       // negamaxed scores
-      score = evalscore = (stm)?-evalscore:evalscore;
+      score = (stm)?-score:score;
       // checkmate
-      score = (!qs&&rootkic&&movecount==0)?-INF+ply:score;
+      score = (!qs&&rootkic&&movecount==0)?(float)(-INF+ply):score;
       // stalemate
       score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
@@ -1876,13 +1878,13 @@ __kernel void alphabeta_gpu(
 
 #if defined cl_khr_local_int32_extended_atomics && !defined OLDSCHOOL
     // collect best movescore and bestmove x64
-    atom_max(&movescore, score);
+    atom_max(&movescore, (s32)score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (atom_cmpxchg(&movescore,score,score)==score&&!bresearch&&move!=MOVENONE)
+    if (atom_cmpxchg(&movescore,(s32)score,(s32)score)==(s32)score&&!bresearch&&move!=MOVENONE)
       lmove = move;
 #else
     // store score and move in local temp
-    scrTmp64[lid] = score;
+    scrTmp64[lid] = (s32)score;
     bbTmp64[lid] = (u64)move;
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect best movescore and bestmove x1
@@ -1891,10 +1893,10 @@ __kernel void alphabeta_gpu(
       movescore = -INFMOVESCORE;
       for (int i=0;i<64;i++)
       {
-        tmpscore = scrTmp64[i];
-        if (tmpscore>movescore)
+        tmpscore = (Score)scrTmp64[i];
+        if ((s32)tmpscore>movescore)
         {
-          movescore = tmpscore;
+          movescore = (s32)tmpscore;
           lmove = (Move)bbTmp64[i];
         }
       }
@@ -2105,13 +2107,11 @@ __kernel void alphabeta_gpu(
     bbTemp          = bbWork&(ttindex-1);
     stm             = (bool)stm_init;
     n               = 1;
+    *rscore         = bestscore;
 
     do {
 
       PV[n] = bestmove;
-
-      if (n==1)
-        PV[0] = (Move)bestscore;
 
       domove(board, bestmove);
       stm = !stm;

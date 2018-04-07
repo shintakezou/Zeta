@@ -101,6 +101,7 @@ extern Hash *GLOBAL_HASHHISTORY;
 extern Bitboard bbInBetween[64*64];
 extern Bitboard bbLine[64*64];
 extern TTE *TT;
+extern Score RSCORE;
 // OpenCL memory buffer objects
 extern cl_mem  GLOBAL_BOARD_Buffer;
 extern cl_mem  GLOBAL_globalbbMoves_Buffer;
@@ -115,6 +116,7 @@ extern cl_mem  GLOBAL_TT1_Buffer;
 extern cl_mem  GLOBAL_Killer_Buffer;
 extern cl_mem  GLOBAL_Counter_Buffer;
 extern cl_mem  GLOBAL_finito_Buffer;
+extern cl_mem  GLOBAL_RScore_Buffer;
 // OpenCL runtime objects
 extern cl_context          context;
 extern cl_device_id        *devices;

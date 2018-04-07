@@ -116,6 +116,7 @@ Move *PVZEROED = NULL;
 TTMove *KILLERZEROED = NULL;
 TTMove *COUNTERZEROED = NULL;
 Hash *GLOBAL_HASHHISTORY = NULL;
+Score RSCORE;
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
 cl_mem   GLOBAL_globalbbMoves_Buffer;
@@ -129,6 +130,7 @@ cl_mem   GLOBAL_TT1_Buffer;
 //cl_mem   GLOBAL_TT2_Buffer;
 cl_mem   GLOBAL_Killer_Buffer;
 cl_mem   GLOBAL_Counter_Buffer;
+cl_mem   GLOBAL_RScore_Buffer;
 cl_mem   GLOBAL_finito_Buffer;
 // OpenCL runtime objects
 cl_context          context;
