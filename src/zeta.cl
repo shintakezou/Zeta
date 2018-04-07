@@ -867,7 +867,6 @@ __kernel void alphabeta_gpu(
   __local bool brandomize;  // randomize move order flag
   __local bool bresearch;   // late move reduction reseach flag
   __local bool bforward;    // late move reduction reseach flag
-  __local bool bttmovehit;  // move form tt or killer or counter move hit flag
 
   __local u8 ttage;
 
@@ -995,7 +994,6 @@ __kernel void alphabeta_gpu(
     brandomize  = false;
     bresearch   = false;
     bforward    = false;
-    bttmovehit  = false;
     movecount   = 0;
     lmove       = MOVENONE;
     evalscore   = DRAWSCORE;
@@ -1843,13 +1841,11 @@ __kernel void alphabeta_gpu(
       if (countermove==tmpmove)
       {
         tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]; // score as second highest quiet move
-//        bttmovehit = true;
       }
       // check killer move heuristic
       if (killermove==tmpmove)
       {
         tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; // score as highest quiet move
-//        bttmovehit = true;
       }
       // lazy smp, randomize move order
       if (brandomize)
@@ -1862,7 +1858,6 @@ __kernel void alphabeta_gpu(
         tmpscore = INFMOVESCORE-200; // score as 2nd highest move
         // TThits counter
         COUNTERS[gid*64+3]++;      
-        bttmovehit = true;
       }
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
@@ -2027,7 +2022,7 @@ __kernel void alphabeta_gpu(
       if (!bresearch
          &&!brandomize
          &&sd>2  // not on root
-         &&!bttmovehit
+         &&ttmove==MOVENONE
          &&localTodoIndex[sd-1]==1 // only on first move
          &&localMoveCounter[sd-1]>1
          &&localDepth[sd-1]>5
