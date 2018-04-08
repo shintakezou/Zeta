@@ -1288,7 +1288,7 @@ __kernel void alphabeta_gpu(
     {
       localDepth[sd]        += LMRR;
       localNodeStates[sd-1] ^= LMR;
-      localSearchMode[sd]   ^= localSearchMode[sd-1];
+      localSearchMode[sd]    = localSearchMode[sd-1];
     }
 
     // depth extension
@@ -1664,8 +1664,8 @@ __kernel void alphabeta_gpu(
           localTodoIndex[sd]                = 0;
           localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
           localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-          // set iid done flag
           localNodeStates[sd]              ^= IID;
+          // set iid done flag
           localNodeStates[sd]              |= IIDDONE;
         }
 
@@ -2028,6 +2028,7 @@ __kernel void alphabeta_gpu(
 
       // set values and alpha beta window for IID search
       if (!bresearch
+         &&sd>2 // not on root
          &&!brandomize
          &&move!=NULLMOVE
          &&move!=MOVENONE
@@ -2082,7 +2083,7 @@ __kernel void alphabeta_gpu(
         localNodeStates[sd-1] |= LMR;
         localSearchMode[sd]   |= LMRSEARCH;
       }
-      // add a bestmove anyway
+      // get a bestmove anyway
       if (sd==2&&localTodoIndex[sd-1]==1)
         bestmove = move;
     } // end moveup x1
