@@ -20,6 +20,7 @@
 */
 
 #include <stdio.h>        // for print and scan
+#include <stdlib.h>       // for exit
 #include <string.h>       // for string compare 
 
 #include "bitboard.h"     // bitboard related functions

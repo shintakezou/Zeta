@@ -20,6 +20,7 @@
 */
 
 #include <stdio.h>      // for file io
+#include <stdlib.h>     // for alloc
 #include <string.h>     // for string comparing functions
 #include <math.h>       // for ceil
 

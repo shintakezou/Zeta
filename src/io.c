@@ -20,6 +20,7 @@
 */
 
 #include <stdio.h>        // for print and scan
+#include <stdlib.h>       // for alloc
 #include <string.h>       // for string compare 
 
 #include "bit.h"          // bit functions

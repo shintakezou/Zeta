@@ -20,6 +20,7 @@
 */
 
 #include <stdio.h>      // for file io
+#include <stdlib.h>     // for alloc
 
 #include "timer.h"
 #include "zeta.h"       // for global vars

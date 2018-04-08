@@ -22,6 +22,7 @@
 #include <stdio.h>        // for print and scan
 #include <string.h>       // for string compare 
 #include <unistd.h>       // for sleep
+#include <stdlib.h>       // for rand
 
 #include "bitboard.h"     // bitboard related functions
 #include "clrun.h"        // OpenCL run functions
