@@ -1395,7 +1395,10 @@ void print_debug(char *debug)
   fprintdate(Stats);
   fprintf(Stats, "status:%i\n",status);
   if (status == CL_DEVICE_NOT_AVAILABLE)
-      fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE\n");
+  {
+    fprintdate(Stats);
+    fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE\n");
+  }
   fclose(Stats);
 }
 
