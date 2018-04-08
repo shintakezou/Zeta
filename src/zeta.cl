@@ -1664,6 +1664,8 @@ __kernel void alphabeta_gpu(
           localTodoIndex[sd]                = 0;
           localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
           localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
+          localDepth[sd]                    = localDepth[sd-1]-1;
+          localSearchMode[sd]               = localSearchMode[sd-1];
           localNodeStates[sd]              ^= IID;
           // set iid done flag
           localNodeStates[sd]              |= IIDDONE;
@@ -1860,19 +1862,19 @@ __kernel void alphabeta_gpu(
       {
         tmpscore = (prn%INF)+INF;
       }
-      // check tt move
-      if (ttmove==tmpmove)
-      {
-        tmpscore = INFMOVESCORE-200; // score as 2nd highest move
-        // TThits counter
-        COUNTERS[gid*64+3]++;      
-      }
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
       {
-        tmpscore = INFMOVESCORE-100; // score as highest move
+        tmpscore = INFMOVESCORE-200; // score as 2nd highest move
         // iid move hit counter
         COUNTERS[gid*64+5]++;      
+      }
+      // check tt move
+      if (ttmove==tmpmove)
+      {
+        tmpscore = INFMOVESCORE-100; // score as highest move
+        // TThits counter
+        COUNTERS[gid*64+3]++;      
       }
       // get move with highest score
       move = (tmpscore>=score)?tmpmove:move;
