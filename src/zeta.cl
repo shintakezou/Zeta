@@ -963,7 +963,7 @@ __kernel void alphabeta_gpu(
   localCrHistory[0]               = BOARD[QBBPMVD];
   localHMCHistory[0]              = (u8)BOARD[QBBHMC];
   localHashHistory[0]             = BOARD[QBBHASH];
-  localDepth[0]                   = search_depth;
+  localDepth[0]                   = search_depth+1;
   localNodeStates[0]              = STATENONE;
   localSearchMode[0]              = SEARCH;
   localAlphaBetaScores[sd*2+ALPHA]=-INF;
@@ -1288,7 +1288,7 @@ __kernel void alphabeta_gpu(
     {
       localDepth[sd]        += LMRR;
       localNodeStates[sd-1] ^= LMR;
-      localSearchMode[sd]    = localSearchMode[sd-1];
+      localSearchMode[sd]   ^= localSearchMode[sd-1];
     }
 
     // depth extension
@@ -1299,7 +1299,7 @@ __kernel void alphabeta_gpu(
         (
           rootkic
           ||
-          (GETPTYPE(GETPFROM(localMoveHistory[sd-1]))==PAWN&&GETPTYPE(GETPTO(localMoveHistory[sd-1]))==QUEEN)
+          ((GETPTYPE(GETPFROM(localMoveHistory[sd-1]))==PAWN)&&(GETPTYPE(GETPTO(localMoveHistory[sd-1]))==QUEEN))
         )
        )
     {
@@ -1664,10 +1664,9 @@ __kernel void alphabeta_gpu(
           localTodoIndex[sd]                = 0;
           localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
           localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
-          localDepth[sd]                    = localDepth[sd-1]-1; // decrease depth
-          localSearchMode[sd]               = localSearchMode[sd-1];
           // set iid done flag
-          localNodeStates[sd]               = STATENONE | IIDDONE;
+          localNodeStates[sd]              ^= IID;
+          localNodeStates[sd]              |= IIDDONE;
         }
 
         // ###################################
@@ -1675,10 +1674,10 @@ __kernel void alphabeta_gpu(
         // ###################################
         // save to hash table
         if (
-            !(localNodeStates[sd]&QS)
-            &&flag>FAILLOW
+            flag>FAILLOW
             &&move!=MOVENONE
             &&move!=NULLMOVE
+            &&!(localNodeStates[sd]&QS)
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
             &&!(localNodeStates[sd]&LMR) // TODO: ?
@@ -1703,7 +1702,9 @@ __kernel void alphabeta_gpu(
                 &&score>(Score)TT.score
                )
                ||
-               ((ply_init+localDepth[sd])>(TT.ply+(s32)TT.depth))
+               ((ply_init>TT.ply)
+                &&(localDepth[sd]>=(s32)TT.depth)
+               )
              ) 
           {
               TT.hash      = bbMask;
@@ -1717,12 +1718,12 @@ __kernel void alphabeta_gpu(
         } // end save to hash table
         // save killer and counter move heuristic for quiet moves
         if (
-            !(localNodeStates[sd]&QS)
-            &&!(localSearchMode[sd]&NULLMOVESEARCH)
-            &&flag==FAILHIGH
+            flag==FAILHIGH
             &&move!=MOVENONE
             &&move!=NULLMOVE
-            &&GETPCPT(move)==PNONE // quiet moves only
+            &&GETPTYPE(GETPCPT(move))==PNONE // quiet moves only
+            &&!(localNodeStates[sd]&QS)
+            &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!bforward
             &&!bresearch
            )
@@ -2028,19 +2029,17 @@ __kernel void alphabeta_gpu(
       // set values and alpha beta window for IID search
       if (!bresearch
          &&!brandomize
-         &&sd>2  // not on root
+         &&move!=NULLMOVE
+         &&move!=MOVENONE
          &&ttmove==MOVENONE
          &&localTodoIndex[sd-1]==1 // only on first move
          &&localMoveCounter[sd-1]>1
          &&localDepth[sd-1]>5
-         &&move!=NULLMOVE
-         &&move!=MOVENONE
          &&!(localNodeStates[sd-1]&IID) 
          &&!(localNodeStates[sd-1]&IIDDONE) 
          &&!(localNodeStates[sd-1]&QS)
        )
       {
-        localIIDMoves[sd-1]                   = move;
         localNodeStates[sd-1]                |= IID;
         localAlphaBetaScores[(sd-1)*2+ALPHA]  = -INF;
         localAlphaBetaScores[(sd-1)*2+BETA]   = +INF;
@@ -2068,7 +2067,7 @@ __kernel void alphabeta_gpu(
          &&sd>2  // not on root
          &&move!=NULLMOVE
          &&move!=MOVENONE
-         &&GETPCPT(move)==PNONE     // quiet moves only
+         &&GETPTYPE(GETPCPT(move))==PNONE     // quiet moves only
          &&!(localNodeStates[sd-1]&IID)
          &&!(localNodeStates[sd-1]&QS)
          &&!(localNodeStates[sd-1]&KIC)
