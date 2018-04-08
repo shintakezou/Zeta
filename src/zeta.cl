@@ -1666,9 +1666,8 @@ __kernel void alphabeta_gpu(
           localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+ALPHA];
           localDepth[sd]                    = localDepth[sd-1]-1;
           localSearchMode[sd]               = localSearchMode[sd-1];
-          localNodeStates[sd]              ^= IID;
           // set iid done flag
-          localNodeStates[sd]              |= IIDDONE;
+          localNodeStates[sd]               = STATENONE | IIDDONE;
         }
 
         // ###################################
