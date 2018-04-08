@@ -19,6 +19,8 @@
   GNU General Public License for more details.
 */
 
+#include "types.h"        // types and defaults and macros 
+
 #ifndef IO_H_INCLUDED
 #define IO_H_INCLUDED
 
