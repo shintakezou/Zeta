@@ -164,9 +164,10 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       else
         break;
     }
-    if (((s32)bestscore>=MATESCORE)&&idf>=(INF-(s32)bestscore))
+    // mate in n idf cut
+    if (ISMATE((s32)bestscore)&&((s32)bestscore>=MATESCORE)&&idf>=(INF-(s32)bestscore))
       break;
-    if (((s32)bestscore<=-MATESCORE)&&idf>=(INF+(s32)bestscore))
+    if (ISMATE((s32)bestscore)&&((s32)bestscore<=-MATESCORE)&&idf>=(INF+(s32)bestscore))
       break;
   } while (++idf<=depth&&elapsed*1000*ESTEBF<MaxTime&&ABNODECOUNT*ESTEBF<=MaxNodes&&ABNODECOUNT>1&&idf<MAXPLY);
 
