@@ -79,6 +79,7 @@ typedef u8 Rank;
 #define MAXDEVICEMB 2048ULL // max memory for OpenCL devices in MB
 #define MAXSLOTS    1       // max memory slots for OpenCL devices
 #define ESTEBF      2       // estaminated effective branching factor, for tc
+#define SPEEDUPMARGIN 1.80f // used in guessconfig to guess totalworkers
 // colors
 #define BLACK               1
 #define WHITE               0

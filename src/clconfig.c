@@ -23,8 +23,9 @@
 #include <string.h>     // for string comparing functions
 #include <math.h>       // for ceil
 
-#include "timer.h"
 #include "bench.h"      // run benchmark
+#include "timer.h"      // timer functions
+#include "types.h"      // types and defaults and macros 
 #include "zeta.h"       // for global vars
 
 // guess minimal and optimal setup for given cl device
@@ -1089,8 +1090,8 @@ bool cl_guess_config(bool extreme)
             // something went wrong
             if (npstmp<=0)
               break;
-            // 80% speedup margin
-            if (npstmp<=nps*1.80)
+            // speedup margin
+            if (npstmp<=nps*SPEEDUPMARGIN)
               break;
             // increase threadsZ
             if (npstmp>=nps)
@@ -1151,9 +1152,9 @@ bool cl_guess_config(bool extreme)
             // something went wrong
             if (npstmp<=0)
               break;
-            // check for 80% speedup margin
+            // check for speedup margin
             // increase threadsY
-            if (npstmp/1.80>=nps)
+            if (npstmp/SPEEDUPMARGIN>=nps)
             {
               bestwarpmulti = warpmulti;
               warpmulti*=2;
