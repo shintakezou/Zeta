@@ -33,7 +33,10 @@ size_t localThreads[3];
 
 s32 temp = 0;
 u64 templong = 0;
-u64 ttbits = 0;
+u64 ttbits1 = 0;
+u64 mem1 = 1;
+u64 ttbits2 = 0;
+u64 mem2 = 1;
 
 char *coptions = "";
 //char *coptions = "-cl-strict-aliasing";
@@ -282,7 +285,7 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  GLOBAL_globalbbMoves_Buffer = clCreateBuffer(
+  GLOBAL_globalbbMoves1_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE,
                                     sizeof(Bitboard) * totalWorkUnits * MAXPLY * 64,
@@ -290,7 +293,19 @@ bool cl_init_device(char *kernelname)
                                     &status);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_globalbbMoves_Buffer)\n");
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_globalbbMoves1_Buffer)\n");
+    return false;
+  }
+
+  GLOBAL_globalbbMoves2_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE,
+                                    sizeof(Bitboard) * totalWorkUnits * MAXPLY * 64,
+                                    NULL, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_globalbbMoves2_Buffer)\n");
     return false;
   }
 
@@ -330,32 +345,28 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  // initialize transposition table
-  ttbits = 0;
-  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
-  if (max_memory>0&&memory_slots>0)
+  // initialize transposition table TT1, for classic jhash
+  ttbits1 = 0;
+  if (max_memory>0&&memory_slots>=1)
   {
-    mem = (max_memory*1024*1024)/(sizeof(TTE));
+    mem1 = (max_memory*1024*1024)/(sizeof(TTE));
 
-    while ( mem >>= 1)   // get msb
-      ttbits++;
-    mem = 1ULL<<ttbits;   // get number of tt entries
-    ttbits=mem;
+    while ( mem1 >>= 1)   // get msb
+      ttbits1++;
+    mem1 = 1ULL<<ttbits1;   // get number of tt entries
+    ttbits1=mem1;
   }
   else
   {
-    mem = 1;
-    ttbits = 0x2;
+    mem1 = 1;
+    ttbits1 = 0x2;
   }
-
-  if (max_memory<1||memory_slots<1)
-    mem = 1;
 
   GLOBAL_TT1_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(TTE) * mem,
-                                    TT, 
+                                    sizeof(TTE) * mem1,
+                                    TT1ZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
   { 
@@ -363,54 +374,35 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-/*
-  if (max_memory<1||memory_slots<2)
-    mem = 1;
+  // initialize transposition table TT2, for ABDADA parallel search
+  ttbits2 = 0;
+  if (max_memory>0&&memory_slots>=2)
+  {
+    mem2 = (max_memory*1024*1024)/(sizeof(ABDADATTE));
+
+    while ( mem2 >>= 1)   // get msb
+      ttbits2++;
+    mem2 = 1ULL<<ttbits2;   // get number of tt entries
+    ttbits2=mem2;
+  }
+  else
+  {
+    mem2 = 1;
+    ttbits2 = 0x2;
+  }
+
 
   GLOBAL_TT2_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(TTE) * mem,
-                                    TT, 
+                                    sizeof(ABDADATTE) * mem2,
+                                    TT2ZEROED, 
                                     &status);
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT2_Buffer)\n");
     return false;
   }
-*/
-/*
-  if (max_memory<1||memory_slots<3)
-    mem = 1;
-
-  GLOBAL_TT3_Buffer = clCreateBuffer(
-                        		        context, 
-                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(TTE) * mem,
-                                    TT, 
-                                    &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT3_Buffer)\n");
-    return false;
-  }
-*/
-/*
-  if (max_memory<1||memory_slots<4)
-    mem = 1;
-
-  GLOBAL_TT4_Buffer = clCreateBuffer(
-                        		        context, 
-                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                    sizeof(TTE) * mem,
-                                    TT, 
-                                    &status);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT4_Buffer)\n");
-    return false;
-  }
-*/
 
   GLOBAL_Killer_Buffer = clCreateBuffer(
                         		        context, 
@@ -698,10 +690,22 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_globalbbMoves_Buffer);
+                          (void *)&GLOBAL_globalbbMoves1_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_globalbbMoves_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_globalbbMoves1_Buffer)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_globalbbMoves2_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_globalbbMoves2_Buffer)\n");
     return false;
   }
   i++;
@@ -754,7 +758,6 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   }
   i++;
 
-/*
   status = clSetKernelArg(
                           kernel, 
                           i, 
@@ -766,7 +769,6 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
     return false;
   }
   i++;
-*/
 
   status = clSetKernelArg(
                           kernel, 
@@ -846,10 +848,22 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
                           kernel, 
                           i, 
                           sizeof(cl_ulong), 
-                          (void *)&ttbits);
+                          (void *)&ttbits1);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (ttindex)\n");
+    print_debug((char *)"Error: Setting kernel argument. (ttindex1)\n");
+    return false;
+  }
+  i++;
+
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_ulong), 
+                          (void *)&ttbits2);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (ttindex2)\n");
     return false;
   }
   i++;
@@ -966,10 +980,10 @@ bool cl_run_perft(bool stm, s32 depth)
                           kernel, 
                           i, 
                           sizeof(cl_mem), 
-                          (void *)&GLOBAL_globalbbMoves_Buffer);
+                          (void *)&GLOBAL_globalbbMoves1_Buffer);
   if(status!=CL_SUCCESS) 
   { 
-    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_globalbbMoves_Buffer)\n");
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_globalbbMoves1_Buffer)\n");
     return false;
   }
   i++;
@@ -1280,10 +1294,17 @@ bool cl_release_device(void)
     return false; 
   }
 
-  status = clReleaseMemObject(GLOBAL_globalbbMoves_Buffer);
+  status = clReleaseMemObject(GLOBAL_globalbbMoves1_Buffer);
   if(status!=CL_SUCCESS)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves_Buffer)\n");
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves1_Buffer)\n");
+    return false; 
+  }
+
+  status = clReleaseMemObject(GLOBAL_globalbbMoves2_Buffer);
+  if(status!=CL_SUCCESS)
+  {
+    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves2_Buffer)\n");
     return false; 
   }
 
@@ -1315,8 +1336,6 @@ bool cl_release_device(void)
 		return false; 
 	}
 
-
-/*
 	status = clReleaseMemObject(GLOBAL_TT2_Buffer);
   if(status!=CL_SUCCESS)
 	{
@@ -1324,7 +1343,6 @@ bool cl_release_device(void)
 		return false; 
 	}
 
-*/
 	status = clReleaseMemObject(GLOBAL_Killer_Buffer);
   if(status!=CL_SUCCESS)
 	{

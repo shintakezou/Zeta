@@ -77,7 +77,7 @@ typedef u8 Rank;
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 64ULL   // min memory of OpenCl device in MB
 #define MAXDEVICEMB 2048ULL // max memory for OpenCL devices in MB
-#define MAXSLOTS    1       // max memory slots for OpenCL devices
+#define MAXSLOTS    2       // max memory slots for OpenCL devices
 #define ESTEBF      2       // estaminated effective branching factor, for tc
 #define SPEEDUPMARGIN 1.80f // used in guessconfig to guess totalworkers
 // colors
@@ -213,6 +213,16 @@ typedef struct
   u8 depth;
   s32 ply;
 } TTE;
+// abdada transposition table entry
+typedef struct
+{
+  Hash hash;
+  s32 lock;
+  TTScore score;
+  s16 depth;
+  s32 ply;
+  s32 sd;
+} ABDADATTE;
 // TT node type flags
 #define EXACTSCORE      2
 #define FAILHIGH        1

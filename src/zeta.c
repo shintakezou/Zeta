@@ -107,7 +107,8 @@ Bitboard BOARD[7];
 */
 // for exchange with OpenCL device
 Bitboard *GLOBAL_BOARD = NULL;
-TTE *TT = NULL;
+TTE *TT1ZEROED = NULL;
+ABDADATTE *TT2ZEROED = NULL;
 u64 *COUNTERS = NULL;
 u32 *RNUMBERS = NULL;
 u64 *COUNTERSZEROED = NULL;
@@ -119,7 +120,8 @@ Hash *GLOBAL_HASHHISTORY = NULL;
 Score RSCORE;
 // OpenCL memory buffer objects
 cl_mem   GLOBAL_BOARD_Buffer;
-cl_mem   GLOBAL_globalbbMoves_Buffer;
+cl_mem   GLOBAL_globalbbMoves1_Buffer;
+cl_mem   GLOBAL_globalbbMoves2_Buffer;
 cl_mem	 GLOBAL_COUNTERS_Buffer;
 cl_mem   GLOBAL_RNUMBERS_Buffer;
 cl_mem	 GLOBAL_PV_Buffer;
@@ -127,7 +129,8 @@ cl_mem	 GLOBAL_HASHHISTORY_Buffer;
 cl_mem	 GLOBAL_bbInBetween_Buffer;
 cl_mem	 GLOBAL_bbLine_Buffer;
 cl_mem   GLOBAL_TT1_Buffer;
-//cl_mem   GLOBAL_TT2_Buffer;
+cl_mem   GLOBAL_TT2_Buffer;
+//cl_mem   GLOBAL_TT3_Buffer;
 cl_mem   GLOBAL_Killer_Buffer;
 cl_mem   GLOBAL_Counter_Buffer;
 cl_mem   GLOBAL_RScore_Buffer;
@@ -308,7 +311,7 @@ bool gameinits(void)
   // initialize transposition table
   u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
   u64 ttbits = 0;
-  if (max_memory>0&&memory_slots>0)
+  if (max_memory>0&&memory_slots>=1)
   {
     while ( mem >>= 1)   // get msb
       ttbits++;
@@ -316,14 +319,29 @@ bool gameinits(void)
     ttbits=mem;
   }
   else
-  {
-    max_memory = 1;
-    memory_slots = 0;
     mem = 1;
-  }
 
-  TT = (TTE*)calloc(mem,sizeof(TTE));
-  if (TT==NULL)
+  TT1ZEROED = (TTE*)calloc(mem,sizeof(TTE));
+  if (TT1ZEROED==NULL)
+  {
+    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
+    return false;
+  }
+  // initialize abdada transposition table
+  mem = (max_memory*1024*1024)/(sizeof(ABDADATTE));
+  ttbits = 0;
+  if (max_memory>0&&memory_slots>=2)
+  {
+    while ( mem >>= 1)   // get msb
+      ttbits++;
+    mem = 1ULL<<ttbits;   // get number of tt entries
+    ttbits=mem;
+  }
+  else
+    mem = 1;
+
+  TT2ZEROED = (ABDADATTE*)calloc(mem,sizeof(ABDADATTE));
+  if (TT2ZEROED==NULL)
   {
     fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
     return false;
@@ -347,7 +365,8 @@ void release_gameinits()
   free(KILLERZEROED);
   free(COUNTERZEROED);
   free(GLOBAL_HASHHISTORY);
-  free(TT);
+  free(TT1ZEROED);
+  free(TT2ZEROED);
 }
 void release_configinits()
 {
