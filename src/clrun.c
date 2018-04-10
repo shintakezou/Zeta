@@ -33,10 +33,12 @@ size_t localThreads[3];
 
 s32 temp = 0;
 u64 templong = 0;
-u64 ttbits1 = 0;
+u64 ttbits1 = 0x1;
 u64 mem1 = 1;
-u64 ttbits2 = 0;
+u64 ttbits2 = 0x1;
 u64 mem2 = 1;
+//u64 ttbits3 = 0x1;
+//u64 mem3 = 1;
 
 char *coptions = "";
 //char *coptions = "-cl-strict-aliasing";
@@ -345,11 +347,11 @@ bool cl_init_device(char *kernelname)
     return false;
   }
 
-  // initialize transposition table TT1, for classic jhash
+  // initialize transposition table TT1, for classic hash
   ttbits1 = 0;
-  if (max_memory>0&&memory_slots>=1)
+  if (tt1_memory>0)
   {
-    mem1 = (max_memory*1024*1024)/(sizeof(TTE));
+    mem1 = (tt1_memory*1024*1024)/(sizeof(TTE));
 
     while ( mem1 >>= 1)   // get msb
       ttbits1++;
@@ -359,7 +361,7 @@ bool cl_init_device(char *kernelname)
   else
   {
     mem1 = 1;
-    ttbits1 = 0x2;
+    ttbits1 = 0x1;
   }
 
   GLOBAL_TT1_Buffer = clCreateBuffer(
@@ -376,9 +378,9 @@ bool cl_init_device(char *kernelname)
 
   // initialize transposition table TT2, for ABDADA parallel search
   ttbits2 = 0;
-  if (max_memory>0&&memory_slots>=2)
+  if (tt2_memory>0)
   {
-    mem2 = (max_memory*1024*1024)/(sizeof(ABDADATTE));
+    mem2 = (tt2_memory*1024*1024)/(sizeof(ABDADATTE));
 
     while ( mem2 >>= 1)   // get msb
       ttbits2++;
@@ -388,9 +390,8 @@ bool cl_init_device(char *kernelname)
   else
   {
     mem2 = 1;
-    ttbits2 = 0x2;
+    ttbits2 = 0x1;
   }
-
 
   GLOBAL_TT2_Buffer = clCreateBuffer(
                         		        context, 
@@ -403,6 +404,37 @@ bool cl_init_device(char *kernelname)
     print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT2_Buffer)\n");
     return false;
   }
+
+/*
+  // initialize transposition table TT3,
+  ttbits3 = 0;
+  if (tt3_memory>0)
+  {
+    mem3 = (tt3_memory*1024*1024)/(sizeof(TTE));
+
+    while ( mem3 >>= 1)   // get msb
+      ttbits3++;
+    mem3 = 1ULL<<ttbits3;   // get number of tt entries
+    ttbits3=mem3;
+  }
+  else
+  {
+    mem3 = 1;
+    ttbits3 = 0x1;
+  }
+
+  GLOBAL_TT3_Buffer = clCreateBuffer(
+                        		        context, 
+                                    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                    sizeof(TTE) * mem3,
+                                    TT3ZEROED, 
+                                    &status);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: clCreateBuffer (GLOBAL_TT3_Buffer)\n");
+    return false;
+  }
+*/
 
   GLOBAL_Killer_Buffer = clCreateBuffer(
                         		        context, 
@@ -770,6 +802,20 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   }
   i++;
 
+/*
+  status = clSetKernelArg(
+                          kernel, 
+                          i, 
+                          sizeof(cl_mem), 
+                          (void *)&GLOBAL_TT3_Buffer);
+  if(status!=CL_SUCCESS) 
+  { 
+    print_debug((char *)"Error: Setting kernel argument. (GLOBAL_TT3_Buffer)\n");
+    return false;
+  }
+  i++;
+*/
+
   status = clSetKernelArg(
                           kernel, 
                           i, 
@@ -864,18 +910,6 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   if(status!=CL_SUCCESS) 
   { 
     print_debug((char *)"Error: Setting kernel argument. (ttindex2)\n");
-    return false;
-  }
-  i++;
-
-  status = clSetKernelArg(
-                          kernel, 
-                          i, 
-                          sizeof(cl_ulong), 
-                          (void *)&memory_slots);
-  if(status!=CL_SUCCESS) 
-  { 
-    print_debug((char *)"Error: Setting kernel argument. (slots)\n");
     return false;
   }
   i++;
@@ -1342,6 +1376,15 @@ bool cl_release_device(void)
 		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT2_Buffer)\n");
 		return false; 
 	}
+
+/*
+	status = clReleaseMemObject(GLOBAL_TT3_Buffer);
+  if(status!=CL_SUCCESS)
+	{
+		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT3_Buffer)\n");
+		return false; 
+	}
+*/
 
 	status = clReleaseMemObject(GLOBAL_Killer_Buffer);
   if(status!=CL_SUCCESS)

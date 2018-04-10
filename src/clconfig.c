@@ -46,13 +46,15 @@ bool cl_guess_config(bool extreme)
   u32 deviceunits = 0;
   u64 devicememalloc = 0;
   u64 memalloc = 0;
+  u64 tt1mem = 0;
+  u64 tt2mem = 0;
+//  u64 tt3mem = 0;
   s32 warpmulti = 1;
   s32 bestwarpmulti = 1;
   s64 nps = 0;
   s64 npstmp = 0;
   s32 devicecounter = 0;
-  s32 benchsec = 4;
-  u64 slots = 0;
+  s32 benchsec = 4;  
     
   fprintf(stdout,"#>\n");
   fprintf(stdout,"#> ### Query the OpenCL Platforms on Host...\n");
@@ -382,8 +384,7 @@ bool cl_guess_config(bool extreme)
             }
           }
         }
-        // get global memory size, for calculating slots
-        slots = 1;
+        // get global memory size
         u64 devicememglobal = 1;
         status = clGetDeviceInfo (cldevice[j],
                                   CL_DEVICE_GLOBAL_MEM_SIZE,
@@ -418,16 +419,30 @@ bool cl_guess_config(bool extreme)
           memalloc =  MAXDEVICEMB*1024*1024;
         if (memalloc>devicememalloc)
           memalloc =  devicememalloc;
-        // take max mem alloc size, buggy on AMD >= 1024MB
-//        if (memalloc<devicememalloc)
-//          memalloc =  devicememalloc;
-        // memory slots
-        slots = devicememglobal/memalloc;
-        slots = (slots>MAXSLOTS)?MAXSLOTS:slots;
-        // initialize transposition table
-/*
+        // initialize transposition table, tt1
         u64 mem = 0;
-        u64 slots = 0;
+        u64 ttbits = 0;
+        mem = memalloc/(sizeof(TTE));
+        while ( mem >>= 1)   // get msb
+          ttbits++;
+        mem = 1UL<<ttbits;
+        ttbits=mem;
+        memalloc = mem*sizeof(TTE); // set correct hash size
+        tt1mem = memalloc;
+        // initialize transposition table, tt2, abdada
+        mem = 0;
+        ttbits = 0;
+        mem = memalloc/(sizeof(ABDADATTE));
+        while ( mem >>= 1)   // get msb
+          ttbits++;
+        mem = 1UL<<ttbits;
+        ttbits=mem;
+        memalloc = mem*sizeof(ABDADATTE); // set correct hash size
+        tt2mem = memalloc;
+
+        // initialize transposition table, tt3,
+/*
+        mem = 0;
         ttbits = 0;
         mem = memalloc/(sizeof(TTE));
         while ( mem >>= 1)   // get msb
@@ -435,9 +450,8 @@ bool cl_guess_config(bool extreme)
         mem = 1UL<<ttbits;
         ttbits=mem;
         memalloc = mem*sizeof(TTE); // set correct hash size
-        memalloc = (memalloc==0)?1:memalloc;
+        tt3mem = memalloc;
 */
-
         // check for needed device extensions
 // local and global 32 bit functions faster on newer device...
 // chose portability vs speed...
@@ -745,248 +759,31 @@ bool cl_guess_config(bool extreme)
         }
         if (failed)
           continue;
-/*
-        // deprecated:
-        // getting prefered warpsize resp. wavefront size, 
-        fprintf(stdout, "#> #### Query Kernel params.\n");
-        if (LogFile)
-        {
-          fprintdate(LogFile);
-          fprintf(LogFile, "#> #### Query Kernel params.\n");
-        }
-        // create context properties
-        cps[0] = CL_CONTEXT_PLATFORM;
-        cps[1] = (cl_context_properties)platform;
-        cps[2] = 0;
-        // create context
-        context = clCreateContext(cps, 
-                                  1, 
-                                  &cldevice[j],
-                                  NULL, 
-                                  NULL, 
-                                  &status);
-        if(status!=CL_SUCCESS) 
-        {  
-          fprintf(stdout, "#> Error: Creating Context Info (cps, clCreateContext)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Creating Context Info (cps, clCreateContext)\n");
-          }
-          continue;
-        }
-        else
-        {
-          fprintf(stdout, "#> OK, Creating Context Info\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, Creating Context Info\n");
-          }
-        }
-        // create command queue
-        commandQueue = clCreateCommandQueue(
-                  	                       context, 
-                                           cldevice[j], 
-                                           0, 
-                                           &status);
-        if(status!=CL_SUCCESS) 
-        { 
-          fprintf(stdout, "#> Error: Creating Command Queue. (clCreateCommandQueue)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Creating Command Queue. (clCreateCommandQueue)\n");
-          }
-          continue;
-        }
-        else
-        {
-          fprintf(stdout, "#> OK, Creating Command Queue\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, Creating Command Queue\n");
-          }
-        }
-        // create program
-        const char *content = zeta_cl;
-        program = clCreateProgramWithSource(
-                                	          context, 
-                                            1, 
-                                            &content,
-                                  		      &zeta_cl_len,
-                                            &status);
-        if(status!=CL_SUCCESS) 
-        { 
-          fprintf(stdout, "#> Error: Loading Binary into cl_program (clCreateProgramWithBinary)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Loading Binary into cl_program (clCreateProgramWithBinary)\n");
-          }
-          continue;
-        }   
-        else
-        {
-          fprintf(stdout, "#> OK, Loading Binary into cl_program\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, Loading Binary into cl_program\n");
-          }
-        }
-        // build program for device
-        status = clBuildProgram(program, 1, &cldevice[j], NULL, NULL, NULL);
-        if(status!=CL_SUCCESS) 
-        { 
-          char* build_log=0;
-          size_t log_size=0;
-          FILE 	*temp=0;
-
-          fprintf(stdout, "#> Error: Building Program, see file zeta.log for build log (clBuildProgram)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Building Program, see file zeta.log for build log (clBuildProgram)\n");
-          }
-
-          // shows the log
-          // first call to know the proper size
-          clGetProgramBuildInfo(program, cldevice[j], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-          build_log = (char *) malloc(log_size+1);
-
-          if(status!=CL_SUCCESS) 
-          { 
-            fprintf(stdout, "#> Error: Building Log size (clGetProgramBuildInfo)\n");
-            if (LogFile)
-            {
-              fprintdate(LogFile);
-              fprintf(LogFile, "#> Error: Building Log size (clGetProgramBuildInfo)\n");
-            }
-          }
-          // second call to get the log
-          status = clGetProgramBuildInfo(program, cldevice[j], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
-          //build_log[log_size] = '\0';
-
-          if(status!=CL_SUCCESS) 
-          { 
-            fprintf(stdout, "#> Error: Building Log (clGetProgramBuildInfo)\n");
-            if (LogFile)
-            {
-              fprintdate(LogFile);
-              fprintf(LogFile, "#> Error: Building Log (clGetProgramBuildInfo)\n");
-            }
-          }
-
-          temp = fopen("zeta.log", "a");
-          fprintdate(temp);
-          fprintf(temp, "buildlog: %s \n", build_log);
-          fclose(temp);
-
-          continue;
-        }
-        else
-        {
-          fprintf(stdout, "#> OK, Building Program\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, Building Program\n");
-          }
-        }
-        // get a kernel object handle for a kernel with the given name
-        kernel = clCreateKernel(program, "alphabeta_gpu", &status);
-        if(status!=CL_SUCCESS) 
-        {  
-          fprintf(stdout, "#> Error: Creating Kernel from program. (clCreateKernel)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Creating Kernel from program. (clCreateKernel)\n");
-          }
-          continue;
-        }
-        else
-        {
-          fprintf(stdout, "#> OK, Creating Kernel from program\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> OK, Creating Kernel from program\n");
-          }
-        }
-        // query kernel for warp resp wavefront size
-        status = clGetKernelWorkGroupInfo ( kernel,
-                                            cldevice[j],
-                                            CL_DEVICE_MAX_WORK_GROUP_SIZE,
-                                            0,
-                                            NULL,
-                                            &paramSize
-                                          );
-        if(status!=CL_SUCCESS) 
-        {  
-          fprintf(stdout, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE size (clGetKernelWorkGroupInfo)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Getting CL_DEVICE_MAX_WORK_GROUP_SIZE size (clGetKernelWorkGroupInfo)\n");
-          }
-          continue;
-        }
-
-        paramValue = (size_t *)malloc(1 * paramSize);
-        status = clGetKernelWorkGroupInfo ( kernel,
-                                            cldevice[j],
-                                            CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
-                                            paramSize,
-                                            &paramValue,
-                                            NULL
-                                          );
-        if(status!=CL_SUCCESS) 
-        {  
-          fprintf(stdout, "#> Error: Getting CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE (clGetKernelWorkGroupInfo)\n");
-          if (LogFile)
-          {
-            fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE (clGetKernelWorkGroupInfo)\n");
-          }
-          continue;
-        }
-*/
         // print temp config file
         FILE 	*Cfg;
         remove("config.tmp");
-
         Cfg = fopen("config.tmp", "w");
-        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
+        fprintf(Cfg,"################################################################################\n");
+        fprintf(Cfg,"// Zeta OpenCL Chess config file for device: %s \n", deviceName);
+        fprintf(Cfg,"################################################################################\n");
         fprintf(Cfg, "threadsX: %i;\n", 1);
         fprintf(Cfg, "threadsY: %i;\n", 1);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: %i; // max %i \n", 1, (s32)slots);
+        fprintf(Cfg, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
+        fprintf(Cfg, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n",j);
-        fprintf(Cfg, "opencl_gpugen: %i;\n\n",opencl_gpugen);
-        fprintf(Cfg,"\n");
-        fprintf(Cfg,"threadsX\n");
-        fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
-        fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
-        fprintf(Cfg,"threadsY\n");
-        fprintf(Cfg,"Multiplier for threadsX,\n");
-        fprintf(Cfg,"run multiple Work-Groups per Compute Unit\n");
-        fprintf(Cfg,"nodes_per_second\n");
-        fprintf(Cfg,"nps of device, for initial time control\n");
-        fprintf(Cfg,"max_memory\n");
-        fprintf(Cfg,"Allocate n MB of memory on device for hash table\n");
-        fprintf(Cfg,"memory_slots\n");
-        fprintf(Cfg,"Allocate n times max_memory on device\n");
-        fprintf(Cfg,"opencl_platform_id\n");
-        fprintf(Cfg,"Which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id\n");
-        fprintf(Cfg,"Which OpenCL device to use\n");
-        fprintf(Cfg,"opencl_gpugen\n");
-        fprintf(Cfg,"Which gpgpu generation with specific device features\n\n");
+        fprintf(Cfg, "opencl_gpugen: %i;\n",opencl_gpugen);
+        fprintf(Cfg,"################################################################################\n");
+        fprintf(Cfg,"# threadsX           // Number of Compute Units resp. CPU cores \n");
+        fprintf(Cfg,"# threadsY           // Multiplier for threadsX\n");
+        fprintf(Cfg,"# nodes_per_second   // nps of device, for initial time control\n");
+        fprintf(Cfg,"# tt1_memory         // Allocate n MB of memory on device for classic hash table\n");
+        fprintf(Cfg,"# tt2_memory         // Allocate n MB of memory on device for abdada hash table\n");
+        fprintf(Cfg,"# opencl_platform_id // Which OpenCL platform to use\n");
+        fprintf(Cfg,"# opencl_device_id   // Which OpenCL device to use\n");
+        fprintf(Cfg,"# opencl_gpugen      // Which gpgpu generation with specific feature set\n");
+        fprintf(Cfg,"################################################################################\n");
         fclose(Cfg);
 
         fprintf(stdout, "#\n");
@@ -1057,68 +854,33 @@ bool cl_guess_config(bool extreme)
             fprintdate(LogFile);
             fprintf(LogFile, "#\n");
           }
-/*
-          // get threadsZ, warpsize, deprecated...
-          while (true)
-          {
-            Cfg = fopen("config.tmp", "w");
-            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
-            fprintf(Cfg, "threadsX: %i;\n", deviceunits);
-            fprintf(Cfg, "threadsY: %i;\n", warpmulti);
-            fprintf(Cfg, "nodes_per_second: %" PRI64 ";\n", npstmp);
-            fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
-            fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots,(s32)slots);
-            fprintf(Cfg, "opencl_platform_id: %i;\n",i);
-            fprintf(Cfg, "opencl_device_id: %i;\n\n",j);
-            fprintf(Cfg,"\n");
-            fclose(Cfg);
-
-            fprintf(stdout, "#\n");
-            fprintf(stdout, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
-            fprintf(stdout, "#\n");
-            if (LogFile)
-            {
-              fprintdate(LogFile);
-              fprintf(LogFile, "#\n");
-              fprintdate(LogFile);
-              fprintf(LogFile, "#> ### Running NPS-Benchmark for threadsY on device, this can last about %i seconds... \n", benchsec);
-              fprintdate(LogFile);
-              fprintf(LogFile, "#\n");
-            }
-
-            npstmp = benchmarkWrapper(benchsec);
-            remove("config.tmp");
-
-            // something went wrong
-            if (npstmp<=0)
-              break;
-            // speedup margin
-            if (npstmp<=nps*SPEEDUPMARGIN)
-              break;
-            // increase threadsZ
-            if (npstmp>=nps)
-              warpsize*=2;
-              nps = npstmp;
-            }
-          }
-*/
-          // get threadsY, multi for warpsize
 //          nps = 0;
           npstmp = 0;
 //          int iter = 0;
           while (true)
           {
             Cfg = fopen("config.tmp", "w");
-            fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
+            fprintf(Cfg,"################################################################################\n");
+            fprintf(Cfg,"// Zeta OpenCL Chess config file for device: %s \n", deviceName);
+            fprintf(Cfg,"################################################################################\n");
             fprintf(Cfg, "threadsX: %i;\n", deviceunits);
             fprintf(Cfg, "threadsY: %i;\n", warpmulti);
             fprintf(Cfg, "nodes_per_second: %" PRIi64 ";\n", npstmp);
-            fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
-            fprintf(Cfg, "memory_slots: %i; // max %i \n", (s32)slots, (s32)slots);
+            fprintf(Cfg, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
+            fprintf(Cfg, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
             fprintf(Cfg, "opencl_platform_id: %i;\n",i);
             fprintf(Cfg, "opencl_device_id: %i;\n",j);
-            fprintf(Cfg, "opencl_gpugen: %i;\n\n",opencl_gpugen);
-            fprintf(Cfg,"\n");
+            fprintf(Cfg, "opencl_gpugen: %i;\n",opencl_gpugen);
+            fprintf(Cfg,"################################################################################\n");
+            fprintf(Cfg,"# threadsX           // Number of Compute Units resp. CPU cores \n");
+            fprintf(Cfg,"# threadsY           // Multiplier for threadsX\n");
+            fprintf(Cfg,"# nodes_per_second   // nps of device, for initial time control\n");
+            fprintf(Cfg,"# tt1_memory         // Allocate n MB of memory on device for classic hash table\n");
+            fprintf(Cfg,"# tt2_memory         // Allocate n MB of memory on device for abdada hash table\n");
+            fprintf(Cfg,"# opencl_platform_id // Which OpenCL platform to use\n");
+            fprintf(Cfg,"# opencl_device_id   // Which OpenCL device to use\n");
+            fprintf(Cfg,"# opencl_gpugen      // Which gpgpu generation with specific feature set\n");
+            fprintf(Cfg,"################################################################################\n");
             fclose(Cfg);
 
             fprintf(stdout, "#\n");
@@ -1192,61 +954,60 @@ bool cl_guess_config(bool extreme)
         remove(confignamefile);
 
         Cfg = fopen(confignamefile, "w");
-        fprintf(Cfg,"// Zeta OpenCL Chess config file for %s \n\n", deviceName);
+        fprintf(Cfg,"################################################################################\n");
+        fprintf(Cfg,"// Zeta OpenCL Chess config file for device: %s \n", deviceName);
+        fprintf(Cfg,"################################################################################\n");
         fprintf(Cfg, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(Cfg, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
-        fprintf(Cfg, "memory_slots: %i; // max %i \n", (!extreme)?1:(s32)slots, (s32)slots);
+        fprintf(Cfg, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
+        fprintf(Cfg, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
         fprintf(Cfg, "opencl_device_id: %i;\n",j);
-        fprintf(Cfg, "opencl_gpugen: %i;\n\n",opencl_gpugen);
-        fprintf(Cfg,"\n");
-        fprintf(Cfg,"threadsX\n");
-        fprintf(Cfg,"Number of Compute Units resp. CPU cores\n");
-        fprintf(Cfg,"Each of these threads runs 64 Work-Items in one Work-Group\n");
-        fprintf(Cfg,"threadsY\n");
-        fprintf(Cfg,"Multiplier for threadsX,\n");
-        fprintf(Cfg,"run multiple Work-Groups per Compute Unit\n");
-        fprintf(Cfg,"nodes_per_second\n");
-        fprintf(Cfg,"nps of device, for initial time control\n");
-        fprintf(Cfg,"max_memory\n");
-        fprintf(Cfg,"Allocate n MB of memory on device for hash table\n");
-        fprintf(Cfg,"memory_slots\n");
-        fprintf(Cfg,"Allocate n times max_memory on device\n");
-        fprintf(Cfg,"opencl_platform_id\n");
-        fprintf(Cfg,"Which OpenCL platform to use\n");
-        fprintf(Cfg,"opencl_device_id\n");
-        fprintf(Cfg,"Which OpenCL device to use\n");
-        fprintf(Cfg,"opencl_gpugen\n");
-        fprintf(Cfg,"Which gpgpu generation with specific device features\n\n");
+        fprintf(Cfg, "opencl_gpugen: %i;\n",opencl_gpugen);
+        fprintf(Cfg,"################################################################################\n");
+        fprintf(Cfg,"# threadsX           // Number of Compute Units resp. CPU cores \n");
+        fprintf(Cfg,"# threadsY           // Multiplier for threadsX\n");
+        fprintf(Cfg,"# nodes_per_second   // nps of device, for initial time control\n");
+        fprintf(Cfg,"# tt1_memory         // Allocate n MB of memory on device for classic hash table\n");
+        fprintf(Cfg,"# tt2_memory         // Allocate n MB of memory on device for abdada hash table\n");
+        fprintf(Cfg,"# opencl_platform_id // Which OpenCL platform to use\n");
+        fprintf(Cfg,"# opencl_device_id   // Which OpenCL device to use\n");
+        fprintf(Cfg,"# opencl_gpugen      // Which gpgpu generation with specific feature set\n");
+        fprintf(Cfg,"################################################################################\n");
         fclose(Cfg);
 
         fprintf(stdout, "#\n");
         fprintf(stdout, "#\n");
-        fprintf(stdout, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
+        fprintf(stdout,"################################################################################\n");
+        fprintf(stdout,"// Zeta OpenCL Chess config file for device: %s \n", deviceName);
+        fprintf(stdout,"################################################################################\n");
         fprintf(stdout, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
         fprintf(stdout, "nodes_per_second: %" PRIu64 ";\n", nps);
-        fprintf(stdout, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
-        fprintf(stdout, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
+        fprintf(stdout, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
+        fprintf(stdout, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
         fprintf(stdout, "opencl_device_id: %i;\n",j);
-        fprintf(stdout, "opencl_gpugen: %i;\n\n",opencl_gpugen);
+        fprintf(stdout, "opencl_gpugen: %i;\n",opencl_gpugen);
+        fprintf(stdout,"################################################################################\n");
         if (LogFile)
         {
           fprintdate(LogFile);
           fprintf(LogFile, "#\n");
           fprintf(LogFile, "#\n");
-          fprintf(LogFile, "// Zeta OpenCL Chess config file for %s \n\n", deviceName);
+          fprintf(LogFile,"################################################################################\n");
+          fprintf(LogFile,"// Zeta OpenCL Chess config file for device: %s \n", deviceName);
+          fprintf(LogFile,"################################################################################\n");
           fprintf(LogFile, "threadsX: %i;\n", (!extreme)?1:deviceunits);
           fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
           fprintf(LogFile, "nodes_per_second: %" PRIu64 ";\n", nps);
-          fprintf(LogFile, "max_memory: %" PRIu64 "; // in MB\n", memalloc/1024/1024);
-          fprintf(LogFile, "memory_slots: %i; // max %i\n", (!extreme)?1:(s32)slots, (s32)slots);
+          fprintf(LogFile, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
+          fprintf(LogFile, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);
           fprintf(LogFile, "opencl_device_id: %i;\n",j);
-          fprintf(LogFile, "opencl_gpugen: %i;\n\n",opencl_gpugen);
+          fprintf(LogFile, "opencl_gpugen: %i;\n",opencl_gpugen);
+          fprintf(LogFile,"################################################################################\n");
         }
 
         fprintf(stdout, "##### Above output was saved in file %s \n", confignamefile);

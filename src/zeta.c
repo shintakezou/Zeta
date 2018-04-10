@@ -58,8 +58,9 @@ const u64 threadsZ      = 64; // fix value, run z threads per work-group
 u64 totalWorkUnits      =  1;
 s32 nodes_per_second    =  0;
 s32 nps_current         =  0;
-u64 max_memory          =  1;
-u64 memory_slots        =  1;
+u64 tt1_memory          =  0;
+u64 tt2_memory          =  0;
+//u64 tt3_memory          =  0;
 s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 s32 opencl_user_device  = -1;
@@ -109,6 +110,7 @@ Bitboard BOARD[7];
 Bitboard *GLOBAL_BOARD = NULL;
 TTE *TT1ZEROED = NULL;
 ABDADATTE *TT2ZEROED = NULL;
+//TTE *TT3ZEROED = NULL;
 u64 *COUNTERS = NULL;
 u32 *RNUMBERS = NULL;
 u64 *COUNTERSZEROED = NULL;
@@ -308,10 +310,10 @@ bool gameinits(void)
     }
     return false;
   }
-  // initialize transposition table
-  u64 mem = (max_memory*1024*1024)/(sizeof(TTE));
+  // initialize transposition table, TT1
+  u64 mem = (tt1_memory*1024*1024)/(sizeof(TTE));
   u64 ttbits = 0;
-  if (max_memory>0&&memory_slots>=1)
+  if (tt1_memory>0)
   {
     while ( mem >>= 1)   // get msb
       ttbits++;
@@ -320,17 +322,16 @@ bool gameinits(void)
   }
   else
     mem = 1;
-
   TT1ZEROED = (TTE*)calloc(mem,sizeof(TTE));
   if (TT1ZEROED==NULL)
   {
-    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
+    fprintf(stdout,"Error (tt1 hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", tt1_memory);
     return false;
   }
-  // initialize abdada transposition table
-  mem = (max_memory*1024*1024)/(sizeof(ABDADATTE));
+  // initialize abdada transposition table, TT2
+  mem = (tt2_memory*1024*1024)/(sizeof(ABDADATTE));
   ttbits = 0;
-  if (max_memory>0&&memory_slots>=2)
+  if (tt2_memory>0)
   {
     while ( mem >>= 1)   // get msb
       ttbits++;
@@ -339,13 +340,32 @@ bool gameinits(void)
   }
   else
     mem = 1;
-
   TT2ZEROED = (ABDADATTE*)calloc(mem,sizeof(ABDADATTE));
   if (TT2ZEROED==NULL)
   {
-    fprintf(stdout,"Error (hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", max_memory);
+    fprintf(stdout,"Error (tt2 hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", tt2_memory);
     return false;
   }
+/*
+  // initialize transposition table, TT3
+  mem = (tt3_memory*1024*1024)/(sizeof(TTE));
+  ttbits = 0;
+  if (tt3_memory>0)
+  {
+    while ( mem >>= 1)   // get msb
+      ttbits++;
+    mem = 1ULL<<ttbits;   // get number of tt entries
+    ttbits=mem;
+  }
+  else
+    mem = 1;
+  TT3ZEROED = (TTE*)calloc(mem,sizeof(TTE));
+  if (TT3ZEROED==NULL)
+  {
+    fprintf(stdout,"Error (tt3 hash table memory allocation on cpu, %" PRIu64 " mb, failed): memory\n", tt1_memory);
+    return false;
+  }
+*/
   return true;
 }
 void release_gameinits()

@@ -565,8 +565,9 @@ bool read_and_init_config(char configfile[])
     sscanf(line, "threadsX: %" PRIu64 ";", &threadsX);
     sscanf(line, "threadsY: %" PRIu64 ";", &threadsY);
     sscanf(line, "nodes_per_second: %d;", &nodes_per_second);
-    sscanf(line, "max_memory: %" PRIu64 ";", &max_memory);
-    sscanf(line, "memory_slots: %" PRIu64 ";", &memory_slots);
+    sscanf(line, "tt1_memory: %" PRIu64 ";", &tt1_memory);
+    sscanf(line, "tt2_memory: %" PRIu64 ";", &tt2_memory);
+//    sscanf(line, "tt3_memory: %" PRIu64 ";", &tt3_memory);
     sscanf(line, "opencl_platform_id: %d;", &opencl_platform_id);
     sscanf(line, "opencl_device_id: %d;", &opencl_device_id);
     sscanf(line, "opencl_gpugen: %d;", &opencl_gpugen);

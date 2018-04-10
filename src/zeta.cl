@@ -853,7 +853,6 @@ __kernel void alphabeta_gpu(
                                const u64 max_nodes,
                                const u64 ttindex1,
                                const u64 ttindex2,
-                               const u64 slots,
                             __global Score *rscore,
                             __global u32 *finito
 )
@@ -1560,7 +1559,7 @@ __kernel void alphabeta_gpu(
           &&!(localSearchMode[sd]&IIDSEARCH)
           &&localTodoIndex[sd-1]>1 // first move first
           &&localMoveCounter[sd-1]>1
-          &&slots>=2
+          &&(ttindex2>1)
        )
       {
         move    = localMoveHistory[sd-1];
@@ -1632,7 +1631,7 @@ __kernel void alphabeta_gpu(
           &&!qs
           &&sd>1 // not on root
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
-          &&slots>=1
+          &&(ttindex1>1)
        )
       {
         bbWork = localHashHistory[sd];    
@@ -1684,7 +1683,7 @@ __kernel void alphabeta_gpu(
     {
 
       // abdada, set values 
-      if (lid==0&&sd>1&&slots>=2)
+      if (lid==0&&sd>1&&ttindex2>1)
       {
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex2-1);
@@ -1808,7 +1807,7 @@ __kernel void alphabeta_gpu(
             &&localDepth[sd]>=0
             &&!bforward
             &&!bresearch
-            &&slots>=1
+            &&(ttindex1>1)
            )
         {
           bbWork = localHashHistory[sd];    
@@ -1905,9 +1904,9 @@ __kernel void alphabeta_gpu(
       if (
           lmove==MOVENONE
           &&(
-             (slots==1&&gid>0) // single slot, randomize
+             ((ttindex1>1&&ttindex2==1)&&gid>0) // single slot, randomize
              ||
-             (slots>=2&&(RANDABDADA)&&gid>=RANDWORKERS) // abdada, randomize > n
+             ((ttindex2>1)&&(RANDABDADA)&&gid>=RANDWORKERS) // abdada, randomize > n
             )
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
@@ -1937,7 +1936,7 @@ __kernel void alphabeta_gpu(
     Move ttmove = MOVENONE;
     bbWork = localHashHistory[sd];    
     bbTemp = bbWork&(ttindex1-1);
-    if (slots>=1)
+    if (ttindex1>1)
     {
       tt1 = TT1[bbTemp];
       if (tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
@@ -2378,7 +2377,7 @@ __kernel void alphabeta_gpu(
       bestscore = -INF;
 
       // load ttmove from hash table
-      if (slots>=1)
+      if (ttindex1>1)
       {
         tt1 = TT1[bbTemp];
         if (tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
