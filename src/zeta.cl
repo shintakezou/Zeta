@@ -1550,13 +1550,17 @@ __kernel void alphabeta_gpu(
         if ((TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&(TT.flag&0x3)>FAILLOW)
           score = (Score)TT.score;
 
+        // handle mate scores from TT, position to mate => mate from root
+        score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score+(sd-1))):score;
+        score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score+(sd-1))):score;
+
         if (
             !ISINF(score)
             &&!ISDRAW(score)
-            &&!ISMATE(score)
             &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
+//            &&!ISMATE(score)
+//            &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
+//            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
         {
           // set alpha
@@ -1692,6 +1696,10 @@ __kernel void alphabeta_gpu(
           bbTemp = bbWork&(ttindex-1);
           // xor trick for avoiding race conditions
           bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
+
+          // handle mate scores for TT, mate from root => position to mate
+          score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score-(sd-1))):score;
+          score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score-(sd-1))):score;
 
           // slot 1, depth, score and ply replace
           TT = TT1[bbTemp]; 
