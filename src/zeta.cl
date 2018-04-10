@@ -72,6 +72,7 @@ typedef struct
 typedef struct
 {
   Hash hash;
+  TTMove move;
   s32 lock;
   TTScore score;
   s16 depth;
@@ -82,6 +83,8 @@ typedef struct
 #define LMRR            1 // late move reduction 
 #define NULLR           2 // null move reduction 
 #define RANDBRO         1 // how many brothers searched before randomized order
+#define RANDABDADA   true // abdada, rand move order 
+#define RANDWORKERS    32 // abdada, at how many workers to randomize move order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
@@ -859,11 +862,15 @@ __kernel void alphabeta_gpu(
   __private Bitboard board[4]; 
 
   // temporary place holders
+#if !defined cl_khr_int64_extended_atomics || defined OLDSCHOOL
   __local Bitboard bbTmp64[64];
+#endif
+#if !defined cl_khr_local_int32_base_atomics || defined OLDSCHOOL
   __local s32 scrTmp64[64];
+#endif
 
-  __local TTE TT;
-  __local ABDADATTE ABDADATT;
+  __local TTE tt1;
+  __local ABDADATTE tt2;
 
   // iterative var stack
   __local u8 localNodeStates[MAXPLY];
@@ -1549,24 +1556,21 @@ __kernel void alphabeta_gpu(
       if (movecount>0&&qs&&!rootkic&&score>localAlphaBetaScores[sd*2+ALPHA])
         localAlphaBetaScores[sd*2+ALPHA] = score; // fail soft
 
-      // ABDADA, check hash table
+      // abdada, check hash table
       if (movecount>1
           &&!qs
           &&sd>1 // not on root
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localSearchMode[sd]&IIDSEARCH)
-//          &&!(localSearchMode[sd]&LMRSEARCH)
           &&localTodoIndex[sd-1]>1 // first move first
           &&localMoveCounter[sd-1]>1
           &&slots>=2
        )
       {
-        bbWork = localHashHistory[sd];    
-        bbTemp = bbWork&(ttindex2-1);
-
-        move  = localMoveHistory[sd-1];
-
-        score  = -INF;
+        move    = localMoveHistory[sd-1];
+        bbWork  = localHashHistory[sd];    
+        bbTemp  = bbWork&(ttindex2-1);
+        score   = -INF;
 
         // check and set ply and sd, reset lock
         if (atom_cmpxchg(&TT2[bbTemp].ply, 0, ply_init+1)!=ply_init+1
@@ -1582,11 +1586,26 @@ __kernel void alphabeta_gpu(
         // verify lock
         n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
 
-        ABDADATT = TT2[bbTemp];
-        score = (Score)ABDADATT.score;
+        tt2 = TT2[bbTemp];
+        score = (Score)tt2.score;
 
+        // handle mate scores from TT2, position to mate => mate from root
+        score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score+(sd-1))):score;
+        score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score+(sd-1))):score;
+
+        // write hash
+        if (n==gid+1)
+        {
+          TT2[bbTemp].hash = bbWork;
+          TT2[bbTemp].move = (TTMove)move;
+        }
         // locked, backup move for iter 2
-        if ((localNodeStates[sd-1]&ITER1)&&n!=gid+1&&n>0)
+        if (n!=gid+1
+            &&n>0
+            &&(localNodeStates[sd-1]&ITER1)
+            &&tt2.hash==bbWork
+            &&tt2.move==(TTMove)move
+           )
         {
           globalbbMoves2[gid*MAXPLY*64+(sd-1)*64+(s32)GETSQFROM(move)] |= SETMASKBB(GETSQTO(move));
           localTodoIndex[sd-1]--;
@@ -1594,23 +1613,26 @@ __kernel void alphabeta_gpu(
           localAlphaBetaScores[sd*2+ALPHA] = INF; // ignore score
         }
         // locked and loaded
-        if ((localNodeStates[sd-1]&ITER2)&&n!=gid+1&&n>0&&ABDADATT.hash==(bbWork^(Hash)ABDADATT.score^(Hash)ABDADATT.depth)&&ABDADATT.depth>=(s16)localDepth[sd])
+        if (n!=gid+1
+            &&n>0
+            &&(localNodeStates[sd-1]&ITER2)
+            &&tt2.hash==bbWork
+            &&tt2.move==(TTMove)move
+            &&tt2.depth>=(s16)localDepth[sd]
+           )
         {
           if (
               !ISINF(score)
               &&!ISDRAW(score)
-              &&!ISMATE(score)
               &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
-              &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-              &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
               &&score>localAlphaBetaScores[sd*2+ALPHA]
              )
           {
             localAlphaBetaScores[sd*2+ALPHA] = score;
-//            movecount = 0;
+//            movecount = 0; // does not work, transpositions...
           }
         }
-      } // end ABDADA, check hash table
+      } // end abdada, check hash table
 
       // update alpha with ttscore from hash table
       if (movecount>0
@@ -1624,9 +1646,9 @@ __kernel void alphabeta_gpu(
         bbTemp = bbWork&(ttindex1-1);
         score  = -INF;
 
-        TT = TT1[bbTemp];
-        if ((TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))&&(s32)TT.depth>=localDepth[sd]&&(TT.flag&0x3)>FAILLOW)
-          score = (Score)TT.score;
+        tt1 = TT1[bbTemp];
+        if ((tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))&&(s32)tt1.depth>=localDepth[sd]&&(tt1.flag&0x3)>FAILLOW)
+          score = (Score)tt1.score;
 
         // handle mate scores from TT, position to mate => mate from root
         score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score+(sd-1))):score;
@@ -1675,12 +1697,16 @@ __kernel void alphabeta_gpu(
           ) 
     {
 
-      // ABDADA, set values 
+      // abdada, set values 
       if (lid==0&&sd>1&&slots>=2)
       {
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex2-1);
         score  = localAlphaBetaScores[sd*2+ALPHA];
+
+        // handle mate scores for TT2, mate from root => position to mate
+        score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score-(sd-1))):score;
+        score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score-(sd-1))):score;
 
         // verify lock
         n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
@@ -1688,20 +1714,21 @@ __kernel void alphabeta_gpu(
         // set values
         if (n==gid+1
             &&!ISINF(score)
+            &&!ISDRAW(score)
             &&!(localNodeStates[sd]&QS)
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
-//            &&!(localSearchMode[sd]&LMRSEARCH)
            )
         {
-          ABDADATT.hash   = bbWork^(Hash)score^(Hash)localDepth[sd];
-          ABDADATT.score  = (TTScore)score;
-          ABDADATT.depth  = (s16)localDepth[sd];
-          ABDADATT.lock   = gid+1;
-          ABDADATT.ply    = ply_init+1;
-          ABDADATT.sd     = search_depth+1;
+          tt2.hash   = bbWork;
+          tt2.move   = (TTMove)localMoveHistory[sd-1];
+          tt2.score  = (TTScore)score;
+          tt2.depth  = (s16)localDepth[sd];
+          tt2.lock   = gid+1;
+          tt2.ply    = ply_init+1;
+          tt2.sd     = search_depth+1;
 
-          TT2[bbTemp]     = ABDADATT;
+          TT2[bbTemp]     = tt2;
         }
       }
 
@@ -1810,27 +1837,27 @@ __kernel void alphabeta_gpu(
           score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score-(sd-1))):score;
 
           // slot 1, depth, score and ply replace
-          TT = TT1[bbTemp]; 
+          tt1 = TT1[bbTemp]; 
           if (
-               ((u8)localDepth[sd]>TT.depth)
+               ((u8)localDepth[sd]>tt1.depth)
                ||
-               ((u8)localDepth[sd]>=TT.depth
-                &&TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth)
-                &&score>(Score)TT.score
+               ((u8)localDepth[sd]>=tt1.depth
+                &&tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth)
+                &&score>(Score)tt1.score
                )
                ||
-               ((ply_init>TT.ply)
-                &&(localDepth[sd]>=(s32)TT.depth)
+               ((ply_init>tt1.ply)
+                &&(localDepth[sd]>=(s32)tt1.depth)
                )
              ) 
           {
-              TT.hash      = bbMask;
-              TT.bestmove  = (TTMove)move;
-              TT.score     = (TTScore)score;
-              TT.flag      = flag;
-              TT.depth     = (u8)localDepth[sd];
-              TT.ply       = ply_init;
-              TT1[bbTemp]  = TT;
+              tt1.hash      = bbMask;
+              tt1.bestmove  = (TTMove)move;
+              tt1.score     = (TTScore)score;
+              tt1.flag      = flag;
+              tt1.depth     = (u8)localDepth[sd];
+              tt1.ply       = ply_init;
+              TT1[bbTemp]   = tt1;
           }
         } // end save to hash table
         // save killer and counter move heuristic for quiet moves
@@ -1897,8 +1924,11 @@ __kernel void alphabeta_gpu(
       // lazy smp, randomize move order
       if (
           lmove==MOVENONE
-          &&gid>0
-          &&slots==1 // single slot wo abdada, randomize
+          &&(
+             (slots==1&&gid>0) // single slot, randomize
+             ||
+             (slots>=2&&(RANDABDADA)&&gid>=RANDWORKERS) // abdada, randomize > n
+            )
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
           &&!(localNodeStates[sd]&EXT)
@@ -1929,9 +1959,9 @@ __kernel void alphabeta_gpu(
     bbTemp = bbWork&(ttindex1-1);
     if (slots>=1)
     {
-      TT = TT1[bbTemp];
-      if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
-        ttmove = TT.bestmove;
+      tt1 = TT1[bbTemp];
+      if (tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
+        ttmove = tt1.bestmove;
     }
     move    = MOVENONE;
     score  = -INFMOVESCORE;
@@ -2370,11 +2400,11 @@ __kernel void alphabeta_gpu(
       // load ttmove from hash table
       if (slots>=1)
       {
-        TT = TT1[bbTemp];
-        if (TT.hash==(bbWork^(Hash)TT.bestmove^(Hash)TT.score^(Hash)TT.depth))
+        tt1 = TT1[bbTemp];
+        if (tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
         {
-          bestscore = (Score)TT.score;
-          bestmove = (Move)TT.bestmove;
+          bestscore = (Score)tt1.score;
+          bestmove = (Move)tt1.bestmove;
         }
       }
 
