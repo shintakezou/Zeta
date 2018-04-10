@@ -52,8 +52,6 @@ bool cl_guess_config(bool extreme)
   s64 npstmp = 0;
   s32 devicecounter = 0;
   s32 benchsec = 4;
-  u64 ttbits = 0;
-  u64 mem = 0;
   u64 slots = 0;
     
   fprintf(stdout,"#>\n");
@@ -427,6 +425,9 @@ bool cl_guess_config(bool extreme)
         slots = devicememglobal/memalloc;
         slots = (slots>MAXSLOTS)?MAXSLOTS:slots;
         // initialize transposition table
+/*
+        u64 mem = 0;
+        u64 slots = 0;
         ttbits = 0;
         mem = memalloc/(sizeof(TTE));
         while ( mem >>= 1)   // get msb
@@ -435,7 +436,7 @@ bool cl_guess_config(bool extreme)
         ttbits=mem;
         memalloc = mem*sizeof(TTE); // set correct hash size
         memalloc = (memalloc==0)?1:memalloc;
-
+*/
 
         // check for needed device extensions
 // local and global 32 bit functions faster on newer device...
