@@ -72,7 +72,6 @@ typedef struct
 typedef struct
 {
   Hash hash;
-  TTMove move;
   s32 lock;
   TTScore score;
   s16 depth;
@@ -1584,18 +1583,10 @@ __kernel void alphabeta_gpu(
         tt2 = TT2[bbTemp];
         score = (Score)tt2.score;
 
-        // write hash
-        if (n==gid+1)
-        {
-          TT2[bbTemp].hash = bbWork^(Hash)move;
-          TT2[bbTemp].move = (TTMove)move;
-        }
         // locked, backup move for iter 2
         if (n!=gid+1
             &&n>0
             &&(localNodeStates[sd-1]&ITER1)
-            &&tt2.hash==bbWork^(Hash)tt2.move
-            &&tt2.move==(TTMove)move
            )
         {
           globalbbMoves2[gid*MAXPLY*64+(sd-1)*64+(s32)GETSQFROM(move)] |= SETMASKBB(GETSQTO(move));
@@ -1607,8 +1598,7 @@ __kernel void alphabeta_gpu(
         if (n!=gid+1
             &&n>0
             &&(localNodeStates[sd-1]&ITER2)
-            &&tt2.hash==bbWork^(Hash)tt2.move^(Hash)tt2.score^(Hash)tt2.depth
-            &&tt2.move==(TTMove)move
+            &&tt2.hash==bbWork^(Hash)tt2.score^(Hash)tt2.depth
             &&tt2.depth>=(s16)localDepth[sd]
            )
         {
@@ -1688,7 +1678,6 @@ __kernel void alphabeta_gpu(
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex2-1);
         score  = localAlphaBetaScores[sd*2+ALPHA];
-        move   = localMoveHistory[sd-1];
 
         // verify lock
         n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
@@ -1703,8 +1692,7 @@ __kernel void alphabeta_gpu(
             &&!(localSearchMode[sd]&IIDSEARCH)
            )
         {
-          tt2.hash   = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
-          tt2.move   = (TTMove)move;
+          tt2.hash   = bbWork^(Hash)score^(Hash)localDepth[sd];
           tt2.score  = (TTScore)score;
           tt2.depth  = (s16)localDepth[sd];
           tt2.lock   = gid+1;

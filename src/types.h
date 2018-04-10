@@ -217,7 +217,6 @@ typedef struct
 typedef struct
 {
   Hash hash;
-  TTMove move;
   s32 lock;
   TTScore score;
   s16 depth;
