@@ -84,7 +84,7 @@ typedef struct
 #define NULLR           2 // null move reduction 
 #define RANDBRO         1 // how many brothers searched before randomized order
 #define RANDABDADA   true // abdada, rand move order 
-#define RANDWORKERS    32 // abdada, at how many workers to randomize move order
+#define RANDWORKERS    16 // abdada, at how many workers to randomize move order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
@@ -1589,21 +1589,17 @@ __kernel void alphabeta_gpu(
         tt2 = TT2[bbTemp];
         score = (Score)tt2.score;
 
-        // handle mate scores from TT2, position to mate => mate from root
-        score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score+(sd-1))):score;
-        score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score+(sd-1))):score;
-
         // write hash
         if (n==gid+1)
         {
-          TT2[bbTemp].hash = bbWork;
+          TT2[bbTemp].hash = bbWork^(Hash)move;
           TT2[bbTemp].move = (TTMove)move;
         }
         // locked, backup move for iter 2
         if (n!=gid+1
             &&n>0
             &&(localNodeStates[sd-1]&ITER1)
-            &&tt2.hash==bbWork
+            &&tt2.hash==bbWork^(Hash)tt2.move
             &&tt2.move==(TTMove)move
            )
         {
@@ -1612,11 +1608,11 @@ __kernel void alphabeta_gpu(
           movecount = 0;
           localAlphaBetaScores[sd*2+ALPHA] = INF; // ignore score
         }
-        // locked and loaded
+        // locked and loaded, update alpha
         if (n!=gid+1
             &&n>0
             &&(localNodeStates[sd-1]&ITER2)
-            &&tt2.hash==bbWork
+            &&tt2.hash==bbWork^(Hash)tt2.move^(Hash)tt2.score^(Hash)tt2.depth
             &&tt2.move==(TTMove)move
             &&tt2.depth>=(s16)localDepth[sd]
            )
@@ -1624,6 +1620,7 @@ __kernel void alphabeta_gpu(
           if (
               !ISINF(score)
               &&!ISDRAW(score)
+              &&!ISMATE(score)
               &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
               &&score>localAlphaBetaScores[sd*2+ALPHA]
              )
@@ -1634,7 +1631,7 @@ __kernel void alphabeta_gpu(
         }
       } // end abdada, check hash table
 
-      // update alpha with ttscore from hash table
+      // load from hash table, update alpha with ttscore
       if (movecount>0
           &&!qs
           &&sd>1 // not on root
@@ -1650,17 +1647,10 @@ __kernel void alphabeta_gpu(
         if ((tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))&&(s32)tt1.depth>=localDepth[sd]&&(tt1.flag&0x3)>FAILLOW)
           score = (Score)tt1.score;
 
-        // handle mate scores from TT, position to mate => mate from root
-        score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score+(sd-1))):score;
-        score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score+(sd-1))):score;
-
-        if (
-            !ISINF(score)
+        if (!ISINF(score)
+            &&!ISMATE(score)
             &&!ISDRAW(score)
             &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
-//            &&!ISMATE(score)
-//            &&!ISMATE(localAlphaBetaScores[sd*2+ALPHA])
-//            &&!ISMATE(localAlphaBetaScores[sd*2+BETA])
            )
         {
           // set alpha
@@ -1703,10 +1693,7 @@ __kernel void alphabeta_gpu(
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex2-1);
         score  = localAlphaBetaScores[sd*2+ALPHA];
-
-        // handle mate scores for TT2, mate from root => position to mate
-        score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score-(sd-1))):score;
-        score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score-(sd-1))):score;
+        move   = localMoveHistory[sd-1];
 
         // verify lock
         n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
@@ -1715,13 +1702,14 @@ __kernel void alphabeta_gpu(
         if (n==gid+1
             &&!ISINF(score)
             &&!ISDRAW(score)
+            &&!ISMATE(score)
             &&!(localNodeStates[sd]&QS)
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
            )
         {
-          tt2.hash   = bbWork;
-          tt2.move   = (TTMove)localMoveHistory[sd-1];
+          tt2.hash   = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
+          tt2.move   = (TTMove)move;
           tt2.score  = (TTScore)score;
           tt2.depth  = (s16)localDepth[sd];
           tt2.lock   = gid+1;
@@ -1831,10 +1819,6 @@ __kernel void alphabeta_gpu(
           bbTemp = bbWork&(ttindex1-1);
           // xor trick for avoiding race conditions
           bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
-
-          // handle mate scores for TT, mate from root => position to mate
-          score = (ISMATE((s32)score)&&score>0)?(float) (INF-( INF-(s32)score-(sd-1))):score;
-          score = (ISMATE((s32)score)&&score<0)?(float)(-INF+( INF+(s32)score-(sd-1))):score;
 
           // slot 1, depth, score and ply replace
           tt1 = TT1[bbTemp]; 
