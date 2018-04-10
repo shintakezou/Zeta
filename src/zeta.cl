@@ -890,8 +890,6 @@ __kernel void alphabeta_gpu(
   __local bool bresearch;   // late move reduction reseach flag
   __local bool bforward;    // late move reduction reseach flag
 
-//  __local u8 ttage;
-
   __local Square sqchecker;
 
   __local s32 evalscore;
@@ -967,7 +965,6 @@ __kernel void alphabeta_gpu(
 
   // inits
   bexit           = false;
-//  ttage           = (u8)ply_init&0x3F;
   bestmove        = MOVENONE;
   bestscore       = -INF;
   brandomize      = false;
@@ -1443,7 +1440,7 @@ __kernel void alphabeta_gpu(
     bbMask  = board[QBBP1]&~board[QBBP2]&~board[QBBP3]; // get all pawns
     bbMe    =  (color)?board[QBBBLACK]:(board[QBBBLACK]^bbBlockers);
     bbOpp   =  (color)?(board[QBBBLACK]^bbBlockers):board[QBBBLACK];
-    score= 0;
+    score   = 0;
     Square sqfrom = (color)?lid:FLIPFLOP(lid);
     // piece bonus
     score+= (pfrom!=PNONE)?10:0;
@@ -1543,7 +1540,6 @@ __kernel void alphabeta_gpu(
       // terminal or leaf node
       if (movecount==0)
         localAlphaBetaScores[sd*2+ALPHA]=score;
-
       // stand pat in qsearch
       // return beta
       if (movecount>0&&qs&&!rootkic&&score>=localAlphaBetaScores[sd*2+BETA])
@@ -1716,7 +1712,7 @@ __kernel void alphabeta_gpu(
           tt2.ply    = ply_init+1;
           tt2.sd     = search_depth+1;
 
-          TT2[bbTemp]     = tt2;
+          TT2[bbTemp]=tt2;
         }
       }
 
