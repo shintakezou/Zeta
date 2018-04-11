@@ -8,6 +8,7 @@ CFLAGS=-Wall -Wextra -std=c99
 TARGETS=zeta
 
 zeta: 
+	# .cl files as .h string include
 	xxd -i zetaperft.cl zetaclperft.h
 	sed -i 's/unsigned int/const size_t/g' ./zetaclperft.h
 	sed -i 's/unsigned char/const char/g' ./zetaclperft.h
