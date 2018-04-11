@@ -204,13 +204,13 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   fflush(LogFile);
 
   // compute next nps value
-  nps_current =  (u64)(ABNODECOUNT/elapsed);
-  nodes_per_second+= (ABNODECOUNT>nodes_per_second)?
-                      (nps_current>nodes_per_second)?
-                        (nps_current-nodes_per_second)*0.66 // inc by 66 %
-                       :(nps_current-nodes_per_second)*0.33 // dec by 33 %
-                     :0;
+  nps_current =  (s64)((float)ABNODECOUNT/elapsed);
 
+  
+  nodes_per_second+= (nps_current>nodes_per_second)?
+                      (s64)((double)(nps_current-nodes_per_second)*0.66) // inc by 66 %
+                      :(s64)((double)(nps_current-nodes_per_second)*0.33); // dec by 33 
+                     
   return bestmove;
 }
 
