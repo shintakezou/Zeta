@@ -987,7 +987,7 @@ __kernel void alphabeta_gpu(
   // inits
   bexit           = false;
   bestmove        = MOVENONE;
-  bestscore       = -INF;
+  bestscore       = DRAWSCORE;
   brandomize      = false;
   bresearch       = false;
   bforward        = false;
