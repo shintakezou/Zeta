@@ -35,6 +35,7 @@ typedef cl_short s16;
 typedef cl_uchar u8;
 typedef cl_bool bool;
 typedef cl_float fp32;
+
 // boolean val
 #define true  1
 #define false 0
@@ -71,13 +72,12 @@ typedef u8 Rank;
   26  - 29  piece capture
 */
 // engine defaults
-#define MAXPLY      64      // max internal search ply
+#define MAXPLY      64      // max internal search ply, qs included
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 64ULL   // min memory of OpenCl device in MB
 #define MAXDEVICEMB 2048ULL // max memory for OpenCL devices in MB
-#define MAXSLOTS    2       // max memory slots for OpenCL devices
 #define ESTEBF      2       // estaminated effective branching factor, for tc
 #define SPEEDUPMARGIN 1.80f // used in guessconfig to guess totalworkers
 // colors
@@ -224,9 +224,9 @@ typedef struct
   s32 sd;
 } ABDADATTE;
 // TT node type flags
-#define EXACTSCORE      2
-#define FAILHIGH        1
 #define FAILLOW         0
+#define EXACTSCORE      1
+#define FAILHIGH        2
 
 #endif // TYPES_H_INCLUDED
 
