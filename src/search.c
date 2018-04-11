@@ -207,8 +207,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   nps_current =  (u64)(ABNODECOUNT/elapsed);
   nodes_per_second+= (ABNODECOUNT>nodes_per_second)?
                       (nps_current>nodes_per_second)?
-                        (nps_current-nodes_per_second)*0.66
-                       :(nps_current-nodes_per_second)*0.33
+                        (nps_current-nodes_per_second)*0.66 // inc by 66 %
+                       :(nps_current-nodes_per_second)*0.33 // dec by 33 %
                      :0;
 
   return bestmove;
