@@ -190,7 +190,7 @@ void xboard(void) {
       }
       SD = MAXPLY; // reset search depth
       // reset time control
-      MaxNodes = MaxTime/1000*nodes_per_second;
+      MaxNodes = (u64)(MaxTime/1000*(double)nodes_per_second);
       if (!xboard_mode)
         printboard(BOARD);
       xboard_force  = false;
@@ -368,7 +368,7 @@ void xboard(void) {
             if (timemode==1&&MovesLeft==2)
               TimeLeft+= TimeBase;
             // get max nodes to search
-            MaxNodes = MaxTime/1000*nodes_per_second;
+            MaxNodes = (u64)(MaxTime/1000*(double)nodes_per_second);
           }
         }
       }
@@ -418,7 +418,7 @@ void xboard(void) {
       // set max time per move
       MaxTime = TimeLeft/MovesLeft+TimeInc;
       // get max nodes to search
-      MaxNodes = MaxTime/1000*nodes_per_second;
+      MaxNodes = (u64)(MaxTime/1000*(double)nodes_per_second);
 
       continue;
     }
@@ -434,7 +434,7 @@ void xboard(void) {
       // set max time per move
       MaxTime   = TimeLeft/MovesLeft+TimeInc;
       // get max nodes to search
-      MaxNodes = MaxTime/1000*nodes_per_second;
+      MaxNodes = (u64)(MaxTime/1000*(double)nodes_per_second);
 
       continue;
     }
@@ -449,7 +449,7 @@ void xboard(void) {
       // set max time per move
       MaxTime = TimeLeft/MovesLeft+TimeInc;
       // get max nodes to search
-      MaxNodes = MaxTime/1000*nodes_per_second;
+      MaxNodes = (u64)(MaxTime/1000*(double)nodes_per_second);
 
       continue;
     }
@@ -631,7 +631,7 @@ void xboard(void) {
             if (timemode==1&&MovesLeft==2)
               TimeLeft+= TimeBase;
             // get max nodes to search
-            MaxNodes = MaxTime/1000*nodes_per_second;
+            MaxNodes = (u64)(MaxTime/1000*(double)nodes_per_second);
           }
         }
       }

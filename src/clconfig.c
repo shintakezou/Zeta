@@ -768,7 +768,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"################################################################################\n");
         fprintf(Cfg, "threadsX: %i;\n", 1);
         fprintf(Cfg, "threadsY: %i;\n", 1);
-        fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
+        fprintf(Cfg, "nodes_per_second: %" PRIi64 ";\n", nps);
         fprintf(Cfg, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
         fprintf(Cfg, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -959,7 +959,7 @@ bool cl_guess_config(bool extreme)
         fprintf(Cfg,"################################################################################\n");
         fprintf(Cfg, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(Cfg, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
-        fprintf(Cfg, "nodes_per_second: %" PRIu64 ";\n", nps);
+        fprintf(Cfg, "nodes_per_second: %" PRIi64 ";\n", nps);
         fprintf(Cfg, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
         fprintf(Cfg, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
         fprintf(Cfg, "opencl_platform_id: %i;\n",i);
@@ -984,7 +984,7 @@ bool cl_guess_config(bool extreme)
         fprintf(stdout,"################################################################################\n");
         fprintf(stdout, "threadsX: %i;\n", (!extreme)?1:deviceunits);
         fprintf(stdout, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
-        fprintf(stdout, "nodes_per_second: %" PRIu64 ";\n", nps);
+        fprintf(stdout, "nodes_per_second: %" PRIi64 ";\n", nps);
         fprintf(stdout, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
         fprintf(stdout, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
         fprintf(stdout, "opencl_platform_id: %i;\n",i);
@@ -1001,7 +1001,7 @@ bool cl_guess_config(bool extreme)
           fprintf(LogFile,"################################################################################\n");
           fprintf(LogFile, "threadsX: %i;\n", (!extreme)?1:deviceunits);
           fprintf(LogFile, "threadsY: %i;\n", (!extreme)?1:bestwarpmulti);
-          fprintf(LogFile, "nodes_per_second: %" PRIu64 ";\n", nps);
+          fprintf(LogFile, "nodes_per_second: %" PRIi64 ";\n", nps);
           fprintf(LogFile, "tt1_memory: %" PRIu64 "; // in MB\n", tt1mem/1024/1024);
           fprintf(LogFile, "tt2_memory: %" PRIu64 "; // in MB\n", tt2mem/1024/1024);
           fprintf(LogFile, "opencl_platform_id: %i;\n",i);

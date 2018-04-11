@@ -156,6 +156,6 @@ s64 benchmarkWrapper(s32 benchsec)
   if (elapsed <= 0 || ABNODECOUNT <= 0)
     return -1;
 
-  return (ABNODECOUNT/elapsed);
+  return (s64)((float)ABNODECOUNT/elapsed);
 }
 
