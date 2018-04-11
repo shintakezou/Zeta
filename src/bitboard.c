@@ -471,7 +471,9 @@ Hash computehash(Bitboard *board, bool stm)
   // for each color
   for (side=WHITE;side<=BLACK;side++)
   {
-    bbWork = (side==BLACK)?board[QBBBLACK]:(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
+    bbWork = (side==BLACK)?
+               board[QBBBLACK]
+              :(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
     // for each piece
     while(bbWork)
     {
@@ -626,7 +628,9 @@ void domove(Bitboard *board, Move move)
     board[QBBPMVD]  &= CLRMASKBB(sqep);
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   // unset castle rook from
   if (pcastle)
   {
@@ -646,7 +650,9 @@ void domove(Bitboard *board, Move move)
     hmc = 0;
   }
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   // unset castle rook from
   if (pcastle)
   {
@@ -718,7 +724,9 @@ void undomove(Bitboard *board, Move move, Cr cr, Hash hash, u64 hmc)
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // unset castle rook to
@@ -734,7 +742,9 @@ void undomove(Bitboard *board, Move move, Cr cr, Hash hash, u64 hmc)
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom-4);
   }
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // restore castle rook from

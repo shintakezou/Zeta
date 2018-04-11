@@ -75,7 +75,7 @@ double end          = 0;
 double elapsed      = 0;
 bool TIMEOUT        = false;  // global value for time control*/
 // time control in milli-seconds
-s32 timemode    = 0;      // 0 = single move, 1 = conventional clock, 2 = ics clock
+s32 timemode    = 0;      // 0 = single move, 1 = conventional clock, 2 = ics
 s32 MovesLeft   = 1;      // moves left unit nex time increase
 s32 MaxMoves    = 1;      // moves to play in time frame
 double TimeInc  = 0;      // time increase

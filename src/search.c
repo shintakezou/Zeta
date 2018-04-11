@@ -56,7 +56,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   for(u64 i=0;i<totalWorkUnits;i++)
   {
     // prepare hash history
-    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY * sizeof(Hash));
+    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], 
+           HashHistory, MAXGAMEPLY * sizeof(Hash));
     // set random numbers
     for(u64 j=0;j<64;j++)
       RNUMBERS[i*64+j] = (u32)rand();
@@ -131,10 +132,15 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       bestscore = ISINF(RSCORE)?DRAWSCORE:RSCORE;
       // xboard mate scores
       xboard_score = (s32)bestscore;
-      xboard_score = (bestscore<=-MATESCORE)?-100000-(INF+bestscore):xboard_score;
-      xboard_score = (bestscore>=MATESCORE)?100000-(-INF+bestscore):xboard_score;
+      xboard_score = (bestscore<=-MATESCORE)?
+                      -100000-(INF+bestscore)
+                     :xboard_score;
+      xboard_score = (bestscore>=MATESCORE)?
+                      100000-(-INF+bestscore)
+                     :xboard_score;
       // print xboard output
-      if ((xboard_post==true||xboard_mode == false)&&(JUSTMOVE((Move)PV[1])!=MOVENONE))
+      if ((xboard_post==true||xboard_mode == false)
+          &&(JUSTMOVE((Move)PV[1])!=MOVENONE))
       {
         fprintf(stdout,"%i %i %i %" PRIu64 " ", idf, xboard_score, (s32 )(elapsed*100), ABNODECOUNT);          
         if (LogFile)
@@ -166,11 +172,22 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
         break;
     }
     // mate in n idf cut
-    if (ISMATE((s32)bestscore)&&((s32)bestscore>=MATESCORE)&&idf>=(INF-(s32)bestscore))
+    if (ISMATE((s32)bestscore)
+        &&((s32)bestscore>=MATESCORE)
+        &&idf>=(INF-(s32)bestscore)
+       )
       break;
-    if (ISMATE((s32)bestscore)&&((s32)bestscore<=-MATESCORE)&&idf>=(INF+(s32)bestscore))
+    if (ISMATE((s32)bestscore)
+        &&((s32)bestscore<=-MATESCORE)
+        &&idf>=(INF+(s32)bestscore)
+       )
       break;
-  } while (++idf<=depth&&elapsed*1000*ESTEBF<MaxTime&&ABNODECOUNT*ESTEBF<=MaxNodes&&ABNODECOUNT>1&&idf<MAXPLY);
+  } while (++idf<=depth
+           &&elapsed*1000*ESTEBF<MaxTime
+           &&ABNODECOUNT*ESTEBF<=MaxNodes
+           &&ABNODECOUNT>1
+           &&idf<MAXPLY
+          );
 
 
   if ((!xboard_mode)||xboard_debug)
@@ -187,8 +204,12 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   fflush(LogFile);
 
   // compute next nps value
-  nps_current =  (s32 )(ABNODECOUNT/(elapsed));
-  nodes_per_second+= (ABNODECOUNT > (u64)nodes_per_second)? (nps_current > nodes_per_second)? (nps_current-nodes_per_second)*0.66 : (nps_current-nodes_per_second)*0.33 :0;
+  nps_current =  (s32)(ABNODECOUNT/(elapsed));
+  nodes_per_second+= (ABNODECOUNT>(u64)nodes_per_second)?
+                      (nps_current>nodes_per_second)?
+                        (nps_current-nodes_per_second)*0.66
+                       :(nps_current-nodes_per_second)*0.33
+                     :0;
 
   return bestmove;
 }
@@ -207,7 +228,8 @@ Score perft(Bitboard *board, bool stm, s32 depth)
   // prepare hash history
   for(u64 i=0;i<totalWorkUnits;i++)
   {
-    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], HashHistory, MAXGAMEPLY* sizeof(Hash));
+    memcpy(&GLOBAL_HASHHISTORY[i*MAXGAMEPLY], 
+            HashHistory, MAXGAMEPLY* sizeof(Hash));
   }
 
   start = get_time(); 

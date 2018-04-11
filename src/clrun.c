@@ -137,7 +137,13 @@ bool cl_init_device(char *kernelname)
       return false;
     }   
     // create program for all the devices specified */
-    status = clBuildProgram(program, 1, &devices[opencl_device_id], coptions, NULL, NULL);
+    status = clBuildProgram(program, 
+                            1, 
+                            &devices[opencl_device_id], 
+                            coptions, 
+                            NULL, 
+                            NULL
+                            );
     // get build log and print
     if(status!=CL_SUCCESS) 
     { 
@@ -148,10 +154,22 @@ bool cl_init_device(char *kernelname)
 	    print_debug((char *)"Error: Building Program (clBuildProgram)\n");
       // shows the log
       // first call to know the proper size
-      clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+      clGetProgramBuildInfo(program, 
+                            devices[opencl_device_id], 
+                            CL_PROGRAM_BUILD_LOG, 
+                            0, 
+                            NULL, 
+                            &log_size
+                           );
       build_log = (char *) malloc(log_size+1);
       // second call to get the log
-      status = clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
+      status = clGetProgramBuildInfo(program, 
+                                     devices[opencl_device_id], 
+                                     CL_PROGRAM_BUILD_LOG, 
+                                     log_size, 
+                                     build_log, 
+                                     NULL
+                                    );
       //build_log[log_size] = '\0';
       temp = fopen("zeta.log", "a");
       fprintdate(temp);
@@ -189,7 +207,13 @@ bool cl_init_device(char *kernelname)
       return false;
     }   
     // create program for all the devices specified */
-    status = clBuildProgram(program, 1, &devices[opencl_device_id], coptions, NULL, NULL);
+    status = clBuildProgram(program, 
+                            1, 
+                            &devices[opencl_device_id], 
+                            coptions, 
+                            NULL, 
+                            NULL
+                           );
     // get build log and print
     if(status!=CL_SUCCESS) 
     { 
@@ -200,10 +224,22 @@ bool cl_init_device(char *kernelname)
 	    print_debug((char *)"Error: Building Program (clBuildProgram)\n");
       // shows the log
       // first call to know the proper size
-      clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+      clGetProgramBuildInfo(program, 
+                            devices[opencl_device_id], 
+                            CL_PROGRAM_BUILD_LOG, 
+                            0, 
+                            NULL, 
+                            &log_size
+                           );
       build_log = (char *) malloc(log_size+1);
       // second call to get the log
-      status = clGetProgramBuildInfo(program, devices[opencl_device_id], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
+      status = clGetProgramBuildInfo(program, 
+                                     devices[opencl_device_id], 
+                                     CL_PROGRAM_BUILD_LOG, 
+                                     log_size, 
+                                     build_log, 
+                                     NULL
+                                    );
       //build_log[log_size] = '\0';
       temp = fopen("zeta.log", "a");
       fprintdate(temp);
@@ -290,7 +326,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_globalbbMoves1_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE,
-                                    sizeof(Bitboard) * totalWorkUnits * MAXPLY * 64,
+                                    sizeof(Bitboard)*totalWorkUnits*MAXPLY*64,
                                     NULL, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -302,7 +338,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_globalbbMoves2_Buffer = clCreateBuffer(
                         		        context, 
                                     CL_MEM_READ_WRITE,
-                                    sizeof(Bitboard) * totalWorkUnits * MAXPLY * 64,
+                                    sizeof(Bitboard)*totalWorkUnits*MAXPLY*64,
                                     NULL, 
                                     &status);
   if(status!=CL_SUCCESS) 
@@ -314,7 +350,7 @@ bool cl_init_device(char *kernelname)
   GLOBAL_HASHHISTORY_Buffer = clCreateBuffer(
                             			     context, 
                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(Hash) * totalWorkUnits * MAXGAMEPLY,
+                                       sizeof(Hash)*totalWorkUnits*MAXGAMEPLY,
                                        GLOBAL_HASHHISTORY, 
                                        &status);
   if(status!=CL_SUCCESS) 
@@ -1456,7 +1492,7 @@ void print_debug(char *debug)
   fprintf(Stats, "%s", debug);
   fprintdate(Stats);
   fprintf(Stats, "status:%i\n",status);
-  if (status == CL_DEVICE_NOT_AVAILABLE)
+  if (status == CL_DEVICE_NOT_AVAILABLE) // case for older intel cpus < SSE4.2
   {
     fprintdate(Stats);
     fprintf(Stats, "CL_DEVICE_NOT_AVAILABLE\n");

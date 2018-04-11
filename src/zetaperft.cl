@@ -43,7 +43,6 @@ typedef uchar    u8;
 typedef char     s8;
 
 typedef s32     Score;
-typedef s16     TTScore;
 typedef u8      Square;
 typedef u8      Piece;
 
@@ -51,46 +50,24 @@ typedef u64     Bitboard;
 typedef u64     Cr;
 typedef u64     Hash;
 typedef u32     Move;
-typedef u32     TTMove;
 
-// transposition table entry
-typedef struct
-{
-  Hash hash;
-  Move bestmove;
-  TTScore score;
-  u8 flag;
-  u8 depth;
-} TTE;
-// tunebale search params
-#define NULLR           2 // nullmove pruning reduction
-#define LMRR            1 // late move reduction 
-#define RANDBRO         2 // how many brothers searched before randomized order
-// TT node type flags
-#define FAILLOW         0
-#define EXACTSCORE      1
-#define FAILHIGH        2
 // iterative search modes
 #define SEARCH          1
-#define NULLMOVESEARCH  2
-#define LMRSEARCH       4
-//#define IIDSEARCH       8
 // node states
 #define STATENONE       0
 #define KIC             1
 #define QS              2
 #define EXT             4
-#define LMR             8
 // defaults
-#define VERSION "099i"
+#define VERSION     "099j"
 // quad bitboard array index definition
-#define QBBBLACK  0     // pieces white
-#define QBBP1     1     // piece type first bit
-#define QBBP2     2     // piece type second bit
-#define QBBP3     3     // piece type third bit
-#define QBBPMVD   4     // piece moved flags, for castle rights
-#define QBBHASH   5     // 64 bit board Zobrist hash
-#define QBBHMC    6     // half move clock
+#define QBBBLACK        0     // pieces white
+#define QBBP1           1     // piece type first bit
+#define QBBP2           2     // piece type second bit
+#define QBBP3           3     // piece type third bit
+#define QBBPMVD         4     // piece moved flags, for castle rights
+#define QBBHASH         5     // 64 bit board Zobrist hash
+#define QBBHMC          6     // half move clock
 /* move encoding 
    0  -  5  square from
    6  - 11  square to
@@ -113,8 +90,8 @@ typedef struct
 #define INF                 32000
 #define MATESCORE           30000
 #define DRAWSCORE           0
-#define STALEMATESCORE      0
-#define INFMOVESCORE        1000000000
+#define STALEMATESCORE      0.123
+#define INFMOVESCORE        0x7FFF
 // piece type enumeration
 #define PNONE               0
 #define PAWN                1
@@ -438,7 +415,6 @@ void domove(Bitboard *board, Move move)
   Square sqfrom   = GETSQFROM(move);
   Square sqto     = GETSQTO(move);
   Square sqcpt    = GETSQCPT(move);
-  Square sqep     = 0x0;
   Bitboard pfrom  = GETPFROM(move);
   Bitboard pto    = GETPTO(move);
   Bitboard bbTemp = BBEMPTY;
@@ -456,11 +432,15 @@ void domove(Bitboard *board, Move move)
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqfrom-4); // unset castle rook from
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqfrom+3); // unset castle rook from
 
@@ -477,7 +457,9 @@ void domove(Bitboard *board, Move move)
   board[QBBP3]    |= ((pto>>3)&0x1)<<sqto;
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // set castle rook to
@@ -488,7 +470,9 @@ void domove(Bitboard *board, Move move)
   }
 
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // set castle rook to
@@ -521,11 +505,15 @@ void undomove(Bitboard *board, Move move)
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqto+1); // unset castle rook to
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqto-1); // restore castle rook from
 
@@ -548,7 +536,9 @@ void undomove(Bitboard *board, Move move)
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // restore castle rook from
@@ -558,7 +548,9 @@ void undomove(Bitboard *board, Move move)
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom-4);
   }
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // set castle rook to
@@ -581,7 +573,9 @@ Hash computehash(__private Bitboard *board, bool stm, Bitboard bbCR)
   // for each color
   for (side=WHITE;side<=BLACK;side++)
   {
-    bbWork = (side==BLACK)?board[QBBBLACK]:(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
+    bbWork = (side==BLACK)?
+                board[QBBBLACK]
+               :(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
     // for each piece
     while(bbWork)
     {
@@ -643,8 +637,12 @@ __constant Bitboard AttackTables[7*64] =
 
 Square getkingsq(__private Bitboard *board, bool side)
 {
-  Bitboard bbTemp = (side)?board[QBBBLACK]:board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]);;
+  Bitboard bbTemp = (side)?
+                      board[QBBBLACK]
+                     :board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]);
+
   bbTemp &= board[QBBP1]&board[QBBP2]&~board[QBBP3]; // get king
+
   return first1(bbTemp);
 }
 // is square attacked by an enemy piece, via superpiece approach
@@ -801,16 +799,16 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 // 64 threads in parallel on one chess position
 // move gen with pawn queen promo only
 __kernel void perft_gpu(  
-                      const __global Bitboard *BOARD,
-                            __global u64 *COUNTERS,
-                            __global Bitboard *globalbbMoves,
-                            __global Hash *HashHistory,
-                      const __global Bitboard *bbInBetween,
-                      const __global Bitboard *bbLine,
-                               const s32 stm_init,
-                               const s32 ply_init,
-                               const s32 search_depth,
-                               const u64 max_nodes
+                          const __global Bitboard *BOARD,
+                                __global u64 *COUNTERS,
+                                __global Bitboard *globalbbMoves,
+                                __global Hash *HashHistory,
+                          const __global Bitboard *bbInBetween,
+                          const __global Bitboard *bbLine,
+                                   const s32 stm_init,
+                                   const s32 ply_init,
+                                   const s32 search_depth,
+                                   const u64 max_nodes
 )
 {
   // Quadbitboard
@@ -836,7 +834,7 @@ __kernel void perft_gpu(
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
-  const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
+  const s32 gid = (s32)(get_global_id(0)*get_global_size(1)+get_global_id(1));
   const Square lid = (Square)get_local_id(2);
 
   bool tmpb;
@@ -905,11 +903,6 @@ __kernel void perft_gpu(
   localCrHistory[sd]              = BOARD[QBBPMVD]; // piece moved flags
   localHashHistory[sd]            = BOARD[QBBHASH]; // zobrist hash
 
-  // zeroed on hosts
-//    COUNTERS[gid*64+1]              = 0;              // movecount, return
-//    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
-//    COUNTERS[gid*64+3]              = 0;              // tthits, return
-//    COUNTERS[gid*64+4]              = 0;              // depth reached, return
   barrier(CLK_LOCAL_MEM_FENCE);
   barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
@@ -990,7 +983,9 @@ __kernel void perft_gpu(
     bbTemp |=         (bbGen >> 8) & bbPro;
     bbWork |=         (bbTemp>> 8);
 
-    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) 
+                | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3]))
+              );
 
     // get pinned pieces
     while (bbWork)
@@ -1052,7 +1047,9 @@ __kernel void perft_gpu(
     bbTemp |=         (bbGen >> 7) & bbPro;
     bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
 
-    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) 
+                | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3]))
+              );
 
     // get pinned pieces
     while (bbWork)
@@ -1249,28 +1246,53 @@ __kernel void perft_gpu(
         bbMoves |= SETMASKBB(sqto);
       }
     }
-    // TODO: speedup
+    // gen caslte moves, TODO: speedup, less registers
     bbTemp = localCrHistory[sd]; // get castle rights via piece moved flags
     // gen castle moves queenside
-    tmpb = (lid==sqking&&!qs&&(bbTemp&SMCRALL)&&((stm&&(((~bbTemp)&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~bbTemp)&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
+    tmpb = (lid==sqking
+            &&!qs
+            &&(bbTemp&SMCRALL)
+            &&((stm&&(((~bbTemp)&SMCRBLACKQ)==SMCRBLACKQ))
+                ||(!stm&&(((~bbTemp)&SMCRWHITEQ)==SMCRWHITEQ))
+              )
+            )?true:false;
     // rook present
-    bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?
+                true
+               :false;
     // check for empty squares
-    bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
+    bbMask  = ((bbBlockers&SETMASKBB(lid-1))
+                |(bbBlockers&SETMASKBB(lid-2))
+                |(bbBlockers&SETMASKBB(lid-3))
+              );
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))
+               |(bbAttacks&SETMASKBB(lid-1))
+               |(bbAttacks&SETMASKBB(lid-2)
+              );
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
 
     bbTemp = localCrHistory[sd]; // get castle rights via piece moved flags
     // gen castle moves kingside
-    tmpb =  (lid==sqking&&!qs&&(bbTemp&SMCRALL)&&((stm&&(((~bbTemp)&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~bbTemp)&SMCRWHITEK)==SMCRWHITEK))))?true:false;
+    tmpb =  (lid==sqking
+             &&!qs
+             &&(bbTemp&SMCRALL)
+             &&((stm&&(((~bbTemp)&SMCRBLACKK)==SMCRBLACKK))
+                ||(!stm&&(((~bbTemp)&SMCRWHITEK)==SMCRWHITEK))
+               )
+             )?true:false;
     // rook present
-    bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?
+                true
+               :false;
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))
+                |(bbAttacks&SETMASKBB(lid+1))
+                |(bbAttacks&SETMASKBB(lid+2)
+              );
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
@@ -1343,38 +1365,54 @@ __kernel void perft_gpu(
       // get piece captured
       pcpt  = GETPIECE(board, sqcpt);
       // check for en passant capture square
-      // check for en passant capture square
-      sqcpt = (GETPTYPE(pfrom)==PAWN&&stm&&lid-sqto!=8&&lid-sqto!=16&&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
-      sqcpt = (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-lid!=8&&sqto-lid!=16&&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
+      sqcpt = (GETPTYPE(pfrom)==PAWN
+               &&stm
+               &&lid-sqto!=8
+               &&lid-sqto!=16
+               &&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
+      sqcpt = (GETPTYPE(pfrom)==PAWN
+               &&!stm
+               &&sqto-lid!=8
+               &&sqto-lid!=16
+               &&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
       pcpt  = GETPIECE(board, sqcpt);
       pto   = pfrom;
       // set pawn promotion, queen
       // TODO: fix pawn promo during perft
-      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?
+                MAKEPIECE(QUEEN,GETCOLOR(pfrom))
+               :pfrom;
       // make move
       tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt);
       n++;
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
-      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
+      tmpscore = EvalPieceValues[GETPTYPE(pto)]
+                 +EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]
+                 +EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+
+      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]
+                 +EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]
+                 +EvalControl[((stm)?lid:FLIPFLOP(lid))];
       // MVV-LVA
-      tmpscore = (pcpt!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
+      tmpscore = (GETPTYPE(pcpt)!=PNONE)?
+                  EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]
+                 :tmpscore;
       // get move with highest score
       move = (tmpscore>=score)?tmpmove:move;
       score = (tmpscore>=score)?tmpscore:score;
     }
-    // store score and move in tmp locals
-    scrTmp64[lid] = score;
-    bbTmp64[lid] = move;
+    // store score and move in local temp
+    scrTmp64[lid] = (s32)score;
+    bbTmp64[lid] = (u64)move;
     barrier(CLK_LOCAL_MEM_FENCE);
-    // collect bestscore and bestmove
+    // collect best movescore and bestmove x1
     if (lid==0)
     {
-      score  = -INFMOVESCORE;
+      score = -INFMOVESCORE;
       for (int i=0;i<64;i++)
       {
-        tmpscore = scrTmp64[i];
+        tmpscore = (Score)scrTmp64[i];
         if (tmpscore>score)
         {
           score = tmpscore;

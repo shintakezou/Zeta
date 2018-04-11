@@ -105,15 +105,15 @@ typedef struct
 #define ITER1          64
 #define ITER2         128
 // defaults
-#define VERSION "099j"
+#define VERSION     "099j"
 // quad bitboard array index definition
-#define QBBBLACK  0     // pieces white
-#define QBBP1     1     // piece type first bit
-#define QBBP2     2     // piece type second bit
-#define QBBP3     3     // piece type third bit
-#define QBBPMVD   4     // piece moved flags, for castle rights
-#define QBBHASH   5     // 64 bit board Zobrist hash
-#define QBBHMC    6     // half move clock
+#define QBBBLACK        0     // pieces white
+#define QBBP1           1     // piece type first bit
+#define QBBP2           2     // piece type second bit
+#define QBBP3           3     // piece type third bit
+#define QBBPMVD         4     // piece moved flags, for castle rights
+#define QBBHASH         5     // 64 bit board Zobrist hash
+#define QBBHMC          6     // half move clock
 /* move encoding 
    0  -  5  square from
    6  - 11  square to
@@ -488,11 +488,15 @@ void domove(Bitboard *board, Move move)
   bbTemp = CLRMASKBB(sqfrom)&CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqfrom-4); // unset castle rook from
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqfrom+3); // unset castle rook from
 
@@ -509,7 +513,9 @@ void domove(Bitboard *board, Move move)
   board[QBBP3]    |= ((pto>>3)&0x1)<<sqto;
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // set castle rook to
@@ -520,7 +526,9 @@ void domove(Bitboard *board, Move move)
   }
 
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // set castle rook to
@@ -553,11 +561,15 @@ void undomove(Bitboard *board, Move move)
   bbTemp = CLRMASKBB(sqcpt)&CLRMASKBB(sqto);
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqto+1); // unset castle rook to
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
     bbTemp  &= CLRMASKBB(sqto-1); // restore castle rook from
 
@@ -580,7 +592,9 @@ void undomove(Bitboard *board, Move move)
   board[QBBP3]    |= ((pfrom>>3)&0x1)<<sqfrom;
 
   // handle castle rook, queenside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqfrom-sqto==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // restore castle rook from
@@ -590,7 +604,9 @@ void undomove(Bitboard *board, Move move)
     board[QBBP3]    |= ((pcastle>>3)&0x1)<<(sqfrom-4);
   }
   // handle castle rook, kingside
-  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?MAKEPIECE(ROOK,GETCOLOR(pfrom)):PNONE;
+  pcastle = (GETPTYPE(pfrom)==KING&&sqto-sqfrom==2)?
+              MAKEPIECE(ROOK,GETCOLOR(pfrom))
+             :PNONE;
   if (pcastle)
   {
     // set castle rook to
@@ -613,7 +629,9 @@ Hash computehash(__private Bitboard *board, bool stm, Bitboard bbCR)
   // for each color
   for (side=WHITE;side<=BLACK;side++)
   {
-    bbWork = (side==BLACK)?board[QBBBLACK]:(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
+    bbWork = (side==BLACK)?
+                board[QBBBLACK]
+               :(board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]));
     // for each piece
     while(bbWork)
     {
@@ -675,8 +693,12 @@ __constant Bitboard AttackTables[7*64] =
 
 Square getkingsq(__private Bitboard *board, bool side)
 {
-  Bitboard bbTemp = (side)?board[QBBBLACK]:board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]);;
+  Bitboard bbTemp = (side)?
+                      board[QBBBLACK]
+                     :board[QBBBLACK]^(board[QBBP1]|board[QBBP2]|board[QBBP3]);
+
   bbTemp &= board[QBBP1]&board[QBBP2]&~board[QBBP3]; // get king
+
   return first1(bbTemp);
 }
 // is square attacked by an enemy piece, via superpiece approach
@@ -833,27 +855,27 @@ bool squareunderattack(__private Bitboard *board, bool stm, Square sq)
 // 64 threads in parallel on one chess position
 // move gen with pawn queen promo only
 __kernel void alphabeta_gpu(
-                      const __global Bitboard *BOARD,
-                            __global u64 *COUNTERS,
-                      const __global u32 *RNUMBERS,
-                            __global Move *PV,
-                            __global Bitboard *globalbbMoves1,
-                            __global Bitboard *globalbbMoves2,
-                            __global Hash *HashHistory,
-                      const __global Bitboard *bbInBetween,
-                      const __global Bitboard *bbLine,
-                            __global TTE *TT1,
-                            __global ABDADATTE *TT2,
-                            __global Move *Killers,
-                            __global Move *Counters,
-                               const s32 stm_init,
-                               const s32 ply_init,
-                               const s32 search_depth,
-                               const u64 max_nodes,
-                               const u64 ttindex1,
-                               const u64 ttindex2,
-                            __global Score *rscore,
-                            __global u32 *finito
+                              const __global Bitboard *BOARD,
+                                    __global u64 *COUNTERS,
+                              const __global u32 *RNUMBERS,
+                                    __global Move *PV,
+                                    __global Bitboard *globalbbMoves1,
+                                    __global Bitboard *globalbbMoves2,
+                                    __global Hash *HashHistory,
+                              const __global Bitboard *bbInBetween,
+                              const __global Bitboard *bbLine,
+                                    __global TTE *TT1,
+                                    __global ABDADATTE *TT2,
+                                    __global Move *Killers,
+                                    __global Move *Counters,
+                                       const s32 stm_init,
+                                       const s32 ply_init,
+                                       const s32 search_depth,
+                                       const u64 max_nodes,
+                                       const u64 ttindex1,
+                                       const u64 ttindex2,
+                                    __global Score *rscore,
+                                    __global u32 *finito
 )
 {
   // Quadbitboard
@@ -902,7 +924,7 @@ __kernel void alphabeta_gpu(
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
-  const s32 gid = (s32)(get_global_id(0) * get_global_size(1) + get_global_id(1));
+  const s32 gid = (s32)(get_global_id(0)*get_global_size(1)+get_global_id(1));
   const Square lid = (Square)get_local_id(2);
 
   bool tmpb;
@@ -929,7 +951,8 @@ __kernel void alphabeta_gpu(
   Score score;
   Score tmpscore;
 
-  u32 prn = RNUMBERS[gid*64+(s32)lid]; // get init pseudo random number, seeded on host
+  // pseudo random numbers, seeded on host
+  u32 prn = RNUMBERS[gid*64+(s32)lid];
 /*
   // xorshift32 PRNG
 	x ^= x << 13;
@@ -995,11 +1018,6 @@ __kernel void alphabeta_gpu(
   localNodeStates[sd]             = STATENONE | ITER1;
   localSearchMode[sd]             = SEARCH;
 
-  // zeroed on hosts
-//    COUNTERS[gid*64+1]              = 0;              // movecount, return
-//    COUNTERS[gid*64+2]              = MOVENONE;       // best move, return
-//    COUNTERS[gid*64+3]              = 0;              // tthits, return
-//    COUNTERS[gid*64+4]              = 0;              // depth reached, return
   barrier(CLK_LOCAL_MEM_FENCE);
   barrier(CLK_GLOBAL_MEM_FENCE);
   // ################################
@@ -1084,7 +1102,8 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen >> 8) & bbPro;
     bbWork |=         (bbTemp>> 8);
 
-    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork &= ((bbOpp&(board[QBBP1]&~board[QBBP2]&board[QBBP3])) 
+                | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
 
     // get pinned pieces
     while (bbWork)
@@ -1146,7 +1165,8 @@ __kernel void alphabeta_gpu(
     bbTemp |=         (bbGen >> 7) & bbPro;
     bbWork |=         (bbTemp>> 7) & BBNOTAFILE;
 
-    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
+    bbWork &= ((bbOpp&(~board[QBBP1]&~board[QBBP2]&board[QBBP3])) 
+                | (bbOpp&(~board[QBBP1]&board[QBBP2]&board[QBBP3])));
 
     // get pinned pieces
     while (bbWork)
@@ -1315,7 +1335,9 @@ __kernel void alphabeta_gpu(
         (
           rootkic
           ||
-          ((GETPTYPE(GETPFROM(localMoveHistory[sd-1]))==PAWN)&&(GETPTYPE(GETPTO(localMoveHistory[sd-1]))==QUEEN))
+          ((GETPTYPE(GETPFROM(localMoveHistory[sd-1]))==PAWN)
+            &&(GETPTYPE(GETPTO(localMoveHistory[sd-1]))==QUEEN)
+           )
         )
        )
     {
@@ -1329,7 +1351,9 @@ __kernel void alphabeta_gpu(
     qs = (localDepth[sd]<=0)?true:false;
 
     // verify non captures
-    bbMask  = (GETPTYPE(pfrom)==PAWN)?(AttackTablesPawnPushes[stm*64+lid]):bbMask;
+    bbMask  = (GETPTYPE(pfrom)==PAWN)?
+                (AttackTablesPawnPushes[stm*64+lid])
+               :bbMask;
     bbMoves|= (color==stm&&!qs)?(bbMask&bbWork&~bbBlockers):BBEMPTY; 
 
     // extract only own moves
@@ -1383,25 +1407,50 @@ __kernel void alphabeta_gpu(
     // gen caslte moves, TODO: speedup, less registers
     bbTemp = localCrHistory[sd]; // get castle rights via piece moved flags
     // gen castle moves queenside
-    tmpb = (lid==sqking&&!qs&&(bbTemp&SMCRALL)&&((stm&&(((~bbTemp)&SMCRBLACKQ)==SMCRBLACKQ))||(!stm&&(((~bbTemp)&SMCRWHITEQ)==SMCRWHITEQ))))?true:false;
+    tmpb = (lid==sqking
+            &&!qs
+            &&(bbTemp&SMCRALL)
+            &&((stm&&(((~bbTemp)&SMCRBLACKQ)==SMCRBLACKQ))
+                ||(!stm&&(((~bbTemp)&SMCRWHITEQ)==SMCRWHITEQ))
+              )
+            )?true:false;
     // rook present
-    bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    bbTemp  = (GETPIECE(board, lid-4)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?
+                true
+               :false;
     // check for empty squares
-    bbMask  = ((bbBlockers&SETMASKBB(lid-1))|(bbBlockers&SETMASKBB(lid-2))|(bbBlockers&SETMASKBB(lid-3)));
+    bbMask  = ((bbBlockers&SETMASKBB(lid-1))
+                |(bbBlockers&SETMASKBB(lid-2))
+                |(bbBlockers&SETMASKBB(lid-3))
+              );
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid-1))|(bbAttacks&SETMASKBB(lid-2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))
+               |(bbAttacks&SETMASKBB(lid-1))
+               |(bbAttacks&SETMASKBB(lid-2)
+              );
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid-2):BBEMPTY;
 
     bbTemp = localCrHistory[sd]; // get castle rights via piece moved flags
     // gen castle moves kingside
-    tmpb =  (lid==sqking&&!qs&&(bbTemp&SMCRALL)&&((stm&&(((~bbTemp)&SMCRBLACKK)==SMCRBLACKK))||(!stm&&(((~bbTemp)&SMCRWHITEK)==SMCRWHITEK))))?true:false;
+    tmpb =  (lid==sqking
+             &&!qs
+             &&(bbTemp&SMCRALL)
+             &&((stm&&(((~bbTemp)&SMCRBLACKK)==SMCRBLACKK))
+                ||(!stm&&(((~bbTemp)&SMCRWHITEK)==SMCRWHITEK))
+               )
+             )?true:false;
     // rook present
-    bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?true:false;
+    bbTemp  = (GETPIECE(board, lid+3)==MAKEPIECE(ROOK,GETCOLOR(pfrom)))?
+                true
+               :false;
     // check for empty squares
     bbMask  = ((bbBlockers&SETMASKBB(lid+1))|(bbBlockers&SETMASKBB(lid+2)));
     // check for king and empty squares in check
-    bbWork =  (bbAttacks&SETMASKBB(lid))|(bbAttacks&SETMASKBB(lid+1))|(bbAttacks&SETMASKBB(lid+2));
+    bbWork =  (bbAttacks&SETMASKBB(lid))
+                |(bbAttacks&SETMASKBB(lid+1))
+                |(bbAttacks&SETMASKBB(lid+2)
+              );
     // store move
     bbMoves |= (tmpb&&bbTemp&&!bbMask&&!bbWork)?SETMASKBB(lid+2):BBEMPTY;
 
@@ -1474,8 +1523,12 @@ __kernel void alphabeta_gpu(
     // duble bishop
     if (lid==0)
     {
-      score-= (count1s(board[QBBBLACK]&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
-      score+= (count1s((board[QBBBLACK]^bbBlockers)&(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?25:0;
+      score-= (count1s(board[QBBBLACK]
+                       &(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?
+              25:0;
+      score+= (count1s((board[QBBBLACK]^bbBlockers)
+                        &(~board[QBBP1]&~board[QBBP2]&board[QBBP3]))==2)?
+              25:0;
     }
 
 #if defined cl_khr_local_int32_base_atomics && !defined OLDSCHOOL
@@ -1508,7 +1561,14 @@ __kernel void alphabeta_gpu(
 
       // draw by 3 fold repetition, x1
       bbWork = localHashHistory[sd];
-      for (n=ply+ply_init-2;lid==0&&movecount>0&&!qs&&sd>1&&n>=0&&n>=ply+ply_init-(s32)localHMCHistory[sd];n-=2)
+      for (n=ply+ply_init-2;
+                            lid==0
+                            &&movecount>0
+                            &&!qs
+                            &&sd>1
+                            &&n>=0
+                            &&n>=ply+ply_init-(s32)localHMCHistory[sd];
+                                                                       n-=2)
       {
         if (bbWork==HashHistory[gid*MAXGAMEPLY+n])
         {
@@ -1629,9 +1689,13 @@ __kernel void alphabeta_gpu(
         score  = -INF;
 
         tt1 = TT1[bbTemp];
-        if ((tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))&&(s32)tt1.depth>=localDepth[sd]&&(tt1.flag&0x3)>FAILLOW)
+        if ((tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
+            &&(s32)tt1.depth>=localDepth[sd]
+            &&(tt1.flag&0x3)>FAILLOW
+           )
+        {
           score = (Score)tt1.score;
-
+        }
         if (!ISINF(score)
             &&!ISMATE(score)
             &&!ISDRAW(score)
@@ -1643,10 +1707,10 @@ __kernel void alphabeta_gpu(
           {
             localAlphaBetaScores[sd*2+ALPHA] = score;
             // tt score hit counter
-            COUNTERS[gid*64+4]++;      
+            COUNTERS[gid*64+4]++;
           }
         }
-      } // end update alpha x1
+      } // end load from hash table
     } // end ab flow x1
     if (lid==0)
     {
@@ -1761,9 +1825,9 @@ __kernel void alphabeta_gpu(
         if ((localNodeStates[sd]&IID)
             &&  
               (
-                localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
-                ||
-                localTodoIndex[sd]>=localMoveCounter[sd] 
+               localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA]
+               ||
+               localTodoIndex[sd]>=localMoveCounter[sd] 
               )
            )
         {
@@ -1843,19 +1907,22 @@ __kernel void alphabeta_gpu(
           Killers[gid*MAXPLY+sd] = move;
           // save counter move
           tmpmove = localMoveHistory[sd-1];
-          Counters[gid*64*64+(s32)GETSQFROM(tmpmove)*64+(s32)GETSQTO(tmpmove)] = move;
+          Counters[gid*64*64+(s32)GETSQFROM(tmpmove)*64+(s32)GETSQTO(tmpmove)]=move;
         } // end save killer and counter move
         //clear lmr flag
         if (localNodeStates[sd]&LMR)
           localNodeStates[sd]^=LMR;
       } // end scoring x1
       barrier(CLK_LOCAL_MEM_FENCE);
-    } // end while movedown loop
+    } // end while movedown loop x64
     if (lid==0)
     {
-      bexit = (sd<1)?true:bexit;  // this is the end
-      bexit = (COUNTERS[1]>max_nodes)?true:bexit; // nodecount based termination
-      bexit = (atom_cmpxchg(finito,0,0)>0)?true:bexit; // termination flag for helper threads
+      // this is the end
+      bexit = (sd<1)?true:bexit;
+      // nodecount based termination
+      bexit = (COUNTERS[1]>max_nodes)?true:bexit;
+      // termination flag for helper threads, early bird
+      bexit = (atom_cmpxchg(finito,0,0)>0)?true:bexit;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     if (bexit)
@@ -1892,9 +1959,11 @@ __kernel void alphabeta_gpu(
       if (
           lmove==MOVENONE
           &&(
-             ((ttindex1>1&&ttindex2==1)&&gid>0) // single slot, randomize
+             // single slot, randomize
+             ((ttindex1>1&&ttindex2==1)&&gid>0)
              ||
-             ((ttindex2>1)&&(RANDABDADA)&&gid>=RANDWORKERS) // abdada, randomize > n
+             // abdada, randomize > n
+             ((ttindex2>1)&&(RANDABDADA)&&gid>=RANDWORKERS)
             )
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)
@@ -1903,7 +1972,8 @@ __kernel void alphabeta_gpu(
           &&!(localSearchMode[sd]&LMRSEARCH)
           &&!(localSearchMode[sd]&IIDSEARCH)
           &&localDepth[sd]>0
-          &&localTodoIndex[sd]>=RANDBRO // previous searched moves
+          // previous searched moves
+          &&localTodoIndex[sd]>=RANDBRO
           )
       {
         brandomize = true;
@@ -1946,29 +2016,48 @@ __kernel void alphabeta_gpu(
       // get piece captured
       pcpt  = GETPIECE(board, sqcpt);
       // check for en passant capture square
-      sqcpt = (GETPTYPE(pfrom)==PAWN&&stm&&lid-sqto!=8&&lid-sqto!=16&&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
-      sqcpt = (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-lid!=8&&sqto-lid!=16&&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
+      sqcpt = (GETPTYPE(pfrom)==PAWN
+               &&stm
+               &&lid-sqto!=8
+               &&lid-sqto!=16
+               &&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
+      sqcpt = (GETPTYPE(pfrom)==PAWN
+               &&!stm
+               &&sqto-lid!=8
+               &&sqto-lid!=16
+               &&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
       pcpt  = GETPIECE(board, sqcpt);
       pto   = pfrom;
       // set pawn promotion, queen
-      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?
+                MAKEPIECE(QUEEN,GETCOLOR(pfrom))
+               :pfrom;
       // make move
       tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt);
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
-      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
+      tmpscore = EvalPieceValues[GETPTYPE(pto)]
+                 +EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]
+                 +EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+
+      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]
+                 +EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]
+                 +EvalControl[((stm)?lid:FLIPFLOP(lid))];
       // MVV-LVA
-      tmpscore = (GETPTYPE(pcpt)!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
+      tmpscore = (GETPTYPE(pcpt)!=PNONE)?
+                  EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]
+                 :tmpscore;
       // check counter move heuristic
       if (countermove==tmpmove)
       {
-        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]; // score as second highest quiet move
+        // score as second highest quiet move
+        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN];
       }
       // check killer move heuristic
       if (killermove==tmpmove)
       {
-        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; // score as highest quiet move
+        // score as highest quiet move
+        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; 
       }
       // lazy smp, randomize move order
       if (brandomize)
@@ -1978,16 +2067,18 @@ __kernel void alphabeta_gpu(
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
       {
-        tmpscore = INFMOVESCORE-200; // score as 2nd highest move
+        // score as 2nd highest move
+        tmpscore = INFMOVESCORE-200;
         // iid move hit counter
-        COUNTERS[gid*64+5]++;      
+        COUNTERS[gid*64+5]++;
       }
       // check tt move
       if (ttmove==tmpmove)
       {
-        tmpscore = INFMOVESCORE-100; // score as highest move
+        // score as highest move
+        tmpscore = INFMOVESCORE-100;
         // TThits counter
-        COUNTERS[gid*64+3]++;      
+        COUNTERS[gid*64+3]++;
       }
       // get move with highest score
       move = (tmpscore>=score)?tmpmove:move;
@@ -2054,29 +2145,48 @@ __kernel void alphabeta_gpu(
       // get piece captured
       pcpt  = GETPIECE(board, sqcpt);
       // check for en passant capture square
-      sqcpt = (GETPTYPE(pfrom)==PAWN&&stm&&lid-sqto!=8&&lid-sqto!=16&&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
-      sqcpt = (GETPTYPE(pfrom)==PAWN&&!stm&&sqto-lid!=8&&sqto-lid!=16&&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
+      sqcpt = (GETPTYPE(pfrom)==PAWN
+               &&stm
+               &&lid-sqto!=8
+               &&lid-sqto!=16
+               &&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
+      sqcpt = (GETPTYPE(pfrom)==PAWN
+               &&!stm
+               &&sqto-lid!=8
+               &&sqto-lid!=16
+               &&pcpt==PNONE)?(stm?sqto+8:sqto-8):sqcpt;
       pcpt  = GETPIECE(board, sqcpt);
       pto   = pfrom;
       // set pawn promotion, queen
-      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?MAKEPIECE(QUEEN,GETCOLOR(pfrom)):pfrom;
+      pto   = (GETPTYPE(pfrom)==PAWN&&GETRRANK(sqto,stm)==RANK_8)?
+                MAKEPIECE(QUEEN,GETCOLOR(pfrom))
+               :pfrom;
       // make move
       tmpmove  = MAKEMOVE((Move)lid, (Move)sqto, (Move)sqcpt, (Move)pfrom, (Move)pto, (Move)pcpt);
       // eval move
       // wood count and piece square tables, pto-pfrom   
-      tmpscore = EvalPieceValues[GETPTYPE(pto)]+EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]+EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
-      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]+EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]+EvalControl[((stm)?lid:FLIPFLOP(lid))];
+      tmpscore = EvalPieceValues[GETPTYPE(pto)]
+                 +EvalTable[GETPTYPE(pto)*64+((stm)?sqto:FLIPFLOP(sqto))]
+                 +EvalControl[((stm)?sqto:FLIPFLOP(sqto))];
+
+      tmpscore-= EvalPieceValues[GETPTYPE(pfrom)]
+                 +EvalTable[GETPTYPE(pfrom)*64+((stm)?lid:FLIPFLOP(lid))]
+                 +EvalControl[((stm)?lid:FLIPFLOP(lid))];
       // MVV-LVA
-      tmpscore = (GETPTYPE(pcpt)!=PNONE)?EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]:tmpscore;
+      tmpscore = (GETPTYPE(pcpt)!=PNONE)?
+                  EvalPieceValues[GETPTYPE(pcpt)]*16-EvalPieceValues[GETPTYPE(pto)]
+                 :tmpscore;
       // check counter move heuristic
       if (countermove==tmpmove)
       {
-        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]; // score as second highest quiet move
+        // score as second highest quiet move
+        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN];
       }
       // check killer move heuristic
       if (killermove==tmpmove)
       {
-        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; // score as highest quiet move
+        // score as highest quiet move
+        tmpscore = EvalPieceValues[QUEEN]+EvalPieceValues[PAWN]*2; 
       }
       // lazy smp, randomize move order
       if (brandomize)
@@ -2086,16 +2196,18 @@ __kernel void alphabeta_gpu(
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
       {
-        tmpscore = INFMOVESCORE-200; // score as 2nd highest move
+        // score as 2nd highest move
+        tmpscore = INFMOVESCORE-200;
         // iid move hit counter
-        COUNTERS[gid*64+5]++;      
+        COUNTERS[gid*64+5]++;
       }
       // check tt move
       if (ttmove==tmpmove)
       {
-        tmpscore = INFMOVESCORE-100; // score as highest move
+        // score as highest move
+        tmpscore = INFMOVESCORE-100;
         // TThits counter
-        COUNTERS[gid*64+3]++;      
+        COUNTERS[gid*64+3]++;
       }
       // get move with highest score
       move = (tmpscore>=score)?tmpmove:move;
@@ -2143,15 +2255,15 @@ __kernel void alphabeta_gpu(
       if (move!=NULLMOVE&&move!=MOVENONE)
       {
         if (localNodeStates[sd]&ITER1)
-          globalbbMoves1[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(move)] &= CLRMASKBB(GETSQTO(move));
+          globalbbMoves1[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(move)]&=CLRMASKBB(GETSQTO(move));
         else
-          globalbbMoves2[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(move)] &= CLRMASKBB(GETSQTO(move));
+          globalbbMoves2[gid*MAXPLY*64+sd*64+(s32)GETSQFROM(move)]&=CLRMASKBB(GETSQTO(move));
         // nodecounter
         COUNTERS[gid*64+1]++;
       }
       // set history
       localTodoIndex[sd]++;
-      localMoveHistory[sd]    = move;
+      localMoveHistory[sd]=move;
     }
 
     // domove x64
@@ -2187,8 +2299,7 @@ __kernel void alphabeta_gpu(
     {
       // en passant flag
       sqto = ( GETPTYPE(GETPFROM(move))==PAWN
-              &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
-                -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
+              &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))-GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
               )?GETSQTO(move):0x0;
       if (sqto) 
         bbWork ^= ((Zobrist[16]<<GETFILE(sqto))|(Zobrist[16]>>(64-GETFILE(sqto))));
@@ -2203,8 +2314,7 @@ __kernel void alphabeta_gpu(
       bbTemp  |= SETMASKBB(GETSQCPT(move));
       // set en passant target square in piece moved flags
       sqep   = ( GETPTYPE(GETPFROM(move))==PAWN
-                 &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))
-                  -GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
+                 &&GETRRANK(GETSQTO(move),GETCOLOR(GETPFROM(move)))-GETRRANK(GETSQFROM(move),GETCOLOR(GETPFROM(move)))==2
                )?GETSQTO(move):0x0;
       bbTemp |= 0x000000FFFF000000;
       if (sqep)
@@ -2224,10 +2334,10 @@ __kernel void alphabeta_gpu(
       if (move==NULLMOVE)
         bbWork ^= 0x1UL;
       // set new zobrist hash
-      localHashHistory[sd] = bbWork;
-      HashHistory[gid*MAXGAMEPLY+ply+ply_init] = bbWork;
+      localHashHistory[sd]=bbWork;
+      HashHistory[gid*MAXGAMEPLY+ply+ply_init]=bbWork;
       // halfmove clock
-      localHMCHistory[sd]               = localHMCHistory[sd-1]+1; // increase
+      localHMCHistory[sd]=localHMCHistory[sd-1]+1; // increase
       // reset hmc
       if ((GETPTYPE(GETPFROM(move))==PAWN))  // pawn move
         localHMCHistory[sd] = 0;
@@ -2258,7 +2368,7 @@ __kernel void alphabeta_gpu(
          &&move!=NULLMOVE
          &&move!=MOVENONE
          &&ttmove==MOVENONE
-         &&localTodoIndex[sd-1]==1 // only on first move
+         &&localTodoIndex[sd-1]==1 // iid only on first move
          &&localMoveCounter[sd-1]>1
          &&localDepth[sd-1]>5
          &&!(localNodeStates[sd-1]&IID) 
@@ -2275,7 +2385,7 @@ __kernel void alphabeta_gpu(
       if (localNodeStates[sd-1]&IID)
       {
         localSearchMode[sd]                  |= IIDSEARCH;
-        localDepth[sd]                        = localDepth[sd-1]/5; // depth reduction
+        localDepth[sd]                        = localDepth[sd-1]/5; // new depth
       }
 
       // set values and alpha beta window for nullmove search
@@ -2285,7 +2395,7 @@ __kernel void alphabeta_gpu(
         localSearchMode[sd]              |= NULLMOVESEARCH;
         localDepth[sd]                   -= NULLR; // depth reduction
         localAlphaBetaScores[sd*2+ALPHA]  = -localAlphaBetaScores[(sd-1)*2+BETA];
-        localAlphaBetaScores[sd*2+BETA]   = (-localAlphaBetaScores[(sd-1)*2+BETA])+1;
+        localAlphaBetaScores[sd*2+BETA]   = -localAlphaBetaScores[(sd-1)*2+BETA]+1;
       }
 
       // set values for late move reduction search
@@ -2351,8 +2461,7 @@ __kernel void alphabeta_gpu(
       bbMask  |= SETMASKBB(GETSQCPT(bestmove));
       // set en passant target square in piece moved flags
       sqep   = ( GETPTYPE(GETPFROM(bestmove))==PAWN
-                 &&GETRRANK(GETSQTO(bestmove),GETCOLOR(GETPFROM(bestmove)))
-                  -GETRRANK(GETSQFROM(bestmove),GETCOLOR(GETPFROM(bestmove)))==2
+                 &&GETRRANK(GETSQTO(bestmove),GETCOLOR(GETPFROM(bestmove)))-GETRRANK(GETSQFROM(bestmove),GETCOLOR(GETPFROM(bestmove)))==2
                )?GETSQTO(bestmove):0x0;
       bbMask |= 0x000000FFFF000000;
       if (sqep)
@@ -2368,7 +2477,8 @@ __kernel void alphabeta_gpu(
       if (ttindex1>1)
       {
         tt1 = TT1[bbTemp];
-        if (tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
+        if (tt1.hash==
+              (bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
         {
           bestscore = (Score)tt1.score;
           bestmove = (Move)tt1.bestmove;
