@@ -564,7 +564,7 @@ bool read_and_init_config(char configfile[])
   { 
     sscanf(line, "threadsX: %" PRIu64 ";", &threadsX);
     sscanf(line, "threadsY: %" PRIu64 ";", &threadsY);
-    sscanf(line, "nodes_per_second: %d;", &nodes_per_second);
+    sscanf(line, "nodes_per_second: %" PRIu64 ";", &nodes_per_second);
     sscanf(line, "tt1_memory: %" PRIu64 ";", &tt1_memory);
     sscanf(line, "tt2_memory: %" PRIu64 ";", &tt2_memory);
 //    sscanf(line, "tt3_memory: %" PRIu64 ";", &tt3_memory);

@@ -975,13 +975,13 @@ bool cl_run_alphabeta(bool stm, s32 depth, u64 nodes)
   i++;
 
   // enqueue a kernel run call.
-  globalThreads[0] = threadsX;
-  globalThreads[1] = threadsY;
-  globalThreads[2] = threadsZ;
+  globalThreads[0] = (size_t)threadsX;
+  globalThreads[1] = (size_t)threadsY;
+  globalThreads[2] = (size_t)threadsZ;
 
   localThreads[0]  = 1;
   localThreads[1]  = 1;
-  localThreads[2]  = threadsZ;
+  localThreads[2]  = (size_t)threadsZ;
 
   status = clEnqueueNDRangeKernel(
 	                                 commandQueue,
@@ -1147,11 +1147,11 @@ bool cl_run_perft(bool stm, s32 depth)
   // enqueue a kernel run call.
   globalThreads[0] = 1;
   globalThreads[1] = 1;
-  globalThreads[2] = threadsZ;
+  globalThreads[2] = (size_t)threadsZ;
 
   localThreads[0]  = 1;
   localThreads[1]  = 1;
-  localThreads[2]  = threadsZ;
+  localThreads[2]  = (size_t)threadsZ;
 
   status = clEnqueueNDRangeKernel(
 	                                 commandQueue,

@@ -204,8 +204,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   fflush(LogFile);
 
   // compute next nps value
-  nps_current =  (s32)(ABNODECOUNT/(elapsed));
-  nodes_per_second+= (ABNODECOUNT>(u64)nodes_per_second)?
+  nps_current =  (u64)(ABNODECOUNT/elapsed);
+  nodes_per_second+= (ABNODECOUNT>nodes_per_second)?
                       (nps_current>nodes_per_second)?
                         (nps_current-nodes_per_second)*0.66
                        :(nps_current-nodes_per_second)*0.33

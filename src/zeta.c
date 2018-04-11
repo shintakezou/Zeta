@@ -56,8 +56,8 @@ u64 threadsX            =  1;
 u64 threadsY            =  1;
 const u64 threadsZ      = 64; // fix value, run z threads per work-group
 u64 totalWorkUnits      =  1;
-s32 nodes_per_second    =  0;
-s32 nps_current         =  0;
+u64 nodes_per_second    =  0;
+u64 nps_current         =  0;
 u64 tt1_memory          =  0;
 u64 tt2_memory          =  0;
 //u64 tt3_memory          =  0;
@@ -67,7 +67,6 @@ s32 opencl_user_device  = -1;
 s32 opencl_user_platform= -1;
 s32 opencl_gpugen       =  1;
 // further config
-u64 max_nps_per_move    =  0;
 s32 search_depth        =  0;
 // timers
 double start        = 0;

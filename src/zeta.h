@@ -48,8 +48,8 @@ extern u64 threadsX;
 extern u64 threadsY;
 extern const u64 threadsZ;
 extern u64 totalWorkUnits;
-extern s32 nodes_per_second;
-extern s32 nps_current;
+extern u64 nodes_per_second;
+extern u64 nps_current;
 extern u64 tt1_memory;
 extern u64 tt2_memory;
 //extern u64 tt3_memory;
@@ -59,7 +59,6 @@ extern s32 opencl_user_device;
 extern s32 opencl_user_platform;
 extern s32 opencl_gpugen;
 // further config
-extern u64 max_nps_per_move;
 extern s32 search_depth;
 // timers
 extern double start;
