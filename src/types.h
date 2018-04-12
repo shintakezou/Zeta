@@ -220,10 +220,10 @@ typedef struct
 {
   Hash hash;
   s32 lock;     // s32 needed for global atomics
-  TTScore score;
-  s16 depth;
   s32 ply;      // s32 needed for global atomics
   s32 sd;       // s32 needed for global atomics
+  TTScore score;
+  s16 depth;
 } ABDADATTE;
 // TT node type flags
 #define FAILLOW         0
