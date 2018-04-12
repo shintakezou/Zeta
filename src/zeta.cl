@@ -2476,11 +2476,11 @@ __kernel void alphabeta_gpu(
         if (bbWork==localHashHistory[i])
         {
           rep++;
-          if (rep==1)
+          if (rep==2)
             break;
         }
       }
-      if (rep>=1)
+      if (rep>=2)
         break;
 
       domove(board, bestmove);
