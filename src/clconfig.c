@@ -414,11 +414,10 @@ bool cl_guess_config(bool extreme)
         }
 
         // set memory to default max
-        memalloc = devicememglobal/4;
+        memalloc = devicememglobal/4; // OpenCL standard: 1/4th
+        memalloc/= 2;  // two memory slots
         if (memalloc>MAXDEVICEMB*1024*1024)
           memalloc =  MAXDEVICEMB*1024*1024;
-        if (memalloc>devicememalloc)
-          memalloc =  devicememalloc;
         // initialize transposition table, tt1
         u64 mem = 0;
         u64 ttbits = 0;
