@@ -136,7 +136,8 @@ typedef struct
 #define INF                 32000
 #define MATESCORE           30000
 #define DRAWSCORE           0
-#define STALEMATESCORE      0.123
+#define STALEMATESCORE      0.1f
+#define STMBONUS            0.5f
 #define INFMOVESCORE        0x7FFF
 // piece type enumeration
 #define PNONE               0
@@ -1551,7 +1552,7 @@ __kernel void alphabeta_gpu(
     if (lid==0)
     {
       // flaot stm bonus, to prevent mix up with drawscore
-      score = (stm)?(float)evalscore-0.5:(float)evalscore+0.5;
+      score = (stm)?(float)evalscore-STMBONUS:(float)evalscore+STMBONUS;
       // negamaxed scores
       score = (stm)?-score:score;
       // checkmate
@@ -2475,11 +2476,11 @@ __kernel void alphabeta_gpu(
         if (bbWork==localHashHistory[i])
         {
           rep++;
-          if (rep==2)
+          if (rep==1)
             break;
         }
       }
-      if (rep>=2)
+      if (rep>=1)
         break;
 
       domove(board, bestmove);
