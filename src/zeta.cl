@@ -2467,6 +2467,21 @@ __kernel void alphabeta_gpu(
 
       PV[n] = bestmove;
 
+      // consider draw by 3 fold repetition in pv
+      localHashHistory[n-1] = bbWork;
+      int rep = 0;
+      for (int i=n-1-2;n>1&&i>=0;i-=2)
+      {
+        if (bbWork==localHashHistory[i])
+        {
+          rep++;
+          if (rep==2)
+            break;
+        }
+      }
+      if (rep>=2)
+        break;
+
       domove(board, bestmove);
       stm = !stm;
       // set piece moved flags for castle right
