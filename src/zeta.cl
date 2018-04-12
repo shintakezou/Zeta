@@ -46,18 +46,18 @@ typedef int     s32;
 typedef short   s16;
 typedef uchar    u8;
 typedef char     s8;
-typedef float  fp32;
-
-typedef fp32    Score;
-typedef fp32    TTScore;
-typedef u8      Square;
-typedef u8      Piece;
 
 typedef u64     Bitboard;
 typedef u64     Cr;
 typedef u64     Hash;
+
 typedef u32     Move;
 typedef u32     TTMove;
+typedef s32     Score;
+typedef s16     TTScore;
+typedef u8      Square;
+typedef u8      Piece;
+
 
 // transposition table entry
 typedef struct
@@ -67,16 +67,16 @@ typedef struct
   TTScore score;
   u8 flag;
   u8 depth;
-  s32 ply;
 } TTE;
+// abdada transposition table entry
 typedef struct
 {
   Hash hash;
-  s32 lock;
+  s32 lock;     // s32 needed for global atomics
   TTScore score;
   s16 depth;
-  s32 ply;
-  s32 sd;
+  s32 ply;      // s32 needed for global atomics
+  s32 sd;       // s32 needed for global atomics
 } ABDADATTE;
 // tunebale search params
 #define LMRR            1 // late move reduction 
@@ -136,9 +136,8 @@ typedef struct
 #define INF                 32000
 #define MATESCORE           30000
 #define DRAWSCORE           0
-#define STALEMATESCORE      0.1f
-#define STMBONUS            0.5f
-#define INFMOVESCORE        0x7FFF
+#define STALEMATESCORE      0
+#define INFMOVESCORE        0x7FFFFFFF
 // piece type enumeration
 #define PNONE               0
 #define PAWN                1
@@ -911,10 +910,12 @@ __kernel void alphabeta_gpu(
   __local bool bresearch;   // late move reduction reseach flag
   __local bool bforward;    // late move reduction reseach flag
 
+  __local u8 ttage;
+
   __local Square sqchecker;
 
-  __local s32 evalscore;
-  __local s32 movescore;
+  __local Score evalscore;
+  __local Score movescore;
   __local s32 movecount;
 
   __local Score bestscore;
@@ -992,6 +993,7 @@ __kernel void alphabeta_gpu(
   brandomize      = false;
   bresearch       = false;
   bforward        = false;
+  ttage           = (u8)ply_init&0x3F;
 
   // init ab search var stack
   localAlphaBetaScores[0*2+ALPHA] =-INF;
@@ -1534,10 +1536,10 @@ __kernel void alphabeta_gpu(
 
 #if defined cl_khr_local_int32_base_atomics && !defined OLDSCHOOL
     // collect score x64
-    atom_add(&evalscore, (s32)score);
+    atom_add(&evalscore, score);
 #else
     // store scores in local temp
-    scrTmp64[lid] = (s32)score;
+    scrTmp64[lid] = score;
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect score x1
     if (lid==0)
@@ -1551,12 +1553,10 @@ __kernel void alphabeta_gpu(
     // #################################
     if (lid==0)
     {
-      // flaot stm bonus, to prevent mix up with drawscore
-      score = (stm)?(float)evalscore-STMBONUS:(float)evalscore+STMBONUS;
       // negamaxed scores
-      score = (stm)?-score:score;
+      score = (stm)?-evalscore:evalscore;
       // checkmate
-      score = (!qs&&rootkic&&movecount==0)?(float)(-INF+ply):score;
+      score = (!qs&&rootkic&&movecount==0)?-INF+ply:score;
       // stalemate
       score = (!qs&&!rootkic&&movecount==0)?STALEMATESCORE:score;
 
@@ -1645,8 +1645,8 @@ __kernel void alphabeta_gpu(
         score = (Score)tt2.score;
 
         // handle mate scores in TT
-        score = (ISMATE((s32)score)&&score>0)?(s32)score-((float)sd-1):score;
-        score = (ISMATE((s32)score)&&score<0)?(s32)score+((float)sd-1):score;
+        score = (ISMATE(score)&&score>0)?score-(sd-1):score;
+        score = (ISMATE(score)&&score<0)?score+(sd-1):score;
 
         // locked, backup move for iter 2
         if (n!=gid+1
@@ -1663,7 +1663,7 @@ __kernel void alphabeta_gpu(
         if (n!=gid+1
             &&n>0
             &&(localNodeStates[sd-1]&ITER2)
-            &&tt2.hash==bbWork^(Hash)tt2.score^(Hash)tt2.depth
+            &&tt2.hash==(bbWork^(Hash)tt2.score^(Hash)tt2.depth)
             &&tt2.depth>=(s16)localDepth[sd]
            )
         {
@@ -1703,8 +1703,8 @@ __kernel void alphabeta_gpu(
         }
 
         // handle mate scores in TT
-        score = (ISMATE((s32)score)&&score>0)?(s32)score-((float)sd-1):score;
-        score = (ISMATE((s32)score)&&score<0)?(s32)score+((float)sd-1):score;
+        score = (ISMATE(score)&&score>0)?score-(sd-1):score;
+        score = (ISMATE(score)&&score<0)?score+(sd-1):score;
 
         if (!ISINF(score)
             &&!ISDRAW(score)
@@ -1751,8 +1751,8 @@ __kernel void alphabeta_gpu(
         score  = localAlphaBetaScores[sd*2+ALPHA];
 
         // handle mate scores in TT, mate in n => position to mate
-        score = (ISMATE((s32)score)&&score>0)?score+((float)sd-1):score;
-        score = (ISMATE((s32)score)&&score<0)?score-((float)sd-1):score;
+        score = (ISMATE(score)&&score>0)?score+(sd-1):score;
+        score = (ISMATE(score)&&score<0)?score-(sd-1):score;
 
         // verify lock
         n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
@@ -1879,8 +1879,8 @@ __kernel void alphabeta_gpu(
           bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
 
           // handle mate scores in TT, mate in n => position to mate
-          score = (ISMATE((s32)score)&&score>0)?score+((float)sd-1):score;
-          score = (ISMATE((s32)score)&&score<0)?score-((float)sd-1):score;
+          score = (ISMATE(score)&&score>0)?score+(sd-1):score;
+          score = (ISMATE(score)&&score<0)?score-(sd-1):score;
 
           // slot 1, depth, score and ply replace
           tt1 = TT1[bbTemp]; 
@@ -1892,17 +1892,16 @@ __kernel void alphabeta_gpu(
                 &&score>(Score)tt1.score
                )
                ||
-               ((ply_init>tt1.ply)
-                &&(localDepth[sd]>=(s32)tt1.depth)
+               (ttage!=(tt1.flag>>2)
+                &&ttage!=(tt1.flag>>2)+2
                )
              ) 
           {
               tt1.hash      = bbMask;
               tt1.bestmove  = (TTMove)move;
               tt1.score     = (TTScore)score;
-              tt1.flag      = flag;
+              tt1.flag      = flag | (ttage&0x3F)<<2;
               tt1.depth     = (u8)localDepth[sd];
-              tt1.ply       = ply_init;
               TT1[bbTemp]   = tt1;
           }
         } // end save to hash table
@@ -2102,13 +2101,13 @@ __kernel void alphabeta_gpu(
 
 #if defined cl_khr_local_int32_extended_atomics && !defined OLDSCHOOL
     // collect best movescore and bestmove x64
-    atom_max(&movescore, (s32)score);
+    atom_max(&movescore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (atom_cmpxchg(&movescore,(s32)score,(s32)score)==(s32)score&&!bresearch&&move!=MOVENONE)
+    if (atom_cmpxchg(&movescore,score,score)==score&&!bresearch&&move!=MOVENONE)
       lmove = move;
 #else
     // store score and move in local temp
-    scrTmp64[lid] = (s32)score;
+    scrTmp64[lid] = score;
     bbTmp64[lid] = (u64)move;
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect best movescore and bestmove x1
@@ -2118,9 +2117,9 @@ __kernel void alphabeta_gpu(
       for (int i=0;i<64;i++)
       {
         tmpscore = (Score)scrTmp64[i];
-        if ((s32)tmpscore>movescore)
+        if (tmpscore>movescore)
         {
-          movescore = (s32)tmpscore;
+          movescore = tmpscore;
           lmove = (Move)bbTmp64[i];
         }
       }
@@ -2231,13 +2230,13 @@ __kernel void alphabeta_gpu(
 
 #if defined cl_khr_local_int32_extended_atomics && !defined OLDSCHOOL
     // collect best movescore and bestmove x64
-    atom_max(&movescore, (s32)score);
+    atom_max(&movescore, score);
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (atom_cmpxchg(&movescore,(s32)score,(s32)score)==(s32)score&&!bresearch&&move!=MOVENONE)
+    if (atom_cmpxchg(&movescore,score,score)==score&&!bresearch&&move!=MOVENONE)
       lmove = move;
 #else
     // store score and move in local temp
-    scrTmp64[lid] = (s32)score;
+    scrTmp64[lid] = score;
     bbTmp64[lid] = (u64)move;
     barrier(CLK_LOCAL_MEM_FENCE);
     // collect best movescore and bestmove x1
@@ -2247,9 +2246,9 @@ __kernel void alphabeta_gpu(
       for (int i=0;i<64;i++)
       {
         tmpscore = (Score)scrTmp64[i];
-        if ((s32)tmpscore>movescore)
+        if (tmpscore>movescore)
         {
-          movescore = (s32)tmpscore;
+          movescore = tmpscore;
           lmove = (Move)bbTmp64[i];
         }
       }

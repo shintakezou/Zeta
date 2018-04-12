@@ -36,7 +36,6 @@ typedef cl_int s32;
 typedef cl_short s16;
 typedef cl_uchar u8;
 typedef cl_bool bool;
-typedef cl_float fp32;
 
 // boolean val
 #define true  1
@@ -48,8 +47,8 @@ typedef u64 Hash;
 
 typedef u32     Move;
 typedef u32     TTMove;
-typedef fp32    Score;
-typedef fp32    TTScore;
+typedef s32     Score;
+typedef s16     TTScore;
 typedef u8      Square;
 typedef u8      Piece;
 
@@ -78,10 +77,10 @@ typedef u8 Rank;
 #define MAXGAMEPLY  1024    // max ply a game can reach
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
-#define MINDEVICEMB 64ULL   // min memory of OpenCl device in MB
-#define MAXDEVICEMB 2048ULL // max memory for OpenCL devices in MB
+#define MINDEVICEMB 128ULL  // min memory of OpenCl device in MB
+#define MAXDEVICEMB 1024ULL // max memory for OpenCL devices in MB
 #define ESTEBF      2       // estaminated effective branching factor, for tc
-#define SPEEDUPMARGIN 1.80f // used in guessconfig to guess totalworkers
+#define SPEEDUPMARGIN 1.65f // used in guessconfig to guess totalworkers
 // colors
 #define BLACK               1
 #define WHITE               0
@@ -215,17 +214,16 @@ typedef struct
   TTScore score;
   u8 flag;
   u8 depth;
-  s32 ply;
 } TTE;
 // abdada transposition table entry
 typedef struct
 {
   Hash hash;
-  s32 lock;
+  s32 lock;     // s32 needed for global atomics
   TTScore score;
   s16 depth;
-  s32 ply;
-  s32 sd;
+  s32 ply;      // s32 needed for global atomics
+  s32 sd;       // s32 needed for global atomics
 } ABDADATTE;
 // TT node type flags
 #define FAILLOW         0

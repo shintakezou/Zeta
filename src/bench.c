@@ -84,12 +84,12 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   bestscore = ISINF(score)?DRAWSCORE:score;
 
   // print cli output
-  fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %f ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+  fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
   fprintf(stdout, " move ");
   if (LogFile)
   {
     fprintdate(LogFile);
-    fprintf(LogFile, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %f ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+    fprintf(LogFile, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
     fprintf(LogFile, " move ");
   }
   printmovecan(bestmove);
