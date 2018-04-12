@@ -131,7 +131,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     // only if gpu search was not interrupted by maxnodes
     if (COUNTERS[1]<MaxNodes/totalWorkUnits)
     {
-      bestmove = (Move)PV[1];
+      if (JUSTMOVE((Move)PV[1])!=MOVENONE)
+        bestmove = (Move)PV[1];
       bestscore = ISINF(RSCORE)?DRAWSCORE:RSCORE;
       // xboard mate scores
       xboard_score = (s32)bestscore;
