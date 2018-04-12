@@ -26,6 +26,8 @@
  
 #include "CL/cl.h"      // for OpenCL data types etc.
 
+// ### consider also zeta.cl file ###
+
 // OpenCL data types to own
 typedef cl_ulong u64;
 typedef cl_long s64;
@@ -87,7 +89,9 @@ typedef u8 Rank;
 #define INF                 32000
 #define MATESCORE           30000
 #define DRAWSCORE           0
-#define STALEMATESCORE      0.123
+#define STALEMATESCORE      0.1f
+#define STMBONUS            0.5f
+#define INFMOVESCORE        0x7FFF
 // piece type enumeration
 #define PNONE               0
 #define PAWN                1
