@@ -59,7 +59,7 @@ typedef u32     Move;
 #define QS              2
 #define EXT             4
 // defaults
-#define VERSION     "099j"
+#define VERSION      "2k"
 // quad bitboard array index definition
 #define QBBBLACK        0     // pieces white
 #define QBBP1           1     // piece type first bit
