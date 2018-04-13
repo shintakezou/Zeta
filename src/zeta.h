@@ -103,7 +103,6 @@ extern Bitboard bbLine[64*64];
 extern TTE *TT1ZEROED;
 extern ABDADATTE *TT2ZEROED;
 //extern TTE *TT3ZEROED;
-extern Score RSCORE;
 // OpenCL memory buffer objects
 extern cl_mem  GLOBAL_BOARD_Buffer;
 extern cl_mem  GLOBAL_globalbbMoves1_Buffer;

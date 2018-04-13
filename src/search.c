@@ -133,7 +133,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     {
       if (JUSTMOVE((Move)PV[1])!=MOVENONE)
         bestmove = (Move)PV[1];
-      bestscore = ISINF(RSCORE)?DRAWSCORE:RSCORE;
+      bestscore = ISINF((Score)PV[0])?DRAWSCORE:(Score)PV[0];
       // xboard mate scores
       xboard_score = (s32)bestscore;
       xboard_score = (bestscore<=-MATESCORE)?

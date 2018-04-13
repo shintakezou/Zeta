@@ -874,7 +874,6 @@ __kernel void alphabeta_gpu(
                                        const u64 max_nodes,
                                        const u64 ttindex1,
                                        const u64 ttindex2,
-                                    __global Score *rscore,
                                     __global u32 *finito
 )
 {
@@ -2447,8 +2446,7 @@ __kernel void alphabeta_gpu(
     bbTemp          = bbWork&(ttindex1-1);
     stm             = (bool)stm_init;
     n               = 1;
-    *rscore         = bestscore;
-
+    PV[0]           = (Score)bestscore;
     do {
 
       PV[n] = bestmove;
