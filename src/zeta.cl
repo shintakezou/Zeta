@@ -1643,6 +1643,10 @@ __kernel void alphabeta_gpu(
         tt2 = TT2[bbTemp];
         score = (Score)tt2.score;
 
+        // handle mate scores in TT
+        score = (ISMATE(score)&&score>0)?score-ply:score;
+        score = (ISMATE(score)&&score<0)?score+ply:score;
+
         // locked, backup move for iter 2
         if (n!=gid+1
             &&n>0
@@ -1665,7 +1669,6 @@ __kernel void alphabeta_gpu(
           if (
               !ISINF(score)
               &&!ISDRAW(score)
-              &&!ISMATE(score)
               &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
               &&score>localAlphaBetaScores[sd*2+ALPHA]
              )
@@ -1696,11 +1699,14 @@ __kernel void alphabeta_gpu(
            )
         {
           score = (Score)tt1.score;
+
+          // handle mate scores in TT
+          score = (ISMATE(score)&&score>0)?score-ply:score;
+          score = (ISMATE(score)&&score<0)?score+ply:score;
         }
 
         if (!ISINF(score)
             &&!ISDRAW(score)
-            &&!ISMATE(score)
             &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
             &&score>localAlphaBetaScores[sd*2+ALPHA]
            )
@@ -1743,6 +1749,10 @@ __kernel void alphabeta_gpu(
         bbTemp = bbWork&(ttindex2-1);
         score  = localAlphaBetaScores[sd*2+ALPHA];
 
+        // handle mate scores in TT, mate in => distance to mate
+        score = (ISMATE(score)&&score>0)?score+ply:score;
+        score = (ISMATE(score)&&score<0)?score-ply:score;
+
         // verify lock
         n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
 
@@ -1750,7 +1760,6 @@ __kernel void alphabeta_gpu(
         if (n==gid+1
             &&!ISINF(score)
             &&!ISDRAW(score)
-            &&!ISMATE(score)
             &&!(localNodeStates[sd]&QS)
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
@@ -1864,6 +1873,11 @@ __kernel void alphabeta_gpu(
         {
           bbWork = localHashHistory[sd];    
           bbTemp = bbWork&(ttindex1-1);
+
+          // handle mate scores in TT, mate in => distance to mate
+          score = (ISMATE(score)&&score>0)?score+ply:score;
+          score = (ISMATE(score)&&score<0)?score-ply:score;
+
           // xor trick for avoiding race conditions
           bbMask = bbWork^(Hash)move^(Hash)score^(Hash)localDepth[sd];
 
