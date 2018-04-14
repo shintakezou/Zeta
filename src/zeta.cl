@@ -1636,7 +1636,6 @@ __kernel void alphabeta_gpu(
         }
 
         if (!ISINF(score)
-            &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
             &&score>localAlphaBetaScores[sd*2+ALPHA]
            )
         {
@@ -1711,7 +1710,6 @@ __kernel void alphabeta_gpu(
         {
           if (
               !ISINF(score)
-              &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
               &&score>localAlphaBetaScores[sd*2+ALPHA]
              )
           {
