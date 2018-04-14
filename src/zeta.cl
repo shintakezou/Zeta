@@ -1636,7 +1636,6 @@ __kernel void alphabeta_gpu(
         }
 
         if (!ISINF(score)
-            &&!ISDRAW(score)
             &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
             &&score>localAlphaBetaScores[sd*2+ALPHA]
            )
@@ -1712,7 +1711,6 @@ __kernel void alphabeta_gpu(
         {
           if (
               !ISINF(score)
-              &&!ISDRAW(score)
               &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
               &&score>localAlphaBetaScores[sd*2+ALPHA]
              )
@@ -1765,7 +1763,6 @@ __kernel void alphabeta_gpu(
         // set values
         if (n==gid+1
             &&!ISINF(score)
-            &&!ISDRAW(score)
             &&!(localNodeStates[sd]&QS)
             &&!(localSearchMode[sd]&NULLMOVESEARCH)
             &&!(localSearchMode[sd]&IIDSEARCH)
@@ -2082,6 +2079,8 @@ __kernel void alphabeta_gpu(
       if (brandomize)
       {
         tmpscore = (prn%INF)+INF;
+        // captures first
+//        tmpscore+= (GETPTYPE(pcpt)==PNONE)?0:INF;
       }
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
