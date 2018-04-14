@@ -503,8 +503,6 @@ void print_help(void)
   fprintf(stdout,"log            // turn log on\n");
   fprintf(stdout,"benchsmp       // init with new and sd and st commands\n");
   fprintf(stdout,"               // runs an benchmark for parallel speedup\n");
-  fprintf(stdout,"benchkaufmann  // init with sd and st commands\n");
-  fprintf(stdout,"               // runs an smp benchmark on Kaufmann positions\n");
   fprintf(stdout,"benchhyatt24   // init with sd and st commands\n");
   fprintf(stdout,"               // runs an smp benchmark on Hyatt24 positions\n");
   fprintf(stdout,"\n");
