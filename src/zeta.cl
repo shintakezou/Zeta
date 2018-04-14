@@ -83,7 +83,7 @@ typedef struct
 #define NULLR           2 // null move reduction 
 #define RANDBRO         1 // how many brothers searched before randomized order
 #define RANDABDADA   true // abdada, rand move order 
-#define RANDWORKERS    32 // abdada, at how many workers to randomize move order
+#define RANDWORKERS    64 // abdada, at how many workers to randomize move order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
@@ -1610,6 +1610,50 @@ __kernel void alphabeta_gpu(
       if (movecount>0&&qs&&!rootkic&&score>localAlphaBetaScores[sd*2+ALPHA])
         localAlphaBetaScores[sd*2+ALPHA] = score; // fail soft
 
+      // load from hash table, update alpha with ttscore
+      if (movecount>0
+          &&!qs
+          &&sd>1 // not on root
+          &&!(localSearchMode[sd]&NULLMOVESEARCH)
+          &&(ttindex1>1)
+       )
+      {
+        bbWork = localHashHistory[sd];    
+        bbTemp = bbWork&(ttindex1-1);
+        score  = -INF;
+
+        tt1 = TT1[bbTemp];
+        if ((tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
+            &&(s32)tt1.depth>=localDepth[sd]
+            &&(tt1.flag&0x3)>FAILLOW
+           )
+        {
+          score = (Score)tt1.score;
+
+          // handle mate scores in TT
+          score = (ISMATE(score)&&score>0)?score-ply:score;
+          score = (ISMATE(score)&&score<0)?score+ply:score;
+        }
+
+        if (!ISINF(score)
+            &&!ISDRAW(score)
+            &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
+            &&score>localAlphaBetaScores[sd*2+ALPHA]
+           )
+        {
+          // set alpha
+          localAlphaBetaScores[sd*2+ALPHA] = score;
+
+          // cut
+          if(localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
+            movecount = 0;
+
+          // tt score hit counter
+          COUNTERS[gid*64+4]++;
+
+        }
+      } // end load from hash table
+
       // abdada, check hash table
       if (movecount>1
           &&!qs
@@ -1679,44 +1723,6 @@ __kernel void alphabeta_gpu(
           }
         }
       } // end abdada, check hash table
-
-      // load from hash table, update alpha with ttscore
-      if (movecount>0
-          &&!qs
-          &&sd>1 // not on root
-          &&!(localSearchMode[sd]&NULLMOVESEARCH)
-          &&(ttindex1>1)
-       )
-      {
-        bbWork = localHashHistory[sd];    
-        bbTemp = bbWork&(ttindex1-1);
-        score  = -INF;
-
-        tt1 = TT1[bbTemp];
-        if ((tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
-            &&(s32)tt1.depth>=localDepth[sd]
-            &&(tt1.flag&0x3)>FAILLOW
-           )
-        {
-          score = (Score)tt1.score;
-
-          // handle mate scores in TT
-          score = (ISMATE(score)&&score>0)?score-ply:score;
-          score = (ISMATE(score)&&score<0)?score+ply:score;
-        }
-
-        if (!ISINF(score)
-            &&!ISDRAW(score)
-            &&!ISDRAW(localAlphaBetaScores[sd*2+ALPHA])
-            &&score>localAlphaBetaScores[sd*2+ALPHA]
-           )
-        {
-          // set alpha
-          localAlphaBetaScores[sd*2+ALPHA] = score;
-          // tt score hit counter
-          COUNTERS[gid*64+4]++;
-        }
-      } // end load from hash table
     } // end ab flow x1
     if (lid==0)
     {
