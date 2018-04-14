@@ -83,7 +83,7 @@ typedef struct
 #define NULLR           2 // null move reduction 
 #define RANDBRO         1 // how many brothers searched before randomized order
 #define RANDABDADA   true // abdada, rand move order 
-#define RANDWORKERS    64 // abdada, at how many workers to randomize move order
+#define RANDWORKERS   128 // abdada, at how many workers to randomize move order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
