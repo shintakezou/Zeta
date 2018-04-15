@@ -794,12 +794,12 @@ void xboard(void) {
       }
 
       fprintf(stdout,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
-              ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
+              ABNODECOUNT, elapsed, (u64)((double)ABNODECOUNT/elapsed));
       if (LogFile)
       {
         fprintdate(LogFile);
         fprintf(LogFile,"nodecount:%" PRIu64 ", seconds: %lf, nps: %" PRIu64 " \n", 
-              ABNODECOUNT, elapsed, (u64)(ABNODECOUNT/elapsed));
+              ABNODECOUNT, elapsed, (u64)((double)ABNODECOUNT/elapsed));
       }
 
       state = cl_init_device("alphabeta_gpu");
@@ -889,7 +889,7 @@ void xboard(void) {
 
           // collect results
           timearr[iter] = elapsed;
-          npsarr[iter] = (u64)(ABNODECOUNT/elapsed);
+          npsarr[iter] = (u64)((double)ABNODECOUNT/elapsed);
           workerssarr[iter] = threadsX*threadsY;
 
           iter++;
@@ -1085,7 +1085,7 @@ void xboard(void) {
 
             // collect results
             timearrall[iter]+= timearr[iter] = elapsed;
-            npsarr[iter] = (u64)(ABNODECOUNT/elapsed);
+            npsarr[iter] = (u64)((double)ABNODECOUNT/elapsed);
             workerssarr[iter] = threadsX*threadsY;
 
             iter++;
@@ -1303,7 +1303,7 @@ void xboard(void) {
 
             // collect results
             timearrall[iter]+= timearr[iter] = elapsed;
-            npsarr[iter] = (u64)(ABNODECOUNT/elapsed);
+            npsarr[iter] = (u64)((double)ABNODECOUNT/elapsed);
             workerssarr[iter] = threadsX*threadsY;
 
             iter++;

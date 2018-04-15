@@ -124,20 +124,20 @@ void selftest(void)
 
     if(ABNODECOUNT==nodecounts[done])
     {
-      fprintf(stdout,"#> OK, Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+      fprintf(stdout,"#> OK, Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)((double)ABNODECOUNT/(elapsed/1000)));
       if (LogFile)
       {
         fprintdate(LogFile);
-        fprintf(LogFile,"#> OK, Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+        fprintf(LogFile,"#> OK, Nodecount Correct, %" PRIu64 " nodes in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, (elapsed/1000), (u64)((double)ABNODECOUNT/(elapsed/1000)));
       }
     }
     else
     {
-      fprintf(stdout,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d. in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, nodecounts[done], SD, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+      fprintf(stdout,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d. in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, nodecounts[done], SD, (elapsed/1000), (u64)((double)ABNODECOUNT/(elapsed/1000)));
       if (LogFile)
       {
         fprintdate(LogFile);
-        fprintf(LogFile,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d. in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, nodecounts[done], SD, (elapsed/1000), (u64)(ABNODECOUNT/(elapsed/1000)));
+        fprintf(LogFile,"#> Error, Nodecount NOT Correct, %" PRIu64 " computed nodes != %" PRIu64 " nodes for depth %d. in %lf seconds with %" PRIu64 " nps.\n", ABNODECOUNT, nodecounts[done], SD, (elapsed/1000), (u64)((double)ABNODECOUNT/(elapsed/1000)));
       }
     }
   }

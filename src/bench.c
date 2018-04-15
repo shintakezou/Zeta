@@ -71,8 +71,7 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   end = get_time();
   elapsed = end-start;
   elapsed += 1;
-  elapsed/=1000;
-
+  elapsed/=1000; // to seconds
   // collect counters
   for(u64 i=0;i<totalWorkUnits;i++)
   {
@@ -84,12 +83,12 @@ s32 benchmark(Bitboard *board, bool stm, s32 depth)
   bestscore = ISINF(score)?DRAWSCORE:score;
 
   // print cli output
-  fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+  fprintf(stdout, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)((double)ABNODECOUNT/elapsed), elapsed, bestscore);
   fprintf(stdout, " move ");
   if (LogFile)
   {
     fprintdate(LogFile);
-    fprintf(LogFile, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)(ABNODECOUNT/elapsed), elapsed, bestscore/10);
+    fprintf(LogFile, "depth: %i, nodes %" PRIu64 ", nps: %i, time: %lf sec, score: %i ", depth, ABNODECOUNT, (int)((double)ABNODECOUNT/elapsed), elapsed, bestscore);
     fprintf(LogFile, " move ");
   }
   printmovecan(bestmove);
@@ -139,12 +138,12 @@ s64 benchmarkWrapper(s32 benchsec)
   MaxNodes = 8192; // search n nodes initial
   // run bench
   elapsed = 0;
-  while (elapsed<=benchsec&&sd<MAXPLY) 
+  while (elapsed<=(double)benchsec&&sd<MAXPLY) 
   {
     bench = benchmark(BOARD, STM, sd);                
     if (bench != 0 )
       break;
-    if (elapsed*4>=benchsec&&sd>1)
+    if (elapsed*4>=(double)benchsec&&sd>1)
       break;
     sd++;
     MaxNodes = (u64)((double)ABNODECOUNT/elapsed*(double)benchsec);

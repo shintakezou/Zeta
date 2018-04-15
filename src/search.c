@@ -122,7 +122,8 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
     // timers
     end = get_time();
     elapsed = end-start;
-    elapsed/=1000;
+    elapsed+=1;
+    elapsed/=1000; // to seconds
 
     // get a bestmove anyway
     if (idf==1&&JUSTMOVE((Move)PV[1])!=MOVENONE)
@@ -187,7 +188,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
        )
       break;
   } while (++idf<=depth
-           &&elapsed*1000*ESTEBF<MaxTime
+           &&elapsed*ESTEBF<MaxTime
            &&ABNODECOUNT*ESTEBF<=MaxNodes
            &&ABNODECOUNT>1
            &&idf<MAXPLY
@@ -196,11 +197,11 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
 
   if ((!xboard_mode)||xboard_debug)
   {
-    fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " ttmovehits, and %" PRIu64 " ttscorehits, %" PRIu64 " iidhits, ebf: %lf, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, IIDHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+    fprintf(stdout,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " ttmovehits, and %" PRIu64 " ttscorehits, %" PRIu64 " iidhits, ebf: %lf, nps: %" PRIu64 " \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, IIDHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)((double)ABNODECOUNT/(elapsed)));
     if (LogFile)
     {
       fprintdate(LogFile);
-      fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " ttmovehits, and %" PRIu64 " ttscorehits, %" PRIu64 " iidhits, ebf: %lf, nps: %" PRIu64 "  \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, IIDHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)(ABNODECOUNT/(elapsed)));
+      fprintf(LogFile,"#%" PRIu64 " searched nodes in %lf seconds, with %" PRIu64 " ttmovehits, and %" PRIu64 " ttscorehits, %" PRIu64 " iidhits, ebf: %lf, nps: %" PRIu64 "  \n", ABNODECOUNT, elapsed, TTHITS, TTSCOREHITS, IIDHITS, (double)pow(ABNODECOUNT, (double)1/idf), (u64)((double)ABNODECOUNT/(elapsed)));
     }
   }
 
@@ -208,13 +209,14 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
   fflush(LogFile);
 
   // compute next nps value
-  nps_current =  (s64)((double)ABNODECOUNT/elapsed);
+  nodes_per_second = nps_current =  (u64)((double)ABNODECOUNT/elapsed);
 
   
+/*
   nodes_per_second+= (nps_current>nodes_per_second)?
                       (s64)((double)(nps_current-nodes_per_second)*0.66) // inc by 66 %
                       :(s64)((double)(nps_current-nodes_per_second)*0.33); // dec by 33 
-                     
+*/                     
   return bestmove;
 }
 
