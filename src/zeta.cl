@@ -2441,6 +2441,8 @@ __kernel void alphabeta_gpu(
       if (sd==2&&localTodoIndex[sd-1]==1)
         bestmove = move;
     } // end moveup x1
+    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
   } // end while main loop
   // ################################
   // ####      collect pv        ####
