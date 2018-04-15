@@ -1027,6 +1027,8 @@ __kernel void alphabeta_gpu(
   // ################################
   while(!bexit)
   {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
     // reset vars
     brandomize  = false;
     bresearch   = false;
@@ -1547,6 +1549,7 @@ __kernel void alphabeta_gpu(
 #endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
     // #################################
     // ####   negmax and scoring x1  ###
     // #################################
@@ -2139,8 +2142,6 @@ __kernel void alphabeta_gpu(
       localNodeStates[sd]|=ITER2;
     }
 
-    barrier(CLK_GLOBAL_MEM_FENCE);
-
     // ##################################
     // ####     movepicker x64 ITER2 ####
     // ##################################
@@ -2280,7 +2281,7 @@ __kernel void alphabeta_gpu(
         COUNTERS[gid*64+1]++;
       }
       // set history
-      localTodoIndex[sd]++;
+      localTodoIndex[sd]++; // inc anyway, safety first
       localMoveHistory[sd]=move;
     }
 
@@ -2440,9 +2441,7 @@ __kernel void alphabeta_gpu(
       if (sd==2&&localTodoIndex[sd-1]==1)
         bestmove = move;
     } // end moveup x1
-    barrier(CLK_LOCAL_MEM_FENCE);
-    barrier(CLK_GLOBAL_MEM_FENCE);
-  } // end main loop
+  } // end while main loop
   // ################################
   // ####      collect pv        ####
   // ################################
