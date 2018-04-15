@@ -1,3 +1,18 @@
+Zeta (2k) beta; urgency=medium
+
+  * bugfixes n cleanups
+  * added IID - Internal Iterative Deepening
+  * switch from Lazy SMP to ABDADA parallel search
+  *
+  * Zeta 2k on AMD Radeon R9 Fury X, 256 workers, ~ 7.6 Mnps
+  * Zeta 2k on Nvidia GeForce GTX 750, 16 workers, ~ 800 Knps
+  * Zeta 2k on AMD Radeon HD 7750, 32 workers, ~ 700 Knps
+  * Zeta 2k on Nvidia GeForce 8800 GT, 14 workers, ~ 110 Knps
+  *
+  * STS 1-15 Score (1 second per move) on GTX 750 => 7386
+
+ -- Srdja Matovic <s.matovic@app26.de> Apr 2018
+
 Zeta (099i) alpha; urgency=low
 
   * bugfixes
