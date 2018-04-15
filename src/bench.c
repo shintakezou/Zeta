@@ -147,7 +147,7 @@ s64 benchmarkWrapper(s32 benchsec)
     if (elapsed*4>=benchsec&&sd>1)
       break;
     sd++;
-    MaxNodes = (u64)(ABNODECOUNT/elapsed)*(u64)benchsec;
+    MaxNodes = (u64)((double)ABNODECOUNT/elapsed*(double)benchsec);
   }
   // release inits
   cl_release_device();
@@ -156,6 +156,6 @@ s64 benchmarkWrapper(s32 benchsec)
   if (elapsed <= 0 || ABNODECOUNT <= 0)
     return -1;
 
-  return (s64)((float)ABNODECOUNT/elapsed);
+  return (s64)((double)ABNODECOUNT/elapsed);
 }
 

@@ -917,7 +917,7 @@ bool cl_guess_config(bool extreme)
               break;
             // check for speedup margin
             // increase threadsY
-            if (npstmp/SPEEDUPMARGIN>=nps)
+            if ((double)npstmp/SPEEDUPMARGIN>=(double)nps)
             {
               bestwarpmulti = warpmulti;
               warpmulti*=2;
