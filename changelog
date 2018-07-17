@@ -1,84 +1,23 @@
-Zeta (2k) beta; urgency=medium
+Zeta (099h to 099k) alpha; urgency=medium
 
-  * bugfixes n cleanups
-  * added IID - Internal Iterative Deepening
+  * fixes n cleanups
   * switch from Lazy SMP to ABDADA parallel search
-  *
-  * Zeta 2k on AMD Radeon R9 Fury X, 256 workers, ~ 7.6 Mnps
-  * Zeta 2k on Nvidia GeForce GTX 750, 16 workers, ~ 800 Knps
-  * Zeta 2k on AMD Radeon HD 7750, 32 workers, ~ 700 Knps
-  * Zeta 2k on Nvidia GeForce 8800 GT, 14 workers, ~ 110 Knps
-  *
-  * STS 1-15 Score (1 second per move) on GTX 750 => 7386
-
- -- Srdja Matovic <s.matovic@app26.de> Apr 2018
-
-Zeta (099i) alpha; urgency=low
-
-  * bugfixes
-  * cleanups
-
- -- Srdja Matovic <s.matovic@app26.de> Mar 2018
-
-Zeta (099h) alpha; urgency=low
-
-  * added tt aging
-  * mod in termination
-  * mod in lazy smp
-  * rm 2nd memory slot
+  * added IID - Internal Iterative Deepening
   * one cl file for all gpu generations with inlined optimizations
+  *
+  * Zeta 099k on AMD Radeon R9 Fury X, 256 workers, ~ 7.6 Mnps
+  * Zeta 099k on Nvidia GeForce GTX 750, 16 workers, ~ 800 Knps
+  * Zeta 099k on AMD Radeon HD 7750, 32 workers, ~ 700 Knps
+  * Zeta 099k on Nvidia GeForce 8800 GT, 14 workers, ~ 110 Knps
 
- -- Srdja Matovic <s.matovic@app26.de> 13 Jan 2018
+ -- Srdja Matovic <s.matovic@app26.de> 2018
 
-Zeta (099g) alpha; urgency=low
-
-  * mod in search termination, gives now linear nps scaling on AMD GCN devices
-  * fix in nullmovepruning
-  * fix in late move reductions
-
- -- Srdja Matovic <s.matovic@app26.de> Dez 2017
-
-Zeta (099f) alpha; urgency=low
-
-  * bugfix in move generation
-
- -- Srdja Matovic <s.matovic@app26.de> Sep 2017
-
-Zeta (099e) alpha; urgency=low
-
-  * cleanups
-  * added atomic features for different gpu generations
-  * Zeta 099e on Nvidia GeForce GTX 750, 64 workers, ~ 1.7 Mnps
-  * Zeta 099e on AMD Radeon HD 7750, 64 workers, ~ 1.3 Mnps
-  * Zeta 099e on Nvidia GeForce 8800 GT, 28 workers, ~ 225 Knps
-
- -- Srdja Matovic <s.matovic@app26.de> Aug 2017
-
-Zeta (099d) alpha; urgency=low
-
-  * fix in null move hashing
-
- -- Srdja Matovic <s.matovic@app26.de> Jun 2017
-
-Zeta (099c) alpha; urgency=low
-
-  * tuning in parallel search (lazy smp) randomized move order
-  * tuning of depth replace hash sheme
-  * added en passant flag and castle rights to zobrist hash again
-
- -- Srdja Matovic <s.matovic@app26.de> Jun 2017
-
-Zeta (099b) alpha; urgency=low
+Zeta (099b to 099g) alpha; urgency=low
 
   * switch from KoggeStone based move generation to Dumb7Fill
-  * two hash table slots, always replace and depth replace scheme
-  * little tunings and cleanups
-  * Zeta 099b on Nvidia GeForce GTX 750, 64 workers, ~ 1.5 Mnps
-  * Zeta 099b on Nvidia GeForce GTX 750, 1 worker, ~ 45 Knps
-  * Zeta 099b on AMD Radeon HD 7750, 64 workers, ~ 900 Knps
-  * Zeta 099b on Nvidia GeForce 8800 GT, 28 workers, ~ 250 Knps
+  * added atomic features for different gpu generations
 
- -- Srdja Matovic <s.matovic@app26.de> Jun 2017
+ -- Srdja Matovic <s.matovic@app26.de> 2017
 
 Zeta (099a) alpha; urgency=low
 
@@ -93,15 +32,7 @@ Zeta (099a) alpha; urgency=low
 
  -- Srdja Matovic <s.matovic@app26.de> 2017
 
-Zeta (098g) alpha; urgency=low
-
-  * fix in engine output for Arena GUI
-  * possible fix for Intel OpenCL Runtime Environment
-
- -- Srdja Matovic <s.matovic@app26.de>  Dez 2016
-
-
-Zeta (098e) alpha; urgency=low
+Zeta (098d to 098g) alpha; urgency=low
 
   * mostly cleanup and fixes
   * restored simple heuristics from Zeta Dva (~2000 Elo on CCRL) engine
@@ -111,12 +42,13 @@ Zeta (098e) alpha; urgency=low
   * switched to rotate left based Zobrist hashes
   * switched to move picker
   * switched to GPL >= 2
+  *
   * Zeta 098e on Nvidia GeForce GTX 580, ca. 6 Mnps, est. 1800 Elo on CCRL
   * Zeta 098e on AMD Radeon HD 7750, ca. 1 Mnps
   * Zeta 098e on AMD Phenom X4, ca. 1 Mnps
   * Zeta 098e on Nvidia GeForce 8800 GT, ca. 500 Knps
 
- -- Srdja Matovic <s.matovic@app26.de>  Sep 2016
+ -- Srdja Matovic <s.matovic@app26.de>  2016
 
 
 Zeta (098a to 098c) alpha; urgency=low
@@ -124,7 +56,7 @@ Zeta (098a to 098c) alpha; urgency=low
   * Improved heuristics, partly ported from the Stockfish chess engine
   * AutoConfig for OpenCL devices
   * Parameter tuning
-  * Zeta 098c on Nvidia GeForce GTX 480, ca. 5 Mnps, est. 2000 Elo
+  * Zeta 098c on Nvidia GeForce GTX 480, ca. 5 Mnps, est. 2000 Elo on CCRL
   * Zeta 098c on AMD Radeon R9 290, ca. 3.2 Mnps
 
  -- Srdja Matovic <s.matovic@app26.de>  Aug 2013
@@ -132,7 +64,7 @@ Zeta (098a to 098c) alpha; urgency=low
 Zeta (097a to 097z) alpha; urgency=low
 
   * Implementation of an BestFirstMiniMax search algorithm with UCT parameters for parallelization
-  * Zeta 097x on Nvidia GeForce GTX 480, ca. 5 Mnps, est. 1800 Elo
+  * Zeta 097x on Nvidia GeForce GTX 480, ca. 5 Mnps, est. 1800 Elo on CCRL
   * Zeta 097x on AMD Radeon HD 7750, ca. 800 Knps
 
  -- Srdja Matovic <s.matovic@app26.de>  Jan 2013
