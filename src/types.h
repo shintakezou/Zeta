@@ -55,7 +55,7 @@ typedef u8      Piece;
 typedef u8 File;
 typedef u8 Rank;
 
-#define VERSION "2k"
+#define VERSION "099k"
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
@@ -80,7 +80,7 @@ typedef u8 Rank;
 #define MINDEVICEMB 128ULL  // min memory of OpenCl device in MB
 #define MAXDEVICEMB 1024ULL // max memory for OpenCL devices in MB
 #define ESTEBF      2       // estaminated effective branching factor, for tc
-#define SPEEDUPMARGIN 1.80f // used in guessconfig to guess totalworkers
+#define SPEEDUPMARGIN 1.45f // used in guessconfig to guess totalworkers
 // colors
 #define BLACK               1
 #define WHITE               0

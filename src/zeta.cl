@@ -105,7 +105,7 @@ typedef struct
 #define ITER1          64
 #define ITER2         128
 // defaults
-#define VERSION      "2k"
+#define VERSION      "099k"
 // quad bitboard array index definition
 #define QBBBLACK        0     // pieces white
 #define QBBP1           1     // piece type first bit
