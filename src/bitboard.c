@@ -592,7 +592,6 @@ void domove(Bitboard *board, Move move)
   Bitboard bbTemp = BBEMPTY;
   Bitboard pcastle= PNONE;
   u64 hmc         = board[QBBHMC];
-  Hash hash       = board[QBBHASH];
 
   // check for edges
   if (move==MOVENONE)
@@ -689,8 +688,8 @@ void domove(Bitboard *board, Move move)
   // store hmc   
   board[QBBHMC] = hmc;
 
-  // store new hash
-  board[QBBHASH] = hash;
+  // compute new hash
+  board[QBBHASH] = computehash(board, !GETCOLOR(GETPFROM(move)));
 }
 // restore board again
 void undomove(Bitboard *board, Move move, Cr cr, Hash hash, u64 hmc)
