@@ -156,14 +156,16 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
       
         // print PV line
         int i = 1;
-        do
+        while(i<MAXPLY&&i<=idf)
         { 
-          printmovecan(PV[i++]);
+          if (JUSTMOVE(PV[i])==MOVENONE)
+            break;
+          printmovecan(PV[i]);
           fprintf(stdout," ");
           if (LogFile)
             fprintf(LogFile, " ");
-
-        }while(JUSTMOVE(PV[i])!=MOVENONE&&i<MAXPLY&&i<=idf);
+          i++;
+        };
 
         fprintf(stdout,"\n");
         if (LogFile)
@@ -187,11 +189,12 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
         &&idf>=(INF+(s32)bestscore)
        )
       break;
-  } while (++idf<=depth
+    idf++;
+  } while (idf<=depth
            &&elapsed*ESTEBF<MaxTime
            &&ABNODECOUNT*ESTEBF<=MaxNodes
            &&ABNODECOUNT>1
-           &&idf<MAXPLY
+           &&idf<MAXPLY-1
           );
 
 
