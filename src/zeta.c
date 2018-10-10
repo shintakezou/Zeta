@@ -90,8 +90,8 @@ s32 PLY         = 0;      // engine specifix ply counter
 // game history
 Move *MoveHistory;
 Hash *HashHistory;
-Hash *CRHistory;
-u64 *HMCHistory;
+Cr *CRHistory;
+Bitboard *HMCHistory;
 // Quad Bitboard
 // based on http://chessprogramming.wikispaces.com/Quad-Bitboards
 // by Gerd Isenberg
@@ -193,17 +193,17 @@ bool gameinits(void)
             MAXGAMEPLY);
     return false;
   }
-  CRHistory = (Cr*)calloc(MAXGAMEPLY, sizeof(Hash));
+  CRHistory = (Cr*)calloc(MAXGAMEPLY, sizeof(Cr));
   if (CRHistory==NULL) 
   {
     fprintf(stdout,"Error (memory allocation failed): Cr CRHistory[%d]",
             MAXGAMEPLY);
     return false;
   }
-  HMCHistory = (u64*)calloc(MAXGAMEPLY, sizeof(Hash));
+  HMCHistory = (Bitboard*)calloc(MAXGAMEPLY, sizeof(Bitboard));
   if (HMCHistory==NULL) 
   {
-    fprintf(stdout,"Error (memory allocation failed): u64 HMCHistory[%d]",
+    fprintf(stdout,"Error (memory allocation failed): Bitboard HMCHistory[%d]",
             MAXGAMEPLY);
     return false;
   }
@@ -545,6 +545,8 @@ int main(int argc, char* argv[])
   // no buffers
   setbuf (stdout, NULL);
   setbuf (stdin, NULL);
+  setvbuf(stdout, NULL, _IONBF, 0);
+  setvbuf(stdin, NULL, _IONBF, 0);
 
   // turn log on
   for (c=1;c<argc;c++)
