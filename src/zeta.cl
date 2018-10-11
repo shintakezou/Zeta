@@ -123,7 +123,7 @@ typedef struct
   26  - 29  piece capture
 */
 // engine defaults
-#define MAXPLY              64      // max internal search ply
+#define MAXPLY              32      // max internal search ply
 #define MAXGAMEPLY          1024    // max ply a game can reach
 #define MAXMOVES            256     // max amount of legal moves per position
 // colors
@@ -925,7 +925,7 @@ __kernel void alphabeta_gpu(
   __local Bitboard bbAttacks;
   __local Bitboard bbCheckers;
 
-  const s32 gid = (s32)(get_global_id(0)*get_global_size(1)+get_global_id(1));
+  const s32 gid = (u32)(get_global_id(0)*get_global_size(1)+get_global_id(1));
   const Square lid = (Square)get_local_id(2);
 
   bool tmpb;
@@ -1786,6 +1786,10 @@ __kernel void alphabeta_gpu(
 
       undomove(board, localMoveHistory[sd]);
 
+      // early bird
+      if (lid==0&&sd<1)
+       atom_cmpxchg(finito,0,(u32)gid+1);
+
       if (sd<1)
         break;
 
@@ -1938,7 +1942,7 @@ __kernel void alphabeta_gpu(
       bexit = (sd<1)?true:bexit;
       // nodecount based termination
       bexit = (COUNTERS[1]>max_nodes)?true:bexit;
-      // termination flag for helper threads, early bird
+      // termination flag for helper threads
       bexit = (atom_cmpxchg(finito,0,0)>0)?true:bexit;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -2447,14 +2451,10 @@ __kernel void alphabeta_gpu(
   // ################################
   // ####      collect pv        ####
   // ################################
-  if (lid==0) // early bird
-    n = (s32)atom_inc(finito);    // set termination flag
-
   barrier(CLK_LOCAL_MEM_FENCE);
   barrier(CLK_GLOBAL_MEM_FENCE);
-
   // collect pv for gui output
-  if (lid==0&&n==0)
+  if (lid==0&&atom_cmpxchg(finito,(u32)gid+1,(u32)gid+1)==(u32)gid+1)
   {
     // get init quadbitboard plus plus
     board[QBBBLACK] = BOARD[QBBBLACK];
@@ -2467,7 +2467,8 @@ __kernel void alphabeta_gpu(
     stm             = (bool)stm_init;
     n               = 1;
     PV[0]           = (Score)bestscore;
-    do {
+    while(n<MAXPLY)
+    {
 
       PV[n] = bestmove;
 
@@ -2507,7 +2508,7 @@ __kernel void alphabeta_gpu(
         break;
 
       n++;
-    } while(n<MAXPLY);
+    }
 
   } // end collect pv
 } // end kernel alphabeta_gpu
