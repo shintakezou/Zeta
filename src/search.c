@@ -194,7 +194,7 @@ Move rootsearch(Bitboard *board, bool stm, s32 depth)
            &&elapsed*ESTEBF<MaxTime
            &&ABNODECOUNT*ESTEBF<=MaxNodes
            &&ABNODECOUNT>1
-           &&idf<MAXPLY-1
+           &&idf<MAXPLY
           );
 
 
