@@ -123,7 +123,7 @@ typedef struct
   26  - 29  piece capture
 */
 // engine defaults
-#define MAXPLY              32      // max internal search ply
+#define MAXPLY              64      // max internal search ply
 #define MAXGAMEPLY          1024    // max ply a game can reach
 #define MAXMOVES            256     // max amount of legal moves per position
 // colors
