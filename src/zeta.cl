@@ -1596,7 +1596,7 @@ __kernel void alphabeta_gpu(
       // ####       tree flow x1       ###
       // #################################
       // check bounds
-      if (sd>=MAXPLY-1)
+      if (sd>=MAXPLY)
         movecount = 0;
       // terminal or leaf node
       if (movecount==0)
