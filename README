@@ -14,7 +14,7 @@ Zeta, experimental chess engine written in OpenCL.
 ################################################################################
 ### WARNING
 ################################################################################
-GPUs may have a operating system and driver specific timeout for computation.
+GPUs may have an operating system and driver specific timeout for computation.
 
 Nvidia GPUs may have an driver specific timeout of 5 seconds when display is
 connected. 
@@ -31,7 +31,7 @@ To increase the Windows OS GPU timeout from 2 to 20 seconds, double-click the
 ### Tested Platforms
 ################################################################################
 Windows 7 64 bit (mingw compiler) and Linux 64 bit (gcc) OS on x86-64 host
-with AMD CPU/GPU, Intel CPU/GPU, Nvidia GPU as OpenCL device.
+with AMD CPU/GPU and Intel CPU/GPU and Nvidia GPU as OpenCL device.
 
 ################################################################################
 ### Usage
