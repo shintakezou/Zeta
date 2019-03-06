@@ -21,7 +21,7 @@
 ### 128     3924712     126.3834        14.5877500  20.33973        1.725248
 ### 256     7598046     244.6720        11.8680000  25.00092        1.229166
 
-# Zeta 099k, startposition, depth 12, OC Nvidia RTX 2080 TI:
+# Zeta 099k, startposition, depth 12, Nvidia Titan RTX:
 # run with up to 1024 workers, parallel search scales to 128 workers
 
 ### workers #nps         #nps speedup    #time in s  #ttd speedup   #relative ttd speedup
