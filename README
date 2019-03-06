@@ -3,20 +3,10 @@
   Description:  Experimental chess engine written in OpenCL
   Author:       Srdja Matovic <s.matovic@app26.de>
   Created at:   2011-06-23
-  Updated at:   2018
+  Updated at:   2019
   License:      GPL >= v2
 
-  Copyright (C) 2011-2018 Srdja Matovic
-
-  Zeta is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  Zeta is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  Copyright (C) 2011-2019 Srdja Matovic
 */
 
 Zeta, experimental chess engine written in OpenCL.
@@ -24,25 +14,24 @@ Zeta, experimental chess engine written in OpenCL.
 ################################################################################
 ### WARNING
 ################################################################################
-It is recommended to run the engine on an discrete GPU,
-without display connected,
-otherwise system and display can freeze or crash during computation.
+GPUs may have a operating system and driver specific timeout for computation.
 
-Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.
-So make sure to use an discrete GPU or set proper time controls or disable
-the Watch Dog timeout in your driver settings.
+Nvidia GPUs may have an driver specific timeout of 5 seconds when display is
+connected. 
 
-Windows OS have an internal gpu timeout, double click the .reg file 
-"SetWindowsGPUTimeoutTo20s.reg"
-and reboot the OS to set the timeout to 20 seconds.
+AMD GPUs may have an driver specific timeout of about 360 to 3600 seconds.
 
-AMD GPUs may have an driver specific timeout of about 360 to 3600 seconds
+Therefore it is recommended to run the engine on an discrete GPU, without 
+display connected.
+
+To increase the Windows OS GPU timeout from 2 to 20 seconds, double-click the 
+.reg file "SetWindowsGPUTimeoutTo20s.reg" and reboot your OS.
 
 ################################################################################
 ### Tested Platforms
 ################################################################################
-Windows 7 64 bit (mingw compiler) and GNU/Linux 64 bit (gcc) OS on x86-64 host
-with AMD CPU/GPU or Intel CPU or Nvidia GPU as OpenCL device.
+Windows 7 64 bit (mingw compiler) and Linux 64 bit (gcc) OS on x86-64 host
+with AMD CPU/GPU, Intel CPU/GPU, Nvidia GPU as OpenCL device.
 
 ################################################################################
 ### Usage
