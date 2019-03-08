@@ -3,10 +3,10 @@
   Description:  Experimental chess engine written in OpenCL.
   Author:       Srdja Matovic <s.matovic@app26.de>
   Created at:   2011-01-15
-  Updated at:   2018
+  Updated at:   2019
   License:      GPL >= v2
 
-  Copyright (C) 2011-2018 Srdja Matovic
+  Copyright (C) 2011-2019 Srdja Matovic
 
   Zeta is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -425,7 +425,7 @@ static void print_version(void)
 {
   fprintf(stdout,"Zeta version: %s\n",VERSION);
   fprintf(stdout,"Experimental chess engine written in OpenCL.\n");
-  fprintf(stdout,"Copyright (C) 2011-2018 Srdja Matovic, Montenegro\n");
+  fprintf(stdout,"Copyright (C) 2011-2019 Srdja Matovic, Montenegro\n");
   fprintf(stdout,"This is free software, licensed under GPL >= v2\n");
 }
 // engine options and usage
@@ -437,25 +437,24 @@ void print_help(void)
   fprintf(stdout,"################################################################################\n");
   fprintf(stdout,"### WARNING\n");
   fprintf(stdout,"################################################################################\n");
-  fprintf(stdout,"It is recommended to run the engine on an discrete GPU,\n");
-  fprintf(stdout,"without display connected,\n");
-  fprintf(stdout,"otherwise system and display can freeze or crash during computation.\n");
+  fprintf(stdout,"GPUs may have an operating system and driver specific timeout for computation.\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"Some GPU drivers have an timeout of 5 seconds if GPU is connected to display.\n");
-  fprintf(stdout,"So make sure to use an discrete GPU or set proper time controls or disable\n");
-  fprintf(stdout,"the Watch Dog timeout in your driver settings.\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"Windows OS have an internal gpu timeout, double click the .reg file \n");
-  fprintf(stdout,"\"SetWindowsGPUTimeoutTo20s.reg\"\n");
-  fprintf(stdout,"and reboot the OS to set the timeout to 20 seconds.\n");
+  fprintf(stdout,"Nvidia GPUs may have an driver specific timeout of 5 seconds when display is\n");
+  fprintf(stdout,"connected.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"AMD GPUs may have an driver specific timeout of about 360 to 3600 seconds.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"Therefore it is recommended to run the engine on an discrete GPU, without\n");
+  fprintf(stdout,"display connected.\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout,"To increase the Windows OS GPU timeout from 2 to 20 seconds, double-click the\n");
+  fprintf(stdout,".reg file \"SetWindowsGPUTimeoutTo20s.reg\" and reboot your OS.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"################################################################################\n");
   fprintf(stdout,"### Tested Platforms\n");
   fprintf(stdout,"################################################################################\n");
-  fprintf(stdout,"Windows 7 64 bit (mingw compiler) and GNU/Linux 64 bit (gcc) OS on x86-64 host\n");
-  fprintf(stdout,"with AMD CPU/GPU or Intel CPU or Nvidia GPU as OpenCL device.\n");
+  fprintf(stdout,"Windows 7 64 bit (mingw compiler) and Linux 64 bit (gcc) OS on x86-64 host\n");
+  fprintf(stdout,"with AMD CPU/GPU and Intel CPU/GPU and Nvidia GPU as OpenCL device.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"################################################################################\n");
   fprintf(stdout,"### Usage\n");
@@ -651,7 +650,7 @@ int main(int argc, char* argv[])
   // print engine info to console
   fprintf(stdout,"#> Zeta %s\n",VERSION);
   fprintf(stdout,"#> Experimental chess engine written in OpenCL.\n");
-  fprintf(stdout,"#> Copyright (C) 2011-2018 Srdja Matovic, Montenegro\n");
+  fprintf(stdout,"#> Copyright (C) 2011-2019 Srdja Matovic, Montenegro\n");
   fprintf(stdout,"#> This is free software, licensed under GPL >= v2\n");
   fprintf(stdout,"#> engine is initialising...\n");  
   fprintf(stdout,"feature done=0\n");  
@@ -662,7 +661,7 @@ int main(int argc, char* argv[])
     fprintdate(LogFile);
     fprintf(LogFile,"#> Experimental chess engine written in OpenCL.\n");
     fprintdate(LogFile);
-    fprintf(LogFile,"#> Copyright (C) 2011-2018 Srdja Matovic, Montenegro\n");
+    fprintf(LogFile,"#> Copyright (C) 2011-2019 Srdja Matovic, Montenegro\n");
     fprintdate(LogFile);
     fprintf(LogFile,"#> This is free software, licensed under GPL >= v2\n");
     fprintdate(LogFile);
