@@ -88,10 +88,10 @@ benchhyatt24   // init with sd and st commands
  -v, --version      Print Zeta version info.
  -h, --help         Print Zeta program usage help.
  -s, --selftest     Run an internal test, usefull after compile.
- -pl,               List all OpenCL Platforms on Host
- -dl,               List all OpenCL Devices on Host
- -p 0,              Set Platform ID to 0 for guessconfig 
- -d 0,              Set Device ID to 0 for guessconfig 
+ -pl                List all OpenCL Platforms on Host
+ -dl                List all OpenCL Devices on Host
+ -p 0               Set Platform ID to 0 for guessconfig 
+ -d 0               Set Device ID to 0 for guessconfig 
  --guessconfig      Guess minimal config for OpenCL devices
  --guessconfigx     Guess optimal config for OpenCL devices
 

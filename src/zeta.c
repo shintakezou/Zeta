@@ -512,10 +512,10 @@ void print_help(void)
   fprintf(stdout," -v, --version      Print Zeta version info.\n");
   fprintf(stdout," -h, --help         Print Zeta program usage help.\n");
   fprintf(stdout," -s, --selftest     Run an internal test, usefull after compile.\n");
-  fprintf(stdout," -pl,               List all OpenCL Platforms on Host\n");
-  fprintf(stdout," -dl,               List all OpenCL Devices on Host\n");
-  fprintf(stdout," -p 0,              Set Platform ID to 0 for guessconfig \n");
-  fprintf(stdout," -d 0,              Set Device ID to 0 for guessconfig \n");
+  fprintf(stdout," -pl                List all OpenCL Platforms on Host\n");
+  fprintf(stdout," -dl                List all OpenCL Devices on Host\n");
+  fprintf(stdout," -p 0               Set Platform ID to 0 for guessconfig \n");
+  fprintf(stdout," -d 0               Set Device ID to 0 for guessconfig \n");
   fprintf(stdout," --guessconfig      Guess minimal config for OpenCL devices\n");
   fprintf(stdout," --guessconfigx     Guess optimal config for OpenCL devices\n");
   fprintf(stdout,"\n");
