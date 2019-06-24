@@ -1,3 +1,10 @@
+Zeta (099l) alpha; urgency=low
+
+  * patch for parallel search scaling
+  * max device memory increased from 1 GB to 16 GB
+
+ -- Srdja Matovic <s.matovic@app26.de> Jun 2019
+
 Zeta (099h to 099k) alpha; urgency=medium
 
   * fixes n cleanups
