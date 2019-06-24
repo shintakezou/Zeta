@@ -3,8 +3,12 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -std=c99
 CLIBS=-lm -I../CL/ -lOpenCL
+
+# for windows 32 bit via mingw
 #CC=/usr/bin/i686-w64-mingw32-gcc -L../libs/
 #CLIBS=-lm -I../CL/ -L../libs/ -lOpenCLWIN32
+
+# for windows 64 bit via mingw
 #CC=/usr/bin/x86_64-w64-mingw32-gcc  -L../libs/
 #CLIBS=-lm -I../CL/ -L../libs/ -lOpenCLWIN64
 
