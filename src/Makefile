@@ -1,8 +1,8 @@
 #	Makefile for zeta
 
-CC=gcc
-#CC=/usr/bin/i686-w64-mingw32-gcc
-#CC=/usr/bin/x86_64-w64-mingw32-gcc
+#CC=gcc
+#CC=/usr/bin/i686-w64-mingw32-gcc -L../libs/
+#CC=/usr/bin/x86_64-w64-mingw32-gcc  -L../libs/
 CFLAGS=-Wall -Wextra -std=c99
 
 TARGETS=zeta
@@ -15,7 +15,7 @@ zeta:
 	xxd -i zeta.cl zetacl.h
 	sed -i 's/unsigned int/const size_t/g' ./zetacl.h
 	sed -i 's/unsigned char/const char/g' ./zetacl.h
-	$(CC) $(CFLAGS) -o zeta bit.c bench.c bitboard.c clconfig.c clquery.c clrun.c io.c search.c test.c timer.c xboard.c zeta.c -lm -I. -L. -lOpenCL 
+	$(CC) $(CFLAGS) -o zeta bit.c bench.c bitboard.c clconfig.c clquery.c clrun.c io.c search.c test.c timer.c xboard.c zeta.c -lm -I. -L. -lOpenCL
 
 clean:
 	rm -f zetacl.h
