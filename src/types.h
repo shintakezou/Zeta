@@ -24,7 +24,7 @@
 
 #include <inttypes.h>   // for nice u64 printf 
  
-#include "CL/cl.h"      // for OpenCL data types etc.
+#include <cl.h>      // for OpenCL data types etc.
 
 // ### consider also zeta.cl file ###
 
