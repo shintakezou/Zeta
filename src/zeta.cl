@@ -3,10 +3,10 @@
   Description:  Experimental chess engine written in OpenCL.
   Author:       Srdja Matovic <s.matovic@app26.de>
   Created at:   2011-01-15
-  Updated at:   2018
+  Updated at:   2019
   License:      GPL >= v2
 
-  Copyright (C) 2011-2018 Srdja Matovic
+  Copyright (C) 2011-2019 Srdja Matovic
 
   Zeta is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -82,8 +82,8 @@ typedef struct
 #define LMRR            1 // late move reduction 
 #define NULLR           2 // null move reduction 
 #define RANDBRO         1 // how many brothers searched before randomized order
-#define RANDABDADA   true // abdada, rand move order 
-#define RANDWORKERS    64 // abdada, at how many workers to randomize move order
+#define RMO             true // apply RMO - randomized move order
+#define RANDWORKERS    64 // RMO, at how many workers to randomize move order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
@@ -105,7 +105,7 @@ typedef struct
 #define ITER1          64
 #define ITER2         128
 // defaults
-#define VERSION      "099k"
+#define VERSION      "099l"
 // quad bitboard array index definition
 #define QBBBLACK        0     // pieces white
 #define QBBP1           1     // piece type first bit
@@ -1664,6 +1664,7 @@ __kernel void alphabeta_gpu(
           &&localTodoIndex[sd-1]>1 // first move first
           &&localMoveCounter[sd-1]>1
           &&(ttindex2>1)
+          &&((!RMO)||(RMO&&gid<RANDWORKERS))
        )
       {
         move    = localMoveHistory[sd-1];
@@ -1748,7 +1749,7 @@ __kernel void alphabeta_gpu(
     {
 
       // abdada, set values 
-      if (lid==0&&sd>1&&ttindex2>1)
+      if (lid==0&&sd>1&&ttindex2>1&&((!RMO)||(RMO&&gid<RANDWORKERS)))
       {
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex2-1);
@@ -1983,8 +1984,8 @@ __kernel void alphabeta_gpu(
              // single slot, randomize
              ((ttindex1>1&&ttindex2<=1)&&gid>0)
              ||
-             // abdada, randomize > n
-             ((ttindex2>1)&&(RANDABDADA)&&gid>=RANDWORKERS)
+             // RMO, randomize > n
+             (RMO&&gid>=RANDWORKERS)
             )
           &&!(localNodeStates[sd]&QS)
           &&!(localNodeStates[sd]&KIC)

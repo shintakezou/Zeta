@@ -3,10 +3,10 @@
   Description:  Experimental chess engine written in OpenCL.
   Author:       Srdja Matovic <s.matovic@app26.de>
   Created at:   2011-01-15
-  Updated at:   2018
+  Updated at:   2019
   License:      GPL >= v2
 
-  Copyright (C) 2011-2017 Srdja Matovic
+  Copyright (C) 2011-2019 Srdja Matovic
 
   Zeta is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ typedef u8      Piece;
 typedef u8 File;
 typedef u8 Rank;
 
-#define VERSION "099k"
+#define VERSION "099l"
 // quad bitboard array index definition
 #define QBBBLACK  0     // pieces white
 #define QBBP1     1     // piece type first bit
@@ -78,7 +78,7 @@ typedef u8 Rank;
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 128ULL  // min memory of OpenCl device in MB
-#define MAXDEVICEMB 1024ULL // max memory for OpenCL devices in MB
+#define MAXDEVICEMB 16384ULL// max memory for OpenCL devices in MB
 #define ESTEBF      2       // estaminated effective branching factor, for tc
 #define SPEEDUPMARGIN 1.80f // used in guessconfig to guess totalworkers
 // colors
