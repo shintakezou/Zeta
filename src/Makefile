@@ -1,6 +1,6 @@
 #	Makefile for zeta
 
-#CC=gcc
+CC=gcc
 #CC=/usr/bin/i686-w64-mingw32-gcc -L../libs/
 #CC=/usr/bin/x86_64-w64-mingw32-gcc  -L../libs/
 CFLAGS=-Wall -Wextra -std=c99
