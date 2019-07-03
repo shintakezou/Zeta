@@ -1626,32 +1626,27 @@ __kernel void alphabeta_gpu(
         score  = -INF;
 
         tt1 = TT1[bbTemp];
+
+        score = (Score)tt1.score;
+
+        // handle mate scores in TT
+        score = (ISMATE(score)&&score>0)?score-ply:score;
+        score = (ISMATE(score)&&score<0)?score+ply:score;
+
         if ((tt1.hash==(bbWork^(Hash)tt1.bestmove^(Hash)tt1.score^(Hash)tt1.depth))
             &&(s32)tt1.depth>=localDepth[sd]
             &&(tt1.flag&0x3)>FAILLOW
-           )
-        {
-          score = (Score)tt1.score;
-
-          // handle mate scores in TT
-          score = (ISMATE(score)&&score>0)?score-ply:score;
-          score = (ISMATE(score)&&score<0)?score+ply:score;
-        }
-
-        if (!ISINF(score)
+            &&!ISINF(score)
             &&score>localAlphaBetaScores[sd*2+ALPHA]
            )
         {
           // set alpha
           localAlphaBetaScores[sd*2+ALPHA] = score;
-
           // cut
           if(localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
             movecount = 0;
-
           // tt score hit counter
           COUNTERS[gid*64+4]++;
-
         }
       } // end load from hash table
 
@@ -1701,20 +1696,17 @@ __kernel void alphabeta_gpu(
 
         // loaded, update alpha
         if (n!=gid+1
-            &&n>0
             &&tt2.hash==(bbWork^(Hash)tt2.score^(Hash)tt2.depth)
             &&tt2.depth>=(s16)localDepth[sd]
+            &&!ISINF(score)
+            &&score>localAlphaBetaScores[sd*2+ALPHA]
            )
         {
-          if (
-              !ISINF(score)
-              &&score>localAlphaBetaScores[sd*2+ALPHA]
-             )
-          {
-            // set alpha
-            localAlphaBetaScores[sd*2+ALPHA] = score;
-            movecount = 0; // ...graph history interaction problem?
-          }
+          // set alpha
+          localAlphaBetaScores[sd*2+ALPHA] = score;
+          // cut
+          if(localAlphaBetaScores[sd*2+ALPHA]>=localAlphaBetaScores[sd*2+BETA])
+            movecount = 0;
         }
         // otherwise locked, backup move for iter 2
         else if (n!=gid+1
