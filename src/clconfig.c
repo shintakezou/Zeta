@@ -413,22 +413,12 @@ bool cl_guess_config(bool extreme)
           }
         }
 
-        // set memory to default max
-        memalloc = devicememglobal/4; // OpenCL standard: 1/4th
-        memalloc/= 2;  // two memory slots
-        if (memalloc>MAXDEVICEMB*1024*1024)
-          memalloc =  MAXDEVICEMB*1024*1024;
-        // initialize transposition table, tt1
+        memalloc = devicememalloc;
         u64 mem = 0;
         u64 ttbits = 0;
-        mem = memalloc/(sizeof(TTE));
-        while ( mem >>= 1)   // get msb
-          ttbits++;
-        mem = 1UL<<ttbits;
-        ttbits=mem;
-        memalloc = mem*sizeof(TTE); // set correct hash size
-        tt1mem = memalloc;
+
         // initialize transposition table, tt2, abdada
+        memalloc/= 2;  // two memory slots
         mem = 0;
         ttbits = 0;
         mem = memalloc/(sizeof(ABDADATTE));
@@ -438,6 +428,16 @@ bool cl_guess_config(bool extreme)
         ttbits=mem;
         memalloc = mem*sizeof(ABDADATTE); // set correct hash size
         tt2mem = memalloc;
+
+        // initialize transposition table, tt1
+        memalloc = devicememalloc-tt2mem;
+        mem = memalloc/(sizeof(TTE));
+        while ( mem >>= 1)   // get msb
+          ttbits++;
+        mem = 1UL<<ttbits;
+        ttbits=mem;
+        memalloc = mem*sizeof(TTE); // set correct hash size
+        tt1mem = memalloc;
 
         // initialize transposition table, tt3,
 /*
