@@ -1672,6 +1672,7 @@ __kernel void alphabeta_gpu(
         bbWork  = localHashHistory[sd];    
         bbTemp  = bbWork&(ttindex2-1);
         score   = -INF;
+        n       = 0;
 
         // check and set ply and sd, reset lock
         if (atom_cmpxchg(&TT2[bbTemp].ply, 0, ply_init+1)!=ply_init+1
@@ -1682,7 +1683,6 @@ __kernel void alphabeta_gpu(
           atom_xchg(&TT2[bbTemp].sd, search_depth+1);
           atom_xchg(&TT2[bbTemp].lock, 0);
         }
-
 
         if ((localNodeStates[sd-1]&ITER1))
         {
@@ -1699,19 +1699,9 @@ __kernel void alphabeta_gpu(
         score = (ISMATE(score)&&score>0)?score-ply:score;
         score = (ISMATE(score)&&score<0)?score+ply:score;
 
-        // otherwise locked, backup move for iter 2
+        // loaded, update alpha
         if (n!=gid+1
             &&n>0
-            &&(localNodeStates[sd-1]&ITER1)
-           )
-        {
-          globalbbMoves2[gid*MAXPLY*64+(sd-1)*64+(s32)GETSQFROM(move)] |= SETMASKBB(GETSQTO(move));
-          localTodoIndex[sd-1]--;
-          movecount = 0;
-          localAlphaBetaScores[sd*2+ALPHA] = INF; // ignore score
-        }
-        // loaded, update alpha
-        if ((localNodeStates[sd-1]&ITER2)
             &&tt2.hash==(bbWork^(Hash)tt2.score^(Hash)tt2.depth)
             &&tt2.depth>=(s16)localDepth[sd]
            )
@@ -1723,8 +1713,19 @@ __kernel void alphabeta_gpu(
           {
             // set alpha
             localAlphaBetaScores[sd*2+ALPHA] = score;
-//            movecount = 0; // ...graph history interaction problem?
+            movecount = 0; // ...graph history interaction problem?
           }
+        }
+        // otherwise locked, backup move for iter 2
+        else if (n!=gid+1
+                 &&n>0
+                 &&(localNodeStates[sd-1]&ITER1)
+                )
+        {
+          globalbbMoves2[gid*MAXPLY*64+(sd-1)*64+(s32)GETSQFROM(move)] |= SETMASKBB(GETSQTO(move));
+          localTodoIndex[sd-1]--;
+          movecount = 0;
+          localAlphaBetaScores[sd*2+ALPHA] = INF; // ignore score
         }
       } // end abdada, check hash table
     } // end ab flow x1
