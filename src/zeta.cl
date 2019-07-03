@@ -82,8 +82,8 @@ typedef struct
 #define LMRR            1 // late move reduction 
 #define NULLR           2 // null move reduction 
 #define RANDBRO         1 // how many brothers searched before randomized order
-#define RMO             true // apply RMO - randomized move order
-#define RANDWORKERS    64 // RMO, at how many workers to randomize move order
+#define RMO             false // apply RMO - randomized move order
+#define RANDWORKERS     256 // RMO, at how many workers to randomize move order
 // TT node type flags
 #define FAILLOW         0
 #define EXACTSCORE      1
@@ -105,7 +105,7 @@ typedef struct
 #define ITER1          64
 #define ITER2         128
 // defaults
-#define VERSION      "099l"
+#define VERSION      "099m"
 // quad bitboard array index definition
 #define QBBBLACK        0     // pieces white
 #define QBBP1           1     // piece type first bit
@@ -1661,10 +1661,11 @@ __kernel void alphabeta_gpu(
           &&sd>1 // not on root
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localSearchMode[sd]&IIDSEARCH)
-          &&localTodoIndex[sd-1]>1 // first move first
+          &&localTodoIndex[sd-1]>1 // first moves first
           &&localMoveCounter[sd-1]>1
           &&(ttindex2>1)
           &&((!RMO)||(RMO&&gid<RANDWORKERS))
+          &&localDepth[sd]>1
        )
       {
         move    = localMoveHistory[sd-1];
@@ -1681,10 +1682,15 @@ __kernel void alphabeta_gpu(
           atom_xchg(&TT2[bbTemp].sd, search_depth+1);
           atom_xchg(&TT2[bbTemp].lock, 0);
         }
-        // get lock
-        n = atom_cmpxchg(&TT2[bbTemp].lock, 0, gid+1);
-        // verify lock
-        n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
+
+
+        if ((localNodeStates[sd-1]&ITER1))
+        {
+          // get lock
+          n = atom_cmpxchg(&TT2[bbTemp].lock, 0, gid+1);
+          // verify lock
+          n = atom_cmpxchg(&TT2[bbTemp].lock, gid+1, gid+1);
+        }
 
         tt2 = TT2[bbTemp];
         score = (Score)tt2.score;
@@ -1693,7 +1699,7 @@ __kernel void alphabeta_gpu(
         score = (ISMATE(score)&&score>0)?score-ply:score;
         score = (ISMATE(score)&&score<0)?score+ply:score;
 
-        // locked, backup move for iter 2
+        // otherwise locked, backup move for iter 2
         if (n!=gid+1
             &&n>0
             &&(localNodeStates[sd-1]&ITER1)
@@ -1704,10 +1710,8 @@ __kernel void alphabeta_gpu(
           movecount = 0;
           localAlphaBetaScores[sd*2+ALPHA] = INF; // ignore score
         }
-        // locked and loaded, update alpha
-        if (n!=gid+1
-            &&n>0
-            &&(localNodeStates[sd-1]&ITER2)
+        // loaded, update alpha
+        if ((localNodeStates[sd-1]&ITER2)
             &&tt2.hash==(bbWork^(Hash)tt2.score^(Hash)tt2.depth)
             &&tt2.depth>=(s16)localDepth[sd]
            )
@@ -1719,7 +1723,7 @@ __kernel void alphabeta_gpu(
           {
             // set alpha
             localAlphaBetaScores[sd*2+ALPHA] = score;
-//            movecount = 0; // does not work, transpositions...
+//            movecount = 0; // ...graph history interaction problem?
           }
         }
       } // end abdada, check hash table
@@ -1749,7 +1753,12 @@ __kernel void alphabeta_gpu(
     {
 
       // abdada, set values 
-      if (lid==0&&sd>1&&ttindex2>1&&((!RMO)||(RMO&&gid<RANDWORKERS)))
+      if (lid==0
+          &&sd>1
+          &&ttindex2>1
+          &&((!RMO)||(RMO&&gid<RANDWORKERS))
+          &&(localNodeStates[sd-1]&ITER1)
+         )
       {
         bbWork = localHashHistory[sd];    
         bbTemp = bbWork&(ttindex2-1);
@@ -1778,6 +1787,9 @@ __kernel void alphabeta_gpu(
           tt2.sd     = search_depth+1;
 
           TT2[bbTemp]=tt2;
+
+          // release lock
+//          atom_cmpxchg(&TT2[bbTemp].lock, gid+1, 0);
         }
       }
 
@@ -2084,9 +2096,7 @@ __kernel void alphabeta_gpu(
       // lazy smp, randomize move order
       if (brandomize)
       {
-        tmpscore = (prn%INF)+INF;
-        // captures first
-        tmpscore+= (GETPTYPE(pcpt)==PNONE)?0:INF;
+        tmpscore+= (prn%INF);
       }
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
@@ -2215,7 +2225,7 @@ __kernel void alphabeta_gpu(
       // lazy smp, randomize move order
       if (brandomize)
       {
-        tmpscore = (prn%INF)+INF;
+        tmpscore+= (prn%INF);
       }
       // check iid move
       if (localIIDMoves[sd]==tmpmove)
