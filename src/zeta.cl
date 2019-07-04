@@ -1656,7 +1656,7 @@ __kernel void alphabeta_gpu(
           &&sd>1 // not on root
           &&!(localSearchMode[sd]&NULLMOVESEARCH)
           &&!(localSearchMode[sd]&IIDSEARCH)
-          &&localTodoIndex[sd-1]>1 // first moves first
+          &&localTodoIndex[sd-1]>1 // oldest son searched fully first
           &&localMoveCounter[sd-1]>1
           &&(ttindex2>1)
           &&((!RMO)||(RMO&&gid<RANDWORKERS))
