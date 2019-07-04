@@ -1660,7 +1660,7 @@ __kernel void alphabeta_gpu(
           &&localMoveCounter[sd-1]>1
           &&(ttindex2>1)
           &&((!RMO)||(RMO&&gid<RANDWORKERS))
-          &&localDepth[sd]>1
+          &&localDepth[sd]>0
        )
       {
         move    = localMoveHistory[sd-1];
