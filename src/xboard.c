@@ -900,8 +900,14 @@ void xboard(void) {
             threadsX = x*y; 
           else
             threadsX*=2; 
-//        }
 /*
+          if (threadsX>=x)
+            break;
+          if (threadsX*2>x)
+            threadsX = x; 
+          else
+            threadsX*=2; 
+        }
         if (threadsY>=y)
           break;
         if (threadsY*2>y)
@@ -1033,8 +1039,8 @@ void xboard(void) {
         while (true)
         {
           // for threadsX
-          while(true)
-          {
+//          while(true)
+//          {
 
             fprintf(stdout,"### doing inits for benchkaufmann depth %d: ###\n", SD);  
             if (LogFile)
@@ -1092,6 +1098,14 @@ void xboard(void) {
 
             iter++;
 
+            if (threadsX>=x*y)
+              break;
+            if (threadsX*2>x*y)
+              threadsX = x*y; 
+            else
+              threadsX*=2; 
+
+/*
             if (threadsX>=x)
               break;
             if (threadsX*2>x)
@@ -1105,6 +1119,7 @@ void xboard(void) {
             threadsY = y; 
           else
             threadsY*=2; 
+*/
         }
         // print results
         fprintf(stdout,"### workers\t#nps\t\t#nps speedup\t#time in s\t#ttd speedup \t#relative ttd speedup ###\n");
@@ -1251,8 +1266,8 @@ void xboard(void) {
         while (true)
         {
           // for threadsX
-          while(true)
-          {
+//          while(true)
+//          {
 
             fprintf(stdout,"### doing inits for benchhyatt24 depth %d: ###\n", SD);  
             if (LogFile)
@@ -1310,6 +1325,14 @@ void xboard(void) {
 
             iter++;
 
+            if (threadsX>=x*y)
+              break;
+            if (threadsX*2>x*y)
+              threadsX = x*y; 
+            else
+              threadsX*=2; 
+
+/*
             if (threadsX>=x)
               break;
             if (threadsX*2>x)
@@ -1323,6 +1346,7 @@ void xboard(void) {
             threadsY = y; 
           else
             threadsY*=2; 
+*/
         }
         // print results
         fprintf(stdout,"### workers\t#nps\t\t#nps speedup\t#time in s\t#ttd speedup \t#relative ttd speedup ###\n");
