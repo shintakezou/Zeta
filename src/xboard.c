@@ -836,8 +836,8 @@ void xboard(void) {
       while (true)
       {
         // for threadsX
-        while(true)
-        {
+//        while(true)
+//        {
 
           fprintf(stdout,"### doing inits for benchsmp depth %d: ###\n", SD);  
           if (LogFile)
@@ -894,19 +894,21 @@ void xboard(void) {
 
           iter++;
 
-          if (threadsX>=x)
+          if (threadsX>=x*y)
             break;
-          if (threadsX*2>x)
-            threadsX = x; 
+          if (threadsX*2>x*y)
+            threadsX = x*y; 
           else
             threadsX*=2; 
-        }
+//        }
+/*
         if (threadsY>=y)
           break;
         if (threadsY*2>y)
           threadsY = y; 
         else
           threadsY*=2; 
+*/
       }
       // print results
       fprintf(stdout,"### workers\t#nps\t\t#nps speedup\t#time in s\t#ttd speedup \t#relative ttd speedup ###\n");
