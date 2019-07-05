@@ -93,7 +93,7 @@ void xboard(void) {
       {
         // send feature list to xboard
         fprintf(stdout,"feature myname=\"Zeta %s\"\n",VERSION);
-        fprintf(stdout,"feature ping=0\n");
+        fprintf(stdout,"feature ping=1\n");
         fprintf(stdout,"feature setboard=1\n");
         fprintf(stdout,"feature playother=0\n");
         fprintf(stdout,"feature san=0\n");
@@ -686,6 +686,14 @@ void xboard(void) {
       xboard_post = false;
       continue;
     }
+    // respond to ping command
+		if (!strcmp(Command, "ping"))
+    {
+      u64 pong = 0;
+      sscanf (Line, "ping %"PRIu64, &pong);
+      fprintf(stdout,"pong %"PRIu64"\n",pong);
+      continue;
+    }
     // xboard commands to ignore
 		if (!strcmp(Command, "random"))
     {
@@ -700,10 +708,6 @@ void xboard(void) {
       continue;
     }
 		if (!strcmp(Command, "draw"))
-    {
-      continue;
-    }
-		if (!strcmp(Command, "ping"))
     {
       continue;
     }
