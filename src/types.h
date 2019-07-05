@@ -78,7 +78,7 @@ typedef u8 Rank;
 #define MAXMOVES    256     // max amount of legal moves per position
 #define TIMESPARE   100     // 100 milliseconds spare
 #define MINDEVICEMB 128ULL  // min memory of OpenCl device in MB
-#define ESTEBF      2       // estaminated effective branching factor, for tc
+#define ESTEBF      3       // estaminated effective branching factor, for tc
 #define SPEEDUPMARGIN 1.68f // used in guessconfig to guess totalworkers
 // colors
 #define BLACK               1
