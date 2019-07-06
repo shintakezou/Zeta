@@ -540,12 +540,12 @@ bool read_and_init_config(char configfile[])
   {
     fprintf(stdout,"Error (");
     fprintf(stdout, "%s file missing): ", configfile);
-    fprintf(stdout, "try --guessconfig option to create a config.txt file ");
+    fprintf(stdout, "try --guessconfigx option to create a config.txt file ");
     fprintf(stdout, "or --help option for further options\n");
 
     fprintf(stdout,"tellusererror (");
     fprintf(stdout, "%s file missing): ", configfile);
-    fprintf(stdout, "try --guessconfig option to create a config.txt file ");
+    fprintf(stdout, "try --guessconfigx option to create a config.txt file ");
     fprintf(stdout, "or --help option for further options\n");
 
     if (LogFile==NULL)
@@ -555,7 +555,7 @@ bool read_and_init_config(char configfile[])
       fprintdate(LogFile);
       fprintf(LogFile,"Error (");
       fprintf(LogFile, "%s file missing) ", configfile);
-      fprintf(LogFile, "try --guessconfig option to create a config.txt file ");
+      fprintf(LogFile, "try --guessconfigx option to create a config.txt file ");
       fprintf(LogFile, "or --help option for further options\n");
     }
     return false;
