@@ -1441,14 +1441,22 @@ void xboard(void) {
     // toggle log flag
     if (!xboard_mode && !strcmp(Command, "log"))
     {
-      // open/create log file
-      if (LogFile==NULL ) 
+
+      if (logtoggle==false)
       {
-        LogFile = fopen("zeta.log", "a");
-        if (LogFile==NULL ) 
+        logtoggle=true;
+        LogFile = fopen(LOGFILE, "a");
+        if (LogFile==NULL) 
         {
-          fprintf(stdout,"Error (opening logfile zeta.log): log\n");
+          fprintf(stdout,"Error (opening logfile %s): log\n",LOGFILE);
         }
+      }
+      else if (logtoggle==true)
+      {
+        logtoggle=false;
+        if (LogFile)
+          fclose(LogFile);
+        LogFile=NULL;
       }
       continue;
     }

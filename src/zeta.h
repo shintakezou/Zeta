@@ -36,6 +36,7 @@ void print_help(void);
 extern char *Line;
 extern char *Command;
 extern char *Fen;
+extern bool logtoggle;
 // counters
 extern u64 ABNODECOUNT;
 extern u64 TTHITS;

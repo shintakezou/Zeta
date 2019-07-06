@@ -44,6 +44,7 @@ FILE *LogFile = NULL;         // logfile for debug
 char *Line;                   // for fgetting the input on stdin
 char *Command;                // for pasring the xboard command
 char *Fen;                    // for storing the fen chess baord string
+bool logtoggle = false;       // turn logging on/off
 // counters
 u64 ABNODECOUNT         = 0;
 u64 TTHITS              = 0;
@@ -473,7 +474,7 @@ void print_help(void)
   fprintf(stdout,"\n");
   fprintf(stdout,"Third rename the created config file to config.txt and start the engine.\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"To play against the engine use an CECP v2 protocol capable chess GUI\n");
+  fprintf(stdout,"To play against the engine use an CECP v2 aka. xboard protocol capable chess GUI\n");
   fprintf(stdout,"like Arena, Cutechess, Winboard or Xboard.\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"Alternatively you can use Xboard commmands directly on commmand Line,\n"); 
@@ -499,7 +500,7 @@ void print_help(void)
   fprintf(stdout,"perft          // perform a performance test, depth set by sd command\n");
   fprintf(stdout,"selftest       // run an internal test\n");
   fprintf(stdout,"help           // print usage info\n");
-  fprintf(stdout,"log            // turn log on\n");
+  fprintf(stdout,"log            // turn log on/of\n");
   fprintf(stdout,"benchsmp       // init with new and sd and st commands\n");
   fprintf(stdout,"               // runs an benchmark for parallel speedup\n");
   fprintf(stdout,"benchhyatt24   // init with sd and st commands\n");
@@ -552,11 +553,12 @@ int main(int argc, char* argv[])
   {
     if (!strcmp(argv[c], "-l") || !strcmp(argv[c],"--log"))
     {
+      logtoggle=true;
       // open/create log file
-      LogFile = fopen("zeta.log", "a");
+      LogFile = fopen(LOGFILE, "a");
       if (LogFile==NULL) 
       {
-        fprintf(stdout,"Error (opening logfile zeta.log): --log\n");
+        fprintf(stdout,"Error (opening logfile %s): --log\n",LOGFILE);
       }
     }
   }
