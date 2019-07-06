@@ -1267,140 +1267,197 @@ bool cl_read_memory(void)
 bool cl_release_device(void) 
 {
   // release memory buffers
-  status = clReleaseMemObject(GLOBAL_BOARD_Buffer);
-  if(status!=CL_SUCCESS)
+  if (GLOBAL_BOARD_Buffer!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_Buffer)\n");
-    return false; 
+    status = clReleaseMemObject(GLOBAL_BOARD_Buffer);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_Buffer)\n");
+      return false; 
+    }
   }
 
-  status = clReleaseMemObject(GLOBAL_COUNTERS_Buffer);
-  if(status!=CL_SUCCESS)
+  if (GLOBAL_COUNTERS_Buffer!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_COUNTERS_Buffer)\n");
-    return false; 
+    status = clReleaseMemObject(GLOBAL_COUNTERS_Buffer);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_COUNTERS_Buffer)\n");
+      return false; 
+    }
   }
 
-  status = clReleaseMemObject(GLOBAL_RNUMBERS_Buffer);
-  if(status!=CL_SUCCESS)
+  if (GLOBAL_RNUMBERS_Buffer!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RNUMBERS_Buffer)\n");
-    return false; 
+    status = clReleaseMemObject(GLOBAL_RNUMBERS_Buffer);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RNUMBERS_Buffer)\n");
+      return false; 
+    }
   }
 
-  status = clReleaseMemObject(GLOBAL_PV_Buffer);
-  if(status!=CL_SUCCESS)
+  if (GLOBAL_PV_Buffer!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PV_Buffer)\n");
-    return false; 
+    status = clReleaseMemObject(GLOBAL_PV_Buffer);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PV_Buffer)\n");
+      return false; 
+    }
   }
 
-  status = clReleaseMemObject(GLOBAL_globalbbMoves1_Buffer);
-  if(status!=CL_SUCCESS)
+  if (GLOBAL_globalbbMoves1_Buffer!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves1_Buffer)\n");
-    return false; 
+    status = clReleaseMemObject(GLOBAL_globalbbMoves1_Buffer);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves1_Buffer)\n");
+      return false; 
+    }
   }
 
-  status = clReleaseMemObject(GLOBAL_globalbbMoves2_Buffer);
-  if(status!=CL_SUCCESS)
+  if (GLOBAL_globalbbMoves2_Buffer!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves2_Buffer)\n");
-    return false; 
+    status = clReleaseMemObject(GLOBAL_globalbbMoves2_Buffer);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves2_Buffer)\n");
+      return false; 
+    }
   }
 
-	status = clReleaseMemObject(GLOBAL_HASHHISTORY_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_HASHHISTORY_Buffer)\n");
-		return false; 
+  if (GLOBAL_HASHHISTORY_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_HASHHISTORY_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_HASHHISTORY_Buffer)\n");
+		  return false; 
+  	}
 	}
 
-	status = clReleaseMemObject(GLOBAL_bbInBetween_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbInBetween_Buffer)\n");
-		return false; 
+  if (GLOBAL_bbInBetween_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_bbInBetween_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbInBetween_Buffer)\n");
+		  return false; 
+  	}
 	}
 
-	status = clReleaseMemObject(GLOBAL_bbLine_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbLine_Buffer)\n");
-		return false; 
+  if (GLOBAL_bbLine_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_bbLine_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbLine_Buffer)\n");
+		  return false; 
+  	}
 	}
 
-	status = clReleaseMemObject(GLOBAL_TT1_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT1_Buffer)\n");
-		return false; 
+  if (GLOBAL_TT1_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_TT1_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT1_Buffer)\n");
+		  return false; 
+  	}
 	}
 
-	status = clReleaseMemObject(GLOBAL_TT2_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT2_Buffer)\n");
-		return false; 
+  if (GLOBAL_TT2_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_TT2_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT2_Buffer)\n");
+		  return false; 
+  	}
 	}
 
 /*
-	status = clReleaseMemObject(GLOBAL_TT3_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT3_Buffer)\n");
-		return false; 
+  if (GLOBAL_TT3_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_TT3_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT3_Buffer)\n");
+		  return false; 
+  	}
 	}
 */
 
-	status = clReleaseMemObject(GLOBAL_Killer_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Killer_Buffer)\n");
-		return false; 
+  if (GLOBAL_Killer_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_Killer_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Killer_Buffer)\n");
+		  return false; 
+  	}
 	}
 
-	status = clReleaseMemObject(GLOBAL_Counter_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counter_Buffer)\n");
-		return false; 
+  if (GLOBAL_Counter_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_Counter_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counter_Buffer)\n");
+		  return false; 
+  	}
 	}
 
-	status = clReleaseMemObject(GLOBAL_finito_Buffer);
-  if(status!=CL_SUCCESS)
-	{
-		print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_finito_Buffer)\n");
-		return false; 
+  if (GLOBAL_finito_Buffer!=NULL)
+  {
+	  status = clReleaseMemObject(GLOBAL_finito_Buffer);
+    if(status!=CL_SUCCESS)
+	  {
+		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_finito_Buffer)\n");
+		  return false; 
+  	}
 	}
 
   // release cl objects
-  status = clReleaseKernel(kernel);
-  if(status!=CL_SUCCESS)
+  if (kernel!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseKernel \n");
-    return false; 
+    status = clReleaseKernel(kernel);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseKernel \n");
+      return false; 
+    }
   }
 
-  status = clReleaseCommandQueue(commandQueue);
-  if(status!=CL_SUCCESS)
+  if (commandQueue!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseCommandQueue\n");
-    return false;
+    status = clReleaseCommandQueue(commandQueue);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseCommandQueue\n");
+      return false;
+    }
   }
 
-  status = clReleaseProgram(program);
-  if(status!=CL_SUCCESS)
+  if (program!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseProgram\n");
-    return false; 
+    status = clReleaseProgram(program);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseProgram\n");
+      return false; 
+    }
   }
 
-  status = clReleaseContext(context);
-  if(status!=CL_SUCCESS)
+  if (context!=NULL)
   {
-    print_debug((char *)"Error: In clReleaseContext\n");
-    return false;
+    status = clReleaseContext(context);
+    if(status!=CL_SUCCESS)
+    {
+      print_debug((char *)"Error: In clReleaseContext\n");
+      return false;
+    }
   }
 
   free(devices);
