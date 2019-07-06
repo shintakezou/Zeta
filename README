@@ -50,7 +50,7 @@ Where p is the selected platform id and d is the selected device id.
 
 Third rename the created config file to config.txt and start the engine.
 
-To play against the engine use an CECP v2 protocol capable chess GUI
+To play against the engine use an CECP v2 aka. xboard protocol capable chess GUI
 like Arena, Cutechess, Winboard or Xboard.
 
 Alternatively you can use Xboard commmands directly on commmand Line,
@@ -61,7 +61,7 @@ go             // let engine play site to move
 usermove d7d5  // let engine apply usermove in coordinate algebraic
                // notation and optionally start thinking
 
-The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes
+The implemented Time Control is a bit shacky, tuned for 40 moves in 4 minutes.
 
 Not supported Xboard commands:
 analyze        // enter analyze mode
@@ -75,7 +75,7 @@ Non-Xboard commands:
 perft          // perform a performance test, depth set by sd command
 selftest       // run an internal test
 help           // print usage info
-log            // turn log on
+log            // turn log on/off
 benchsmp       // init with new and sd and st commands
                // runs an benchmark for parallel speedup
 benchhyatt24   // init with sd and st commands
