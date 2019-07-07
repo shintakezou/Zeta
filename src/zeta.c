@@ -66,7 +66,7 @@ s32 opencl_device_id    =  0;
 s32 opencl_platform_id  =  0;
 s32 opencl_user_device  = -1;
 s32 opencl_user_platform= -1;
-s32 opencl_gpugen       =  1;
+s32 opencl_gpugen       =  0;
 // further config
 s32 search_depth        =  0;
 // timers

@@ -757,11 +757,22 @@ bool cl_guess_config(bool extreme)
           }
         }
 
-        fprintf(stdout, "#> OK, GPGPU gen: %i\n",opencl_gpugen);
-        if (LogFile)
+        if (opencl_gpugen>=1)
         {
-          fprintdate(LogFile);
-          fprintf(LogFile, "#> OK, GPGPU gen: %i\n",opencl_gpugen);
+          fprintf(stdout, "#> OK, GPGPU gen: %i >= 1\n",opencl_gpugen);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> OK, GPGPU gen: %i >= 1\n",opencl_gpugen);
+          }
+        }
+        else {
+          fprintf(stdout, "#> Error, GPGPU gen: %i < 1\n",opencl_gpugen);
+          if (LogFile)
+          {
+            fprintdate(LogFile);
+            fprintf(LogFile, "#> Error, GPGPU gen: %i < 1\n",opencl_gpugen);
+          }
         }
 
         if (failed)
