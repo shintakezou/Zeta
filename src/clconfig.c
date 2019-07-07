@@ -312,6 +312,8 @@ bool cl_guess_config(bool extreme)
               fprintdate(LogFile);
               fprintf(LogFile, "#> Error: Device Endianness is not little\n");
             }
+            // had no chance to test Big Endian systems,
+            // comment out the below line if you think it may work...
             failed |= true;
           }
         }
