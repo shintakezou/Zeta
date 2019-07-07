@@ -533,7 +533,7 @@ bool cl_guess_config(bool extreme)
         }
 */
         
-        // local 32 bit atomics
+        // local 32 bit atomics (add..)
         flint32 = false;
         if ((!strstr(ExtensionsValue, "cl_khr_local_int32_base_atomics")))
         {
@@ -554,17 +554,16 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_local_int32_base_atomics is supported.\n");
           }
         }
-        // local 32 bit atomics
-/*
+        // local 32 bit extended atomics (min, max,..)
         if ((!strstr(ExtensionsValue, "cl_khr_local_int32_extended_atomics")))
         {
+          flint32 = false;
           fprintf(stdout, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
           }
-          failed |= true;
         }
         else
         {
@@ -575,7 +574,6 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, Device extension cl_khr_local_int32_extended_atomics is supported.\n");
           }
         }
-*/
         // 64 bit atomics, Nvidia >= sm35 does not report the support
         flint64 = false;
         if ((!strstr(ExtensionsValue, "cl_khr_int64_extended_atomics")))
