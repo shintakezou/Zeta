@@ -1275,6 +1275,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_BOARD_Buffer)\n");
       return false; 
     }
+    GLOBAL_BOARD_Buffer=NULL;
   }
 
   if (GLOBAL_COUNTERS_Buffer!=NULL)
@@ -1285,6 +1286,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_COUNTERS_Buffer)\n");
       return false; 
     }
+    GLOBAL_COUNTERS_Buffer=NULL;
   }
 
   if (GLOBAL_RNUMBERS_Buffer!=NULL)
@@ -1295,6 +1297,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_RNUMBERS_Buffer)\n");
       return false; 
     }
+    GLOBAL_RNUMBERS_Buffer=NULL;
   }
 
   if (GLOBAL_PV_Buffer!=NULL)
@@ -1305,6 +1308,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_PV_Buffer)\n");
       return false; 
     }
+    GLOBAL_PV_Buffer=NULL;
   }
 
   if (GLOBAL_globalbbMoves1_Buffer!=NULL)
@@ -1315,6 +1319,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves1_Buffer)\n");
       return false; 
     }
+    GLOBAL_globalbbMoves1_Buffer=NULL;
   }
 
   if (GLOBAL_globalbbMoves2_Buffer!=NULL)
@@ -1325,6 +1330,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_globalbbMoves2_Buffer)\n");
       return false; 
     }
+    GLOBAL_globalbbMoves2_Buffer=NULL;
   }
 
   if (GLOBAL_HASHHISTORY_Buffer!=NULL)
@@ -1335,6 +1341,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_HASHHISTORY_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_HASHHISTORY_Buffer=NULL;
 	}
 
   if (GLOBAL_bbInBetween_Buffer!=NULL)
@@ -1345,6 +1352,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbInBetween_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_bbInBetween_Buffer=NULL;
 	}
 
   if (GLOBAL_bbLine_Buffer!=NULL)
@@ -1355,6 +1363,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_bbLine_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_bbLine_Buffer=NULL;
 	}
 
   if (GLOBAL_TT1_Buffer!=NULL)
@@ -1365,6 +1374,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT1_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_TT1_Buffer=NULL;
 	}
 
   if (GLOBAL_TT2_Buffer!=NULL)
@@ -1375,6 +1385,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT2_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_TT2_Buffer=NULL;
 	}
 
 /*
@@ -1386,6 +1397,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_TT3_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_TT3_Buffer=NULL;
 	}
 */
 
@@ -1397,6 +1409,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Killer_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_Killer_Buffer=NULL;
 	}
 
   if (GLOBAL_Counter_Buffer!=NULL)
@@ -1407,6 +1420,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_Counter_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_Counter_Buffer=NULL;
 	}
 
   if (GLOBAL_finito_Buffer!=NULL)
@@ -1417,6 +1431,7 @@ bool cl_release_device(void)
 		  print_debug((char *)"Error: In clReleaseMemObject (GLOBAL_finito_Buffer)\n");
 		  return false; 
   	}
+    GLOBAL_finito_Buffer=NULL;
 	}
 
   // release cl objects
@@ -1428,6 +1443,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseKernel \n");
       return false; 
     }
+    kernel=NULL;
   }
 
   if (commandQueue!=NULL)
@@ -1438,6 +1454,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseCommandQueue\n");
       return false;
     }
+    commandQueue=NULL;
   }
 
   if (program!=NULL)
@@ -1448,6 +1465,7 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseProgram\n");
       return false; 
     }
+    program=NULL;
   }
 
   if (context!=NULL)
@@ -1458,10 +1476,15 @@ bool cl_release_device(void)
       print_debug((char *)"Error: In clReleaseContext\n");
       return false;
     }
+    context=NULL;
   }
 
-  free(devices);
-
+  if (devices!=NULL)
+  {
+    free(devices);
+    devices=NULL;
+  }
+  
 	return true;
 }
 // debug printing
