@@ -509,7 +509,7 @@ void print_help(void)
   fprintf(stdout,"################################################################################\n");
   fprintf(stdout,"### Options\n");
   fprintf(stdout,"################################################################################\n");
-  fprintf(stdout," -l, --log          Write output/debug to file zeta.log\n");
+  fprintf(stdout," -l, --log          Write output/debug to file %s\n", LOGFILE);
   fprintf(stdout," -v, --version      Print Zeta version info.\n");
   fprintf(stdout," -h, --help         Print Zeta program usage help.\n");
   fprintf(stdout," -s, --selftest     Run an internal test, usefull after compile.\n");

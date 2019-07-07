@@ -820,14 +820,14 @@ bool cl_guess_config(bool extreme)
         if (npstmp<=0)
         {
           fprintf(stdout, "#\n");
-          fprintf(stdout, "#> ### Benchmark FAILED, see zeta.log file for more info... \n");
+          fprintf(stdout, "#> ### Benchmark FAILED, see %s file for more info... \n", LOGFILE);
           fprintf(stdout, "#\n");
           if (LogFile)
           {
             fprintdate(LogFile);
             fprintf(LogFile, "#\n");
             fprintdate(LogFile);
-            fprintf(LogFile, "#> ### Benchmark FAILED, see zeta.log file for more info... \n");
+            fprintf(LogFile, "#> ### Benchmark FAILED, see %s file for more info... \n", LOGFILE);
             fprintdate(LogFile);
             fprintf(LogFile, "#\n");
           }
