@@ -580,11 +580,11 @@ bool cl_guess_config(bool extreme)
         flint64 = false;
         if ((!strstr(ExtensionsValue, "cl_khr_int64_extended_atomics")))
         {
-          fprintf(stdout, "#> OK: Device extension cl_khr_int64_extended_atomics not supported.\n");
+          fprintf(stdout, "#> OK, Device extension cl_khr_int64_extended_atomics not supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> OK: Device extension cl_khr_int64_extended_atomics not supported.\n");
+            fprintf(LogFile, "#> OK, Device extension cl_khr_int64_extended_atomics not supported.\n");
           }
         }
         else

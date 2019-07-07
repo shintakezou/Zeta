@@ -1496,7 +1496,7 @@ void print_debug(char *debug)
   fprintdate(Stats);
   fprintf(Stats, "%s", debug);
   fprintdate(Stats);
-  fprintf(Stats, "OpenCL Error Code:%i\n", status);
+  fprintf(Stats, "OpenCL Error Code: %i\n", status);
   if (status == CL_DEVICE_NOT_AVAILABLE) // case for older intel cpus < SSE4.2
   {
     fprintdate(Stats);
