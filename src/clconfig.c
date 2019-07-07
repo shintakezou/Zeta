@@ -756,6 +756,14 @@ bool cl_guess_config(bool extreme)
             fprintf(LogFile, "#> OK, CL_DEVICE_AVAILABLE: CL_TRUE \n");
           }
         }
+
+        fprintf(stdout, "#> OK, GPGPU gen: %i\n",opencl_gpugen);
+        if (LogFile)
+        {
+          fprintdate(LogFile);
+          fprintf(LogFile, "#> OK, GPGPU gen: %i\n",opencl_gpugen);
+        }
+
         if (failed)
           continue;
         // print temp config file
