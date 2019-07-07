@@ -549,7 +549,7 @@ bool read_and_init_config(char configfile[])
     fprintf(stdout, "or --help option for further options\n");
 
     if (LogFile==NULL)
-      LogFile = fopen("zeta.log", "a");
+      LogFile = fopen(LOGFILE, "a");
     if (LogFile)
     {
       fprintdate(LogFile);

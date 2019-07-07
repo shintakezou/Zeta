@@ -23,6 +23,7 @@
 #include <stdlib.h>     // for alloc
 
 #include "timer.h"
+#include "types.h"      // types and defaults and macros 
 #include "zeta.h"       // for global vars
 
 static cl_int status = 0;
@@ -171,7 +172,7 @@ bool cl_init_device(char *kernelname)
                                      NULL
                                     );
       //build_log[log_size] = '\0';
-      temp = fopen("zeta.log", "a");
+      temp = fopen(LOGFILE, "a");
       fprintdate(temp);
       fprintf(temp, "buildlog: %s \n", build_log);
       fclose(temp);
@@ -241,7 +242,7 @@ bool cl_init_device(char *kernelname)
                                      NULL
                                     );
       //build_log[log_size] = '\0';
-      temp = fopen("zeta.log", "a");
+      temp = fopen(LOGFILE, "a");
       fprintdate(temp);
       fprintf(temp, "buildlog: %s \n", build_log);
       fclose(temp);
@@ -1491,7 +1492,7 @@ bool cl_release_device(void)
 void print_debug(char *debug)
 {
   FILE 	*Stats;
-  Stats = fopen("zeta.log", "a");
+  Stats = fopen(LOGFILE, "a");
   fprintdate(Stats);
   fprintf(Stats, "%s", debug);
   fprintdate(Stats);
