@@ -22,20 +22,16 @@
 // 1st generation gpgpu devices
 // for setting termination flag
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics         : enable
-
 // 2nd generation gpgpu devices
 // for collecting movecounter and score via local atomics
 #pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics          : enable
 #pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics      : enable
-
 // 3rd generation gpgpu devices
 // for collecting bbAttacks and Hash
 #pragma OPENCL EXTENSION cl_khr_int64_extended_atomics            : enable
-
 // otpional
 //#pragma OPENCL EXTENSION cl_khr_byte_addressable_store          : enable
-
-// hasck for nvidia OpenCL 1.0 devices
+// hack for nvidia OpenCL 1.0 devices
 #if __OPENCL_VERSION__ < 110
 #define OLDSCHOOL
 #endif
@@ -57,7 +53,6 @@ typedef s32     Score;
 typedef s16     TTScore;
 typedef u8      Square;
 typedef u8      Piece;
-
 
 // transposition table entry
 typedef struct
@@ -107,7 +102,7 @@ typedef struct
 // defaults
 #define VERSION      "099m"
 // quad bitboard array index definition
-#define QBBBLACK        0     // pieces white
+#define QBBBLACK        0     // pieces black
 #define QBBP1           1     // piece type first bit
 #define QBBP2           2     // piece type second bit
 #define QBBP3           3     // piece type third bit
@@ -2513,7 +2508,6 @@ __kernel void alphabeta_gpu(
 
       n++;
     }
-
   } // end collect pv
 } // end kernel alphabeta_gpu
 

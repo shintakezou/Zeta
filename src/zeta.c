@@ -98,7 +98,7 @@ Bitboard *HMCHistory;
 // by Gerd Isenberg
 Bitboard BOARD[7];
 /* quad bitboard array index definition
-  0   pieces white
+  0   pieces black
   1   piece type first bit
   2   piece type second bit
   3   piece type third bit

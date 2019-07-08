@@ -22,9 +22,8 @@
 #ifndef TYPES_H_INCLUDED
 #define TYPES_H_INCLUDED
 
-#include <inttypes.h>   // for nice u64 printf 
- 
-#include <cl.h>      // for OpenCL data types etc.
+#include <inttypes.h>   // for nice u64 printf  
+#include <cl.h>         // for OpenCL data types etc.
 
 // ### consider also zeta.cl file ###
 
@@ -58,7 +57,7 @@ typedef u8 Rank;
 #define VERSION "099m"
 #define LOGFILE "zeta.log"
 // quad bitboard array index definition
-#define QBBBLACK  0     // pieces white
+#define QBBBLACK  0     // pieces black
 #define QBBP1     1     // piece type first bit
 #define QBBP2     2     // piece type second bit
 #define QBBP3     3     // piece type third bit
@@ -204,8 +203,6 @@ enum Squares
 // is score default inf
 #define ISINF(val) \
 (((val)==INF||(val)==-INF)?true:false)
-// node type flags
-
 // transposition table entry
 typedef struct
 {
