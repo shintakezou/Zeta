@@ -560,11 +560,11 @@ bool cl_guess_config(bool extreme)
         if ((!strstr(ExtensionsValue, "cl_khr_local_int32_extended_atomics")))
         {
           flint32 = false;
-          fprintf(stdout, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
+          fprintf(stdout, "#> OK: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
           if (LogFile)
           {
             fprintdate(LogFile);
-            fprintf(LogFile, "#> Error: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
+            fprintf(LogFile, "#> OK: Device extension cl_khr_local_int32_extended_atomics not supported.\n");
           }
         }
         else
