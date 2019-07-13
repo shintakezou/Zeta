@@ -3,7 +3,7 @@
   Description:  Experimental chess engine written in OpenCL
   Author:       Srdja Matovic <s.matovic@app26.de>
   Created at:   2011-06-23
-  Updated at:   2019
+  Updated at:   2019-07-13
   License:      GPL >= v2
 
   Copyright (C) 2011-2019 Srdja Matovic

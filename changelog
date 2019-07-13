@@ -1,3 +1,16 @@
+Zeta (099m) alpha; urgency=medium
+
+  * patch for ABDADA parallel search
+  * disabled RMO parallel search
+  * removed max device memory limitation
+  * mods in time control
+  * cleanups
+  *
+  * Zeta 099m on Nvidia V100, 160 workers, ~ 13.5 Mnps
+  * Zeta 099m on Nvidia V100, 1 worker, ~ 85 Knps
+
+ -- Srdja Matovic <s.matovic@app26.de> 13 Jul 2019
+
 Zeta (099l) alpha; urgency=low
 
   * patch for parallel search scaling
