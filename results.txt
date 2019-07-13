@@ -42,6 +42,7 @@
 
 ################################################################################
 # Zeta 099m, startposition, depth 12, best of 4 runs, Nvidia V100:
+# tt1: 2048 MB, tt2: 1536 MB
 #
 ### workers #nps          #nps speedup   #time in s   #ttd speedup   #relative ttd speedup ###
 ### 1       86827         1.000000       156.586000   1.000000       1.000000 
